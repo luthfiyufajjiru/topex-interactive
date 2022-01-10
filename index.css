@@ -76,6 +76,7 @@
   background-color: dodgerblue;
   display: flex;
   justify-content: center;
+  overflow: hidden;
 }
 
 #footer-content-love {
