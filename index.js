@@ -51,3 +51,7 @@ map.on(L.Draw.Event.CREATED, function (event) {
     layerCount++;
   }
 });
+
+map.on(L.Draw.Event.DELETED, function (event) {
+  layerCount--;
+});
