@@ -1,3 +1,29 @@
+var blankdata = [];
+
+for (var i = 0; i < 10; i++) {
+  blankdata.push({ 0: "", 1: "", 2: "", 3: "" });
+}
+
+let data = [];
+
+jspreadsheet(document.getElementById("spreadsheet"), {
+  data: data,
+  minDimensions: [4, 10],
+  defaultColWidth: 100,
+  tableOverflow: true,
+  tableWidth: "800px",
+  columns: [
+    { type: "number", title: "Longitude", width: 200 },
+    { type: "number", title: "Latitude", width: 200 },
+    { type: "number", title: "Elevation", width: 200 },
+    { type: "number", title: "Gravity", width: 200 }
+  ]
+});
+
+let myTable = jspreadsheet.getElement(
+  document.getElementById("spreadsheet")
+)[0]["jspreadsheet"];
+
 let L = window.L;
 
 var gmap = L.tileLayer(
@@ -71,6 +97,11 @@ map.on(L.Draw.Event.CREATED, function (event) {
     west.value = boundaries.getWest();
     east.value = boundaries.getEast();
     south.value = boundaries.getSouth();
+
+    north.removeAttribute("disabled");
+    west.removeAttribute("disabled");
+    east.removeAttribute("disabled");
+    south.removeAttribute("disabled");
   }
 });
 
@@ -106,6 +137,13 @@ map.on(L.Draw.Event.DELETED, function (event) {
   west.value = "";
   east.value = "";
   south.value = "";
+
+  north.disabled = true;
+  east.disabled = true;
+  west.disabled = true;
+  south.disabled = true;
+
+  myTable.setData(blankdata);
 });
 
 north.addEventListener("change", () => {
@@ -168,21 +206,74 @@ document.getElementById("data-switch").addEventListener("change", () => {
 
 let baseUri = "https://topex-downloader-api.herokuapp.com/api/v1/";
 
-async function fetchElevation() {
-  if (boundaries != null) {
-    let endpoint = baseUri + "elevation?";
-    endpoint += `north=${parseFloat(north.value)}&`;
-    endpoint += `west=${parseFloat(west.value)}&`;
-    endpoint += `east=${parseFloat(east.value)}&`;
-    endpoint += `south=${parseFloat(south.value)}`;
-    console.log(endpoint);
-    try {
-      let response = await fetch(endpoint, { mode: "no-cors" });
-      if (response.ok) {
-        const jsonResponse = await response.json();
-      }
-    } catch (error) {
-      console.log(error);
+async function fetchData(mode) {
+  let endpoint = baseUri + `${mode}?`;
+  endpoint += `north=${parseFloat(north.value)}&`;
+  endpoint += `west=${parseFloat(west.value)}&`;
+  endpoint += `east=${parseFloat(east.value)}&`;
+  endpoint += `south=${parseFloat(south.value)}`;
+
+  let result;
+
+  try {
+    const response = await fetch(endpoint);
+    if (response.ok) {
+      const jsonResponse = await response.json();
+      result = jsonResponse;
     }
+  } catch (error) {
+    console.log(error);
   }
+  return result;
 }
+
+let fetchTopex = async () => {
+  let _elevation;
+
+  if (withGravity) {
+    let _gravity;
+
+    _elevation = await fetchData("elevation").then(async (r) => {
+      return await r;
+    });
+
+    _gravity = await fetchData("gravity").then(async (r) => {
+      return await r;
+    });
+
+    if (_gravity.length == _elevation.length) {
+      let _data = [];
+
+      for (var i = 0; i < _elevation.length; i++) {
+        if (
+          _elevation[i].longitude === _gravity[i].longitude &&
+          _elevation[i].latitude === _gravity[i].latitude
+        ) {
+          _data.push({
+            0: _elevation[i].longitude,
+            1: _elevation[i].latitude,
+            2: _elevation[i].value,
+            3: _gravity[i].value
+          });
+        }
+      }
+      myTable.setData(_data);
+    }
+  } else if (!withGravity) {
+    _elevation = await fetchData("elevation").then(async (r) => {
+      return await r;
+    });
+
+    let _data = _elevation.map((i) => {
+      return { 0: i.longitude, 1: i.latitude, 2: i.value };
+    });
+
+    myTable.setData(_data);
+  }
+};
+
+let fetchButton = document.getElementById("fetch-data");
+
+fetchButton.addEventListener("click", () => {
+  fetchTopex();
+});
