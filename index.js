@@ -1,3 +1,10 @@
+var tooltipTriggerList = [].slice.call(
+  document.querySelectorAll('[data-bs-toggle="tooltip"]')
+);
+var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+  return new bootstrap.Tooltip(tooltipTriggerEl);
+});
+
 var blankdata = [];
 
 for (var i = 0; i < 10; i++) {
@@ -11,7 +18,7 @@ jspreadsheet(document.getElementById("spreadsheet"), {
   minDimensions: [4, 10],
   defaultColWidth: 100,
   tableOverflow: true,
-  tableWidth: "800px",
+  tableWidth: "fit-content",
   columns: [
     { type: "number", title: "Longitude", width: 200 },
     { type: "number", title: "Latitude", width: 200 },
@@ -102,6 +109,8 @@ map.on(L.Draw.Event.CREATED, function (event) {
     west.removeAttribute("disabled");
     east.removeAttribute("disabled");
     south.removeAttribute("disabled");
+
+    $("#fetch-data").prop("disabled", false);
   }
 });
 
@@ -144,6 +153,7 @@ map.on(L.Draw.Event.DELETED, function (event) {
   south.disabled = true;
 
   myTable.setData(blankdata);
+  $("#fetch-data").prop("disabled", true);
 });
 
 north.addEventListener("change", () => {
@@ -227,6 +237,8 @@ async function fetchData(mode) {
   return result;
 }
 
+let overlaySpinner = document.getElementById("overlay-spinner");
+
 let fetchTopex = async () => {
   let _elevation;
 
@@ -274,6 +286,12 @@ let fetchTopex = async () => {
 
 let fetchButton = document.getElementById("fetch-data");
 
-fetchButton.addEventListener("click", () => {
-  fetchTopex();
+fetchButton.addEventListener("click", async () => {
+  $("#overlay-spinner").fadeIn();
+  try {
+    await fetchTopex();
+  } catch (error) {
+  } finally {
+    $("#overlay-spinner").fadeOut();
+  }
 });
