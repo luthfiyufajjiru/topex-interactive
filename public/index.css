@@ -1,0 +1,141 @@
+:root {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  --jexcel_header_color: #000;
+  --jexcel_header_color_highlighted: #000;
+  --jexcel_header_background: #f3f3f3;
+  --jexcel_header_background_highlighted: #dcdcdc;
+  --jexcel_content_color: #000;
+  --jexcel_content_color_highlighted: #000;
+  --jexcel_content_background: #fff;
+  --jexcel_content_background_highlighted: rgba(0, 0, 0, 0.05);
+  --jexcel_menu_background: #fff;
+  --jexcel_menu_background_highlighted: #ebebeb;
+  --jexcel_menu_color: #555;
+  --jexcel_menu_color_highlighted: #555;
+  --jexcel_menu_box_shadow: 2px 2px 2px 0px rgba(143, 144, 145, 0);
+  --jexcel_border_color: #ccc;
+  --jexcel_border_color_highlighted: #000;
+  --active_color: #007aff;
+}
+
+.jexcel_content {
+  box-shadow: 0 0 0px rgba(0, 0, 0, 0) !important;
+}
+
+#page-container {
+  position: relative;
+  min-height: 100vh;
+}
+
+#content-wrap {
+  padding-bottom: 3rem;
+}
+
+#nav-title {
+  font-size: 18pt;
+  font-weight: 600;
+}
+
+#overlay-spinner {
+  background: #525252e0;
+  color: #cfcfcf;
+  position: fixed;
+  height: 100%;
+  width: 100%;
+  z-index: 5000;
+  top: 0;
+  left: 0;
+  float: left;
+  text-align: center;
+  padding-top: 50vh;
+  opacity: 0.9;
+}
+
+.spinner {
+  margin: 0 auto;
+  height: 64px;
+  width: 64px;
+  animation: rotate 0.8s infinite linear;
+  border: 5px solid rgb(84, 107, 238);
+  border-right-color: transparent;
+  border-radius: 50%;
+  z-index: 5001;
+}
+@keyframes rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+#data-switch {
+  margin: auto 10px auto;
+  width: fit-content;
+}
+
+.disclaimer {
+  margin: 10px;
+}
+
+#linkedin{
+  text-decoration: none;
+  color:rgb(153, 238, 84);
+}
+
+.coordinates {
+  margin: auto auto 2vh;
+  padding: 10px 25vw 10px;
+}
+
+.coordinates input {
+  text-align: center;
+}
+
+.coordinates-container {
+  height: fit-content;
+}
+
+.wrapper-coordinate {
+  padding-top: 10px;
+}
+
+.btn-download {
+  background-color: DodgerBlue;
+  border: none;
+  color: white;
+  padding: 12px 30px;
+  cursor: pointer;
+  font-size: 20px;
+}
+
+/* Darker background on mouse-over */
+.btn-download:hover {
+  background-color: RoyalBlue;
+}
+
+#spreadsheet-wrapper {
+  padding: 4pt 10pt 10pt;
+  background-color: dodgerblue;
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+}
+
+#footer-content-love {
+  color: red;
+}
+
+#footer-content {
+  padding: 10px 10px 10px;
+}
+
+footer {
+  position: absolute;
+  color: whitesmoke;
+  bottom: 0;
+  width: 100%;
+  height: 3rem; /* Footer height */
+  background-color: #212529;
+}
