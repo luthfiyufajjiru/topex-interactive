@@ -18,6 +18,11 @@
   --active_color: #007aff;
 }
 
+#map {
+  height: 60vh;
+  margin: 10px;
+}
+
 .jexcel_content {
   box-shadow: 0 0 0px rgba(0, 0, 0, 0) !important;
 }
