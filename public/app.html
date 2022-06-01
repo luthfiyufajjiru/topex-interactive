@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Topex Interactive Downloader</title>
+    <link rel="icon" href="./assets/icon.ico" type="image/icon type">
+    <link rel="stylesheet" href="scripts/libs/leaflet/leaflet.css" />
+    <link rel="stylesheet" href="scripts/libs/leaflet/leaflet.draw.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://bossanova.uk/jspreadsheet/v4/jexcel.css" type="text/css" />
+    <link rel="stylesheet" href="https://jsuites.net/v4/jsuites.css" type="text/css" />
+    <link rel="stylesheet" href="styles/index.css" />
+    <script src="scripts/libs/leaflet/leaflet-src.js"></script>
+    <script src="scripts/libs/leaflet/Leaflet.draw.js"></script>
+    <script src="scripts/libs/leaflet/Leaflet.Draw.Event.js"></script>
+    <script src="scripts/libs/leaflet/Toolbar.js"></script>
+    <script src="scripts/libs/leaflet/Tooltip.js"></script>
+    <script src="scripts/libs/leaflet/ext/GeometryUtil.js"></script>
+    <script src="scripts/libs/leaflet/ext/LatLngUtil.js"></script>
+    <script src="scripts/libs/leaflet/ext/LineUtil.Intersect.js"></script>
+    <script src="scripts/libs/leaflet/ext/Polygon.Intersect.js"></script>
+    <script src="scripts/libs/leaflet/ext/Polyline.Intersect.js"></script>
+    <script src="scripts/libs/leaflet/ext/TouchEvents.js"></script>
+    <script src="scripts/libs/leaflet/draw/DrawToolbar.js"></script>
+    <script src="scripts/libs/leaflet/draw/handler/Draw.Feature.js"></script>
+    <script src="scripts/libs/leaflet/draw/handler/Draw.SimpleShape.js"></script>
+    <script src="scripts/libs/leaflet/draw/handler/Draw.Rectangle.js"></script>
+    <script src="scripts/libs/leaflet/edit/EditToolbar.js"></script>
+    <script src="scripts/libs/leaflet/edit/handler/EditToolbar.Edit.js"></script>
+    <script src="scripts/libs/leaflet/edit/handler/EditToolbar.Delete.js"></script>
+    <script src="scripts/libs/leaflet/Control.Draw.js"></script>
+    <script src="scripts/libs/leaflet/edit/handler/Edit.SimpleShape.js"></script>
+    <script src="scripts/libs/leaflet/edit/handler/Edit.Rectangle.js"></script>
+    <script src="https://bossanova.uk/jspreadsheet/v4/jexcel.js"></script>
+    <script src="https://jsuites.net/v4/jsuites.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.slim.min.js" integrity="sha256-u7e5khyithlIdTpu22PHhENmPcRdFiHRjhAuHcs05RI=" crossorigin="anonymous"></script>
+  </head>
+  <body>
+    <div id="page-container">
+      <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+          <a class="navbar-brand" id="nav-title" href="#">Topex Interactive Downloader</a>
+        </div>
+      </nav>
+
+      <div id="content-wrap">
+        <div id="map"></div>
+
+        <div id="data-switch" class="form-check form-switch" data-bs-toggle="tooltip" data-bs-placement="top" title="By default, you are fetching elevation data, this toggle is also fetching free air anomaly on the same area">
+          <input class="form-check-input" type="checkbox" role="switch" id="flexSwitchCheckDefault">
+          <label class="form-check-label" for="flexSwitchCheckDefault">Including Free Air Gravity</label>
+        </div>
+
+        <div class="coordinates">
+
+          <div class="coordinates-container">
+            <div class="row justify-content-center">
+              <div class="wrapper-coordinate col-6">
+                <input type="number" class="form-control" id="north" max="80.738" min="-80.738" step="0.1" placeholder="North" disabled>
+              </div>
+            </div>
+          </div>
+
+          <div class="coordinates-container">
+            <div class="row justify-content-center">
+              <div class="wrapper-coordinate col">
+                <input type="number" class="form-control" id="west" max="360" min="-360" step="0.1" placeholder="West" disabled>
+              </div>
+
+              <div class="wrapper-coordinate col">
+                <input type="number" class="form-control" id="east" max="360" min="-360" step="0.1" placeholder="East" disabled>
+              </div>
+            </div>
+          </div>
+
+          <div class="coordinates-container">
+            <div class="row justify-content-center">
+              <div class="wrapper-coordinate col-6">
+                <input type="number" class="form-control" id="south" max="80.738" min="-80.738" step="0.1" placeholder="South" disabled>
+              </div>
+            </div>
+          </div> 
+
+        </div>
+        
+        <button type="button" id= "fetch-data" class="btn-download" style="width:100%" disabled><i class="fa fa-download"></i> Fetch</button>
+        
+        <div id="overlay-spinner" style="display:none;" >
+          <div class="spinner"></div>
+          <br/>
+          Fetching...
+        </div>
+
+        <div id="spreadsheet-wrapper">
+          <div id="spreadsheet"></div>
+        </div>
+
+        <div class = "disclaimer">
+          <strong>Disclaimer</strong>
+          <div>
+            We are not owning the corresponding data, the data set are belongs to Scripps Institution of Oceanography, University
+            of California San Diego. You can also visit the original data source downloader <a target="_blank" href="https://topex.ucsd.edu/cgi-bin/get_data.cgi">Here</a>
+          </div>
+        </div>
+      </div>
+
+      <footer id="footer-content">
+        Made with <span id="footer-content-love">&#10084</span> by <a id ="linkedin" target="_blank" href="https://www.linkedin.com/in/yufajjiru/">Luthfi Yufajjiru</a> 2022
+      </footer>
+    </div>
+    
+    <script type="module" src="scripts/firebase.config.js"></script>
+    <script type="module" src="scripts/index.js"></script>
+    <script type="module" src="scripts/app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-pprn3073KE6tl6bjs2QrFaJGz5/SUsLqktiwsUTF55Jfv3qYSDhgCecCxMW52nD2" crossorigin="anonymous"></script>
+  </body>
+</html>
