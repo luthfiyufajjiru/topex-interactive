@@ -248,7 +248,7 @@ async function fetchData(mode) {
   let result;
 
   try {
-    const response = await fetch(endpoint);
+    const response = await fetch(endpoint, {headers:{'mode':'no-cors'}});
     if (response.ok) {
       const jsonResponse = await response.json();
       result = jsonResponse;
