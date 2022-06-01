@@ -33,6 +33,8 @@ jspreadsheet(document.getElementById("spreadsheet"), {
   data: data,
   minDimensions: [4, 10],
   defaultColWidth: 100,
+  lazyLoading: true,
+  lazyColumns: true,
   tableOverflow: true,
   tableWidth: "fit-content",
   columns: [
@@ -75,6 +77,7 @@ L.control
     }
   )
   .addTo(map);
+
 map.addControl(
   new L.Control.Draw({
     edit: {
@@ -94,15 +97,6 @@ map.addControl(
 
 let layerCount = 0;
 
-let bindCoordinates = () => {
-  for (var i in map._layers[32]._layers) {
-    var _ = map._layers[32]._layers[i]._latlngs[0];
-    return _.map((a) => {
-      return { ...a };
-    });
-  }
-};
-
 let boundaries;
 
 let north = document.getElementById("north");
@@ -121,6 +115,11 @@ map.on(L.Draw.Event.CREATED, function (event) {
     east.value = boundaries.getEast();
     south.value = boundaries.getSouth();
 
+    north.min = south.value
+    south.max = north.value
+    east.min = west.value
+    west.max = east.value
+
     north.removeAttribute("disabled");
     west.removeAttribute("disabled");
     east.removeAttribute("disabled");
@@ -137,6 +136,11 @@ map.on(L.Draw.Event.EDITRESIZE, function (event) {
   west.value = boundaries.getWest();
   east.value = boundaries.getEast();
   south.value = boundaries.getSouth();
+
+  north.min = south.value
+  south.max = north.value
+  east.min = west.value
+  west.max = east.value
 });
 
 map.on(L.Draw.Event.EDITMOVE, function (event) {
@@ -146,6 +150,11 @@ map.on(L.Draw.Event.EDITMOVE, function (event) {
   west.value = boundaries.getWest();
   east.value = boundaries.getEast();
   south.value = boundaries.getSouth();
+
+  north.min = south.value
+  south.max = north.value
+  east.min = west.value
+  west.max = east.value
 });
 
 map.on(L.Draw.Event.EDITED, function (event) {
@@ -154,6 +163,11 @@ map.on(L.Draw.Event.EDITED, function (event) {
   west.value = boundaries.getWest();
   east.value = boundaries.getEast();
   south.value = boundaries.getSouth();
+
+  north.min = south.value
+  south.max = north.value
+  east.min = west.value
+  west.max = east.value
 });
 
 map.on(L.Draw.Event.DELETED, function (event) {
@@ -175,48 +189,40 @@ map.on(L.Draw.Event.DELETED, function (event) {
 north.addEventListener("change", () => {
   if (boundaries != null) {
     let val = parseFloat(north.value);
-    if (val > boundaries._northEast.lat) {
-      boundaries._northEast.lat += parseFloat(north.step);
-    } else if (val < boundaries._northEast.lat) {
-      boundaries._northEast.lat -= parseFloat(north.step);
-    }
+    boundaries._northEast.lat = val;
     drawnItems.getLayers()[0].setBounds(boundaries);
+    north.min = south.value
+    south.max = north.value
   }
 });
 
 south.addEventListener("change", () => {
   if (boundaries != null) {
     let val = parseFloat(south.value);
-    if (val > boundaries._southWest.lat) {
-      boundaries._southWest.lat += parseFloat(south.step);
-    } else if (val < boundaries._southWest.lat) {
-      boundaries._southWest.lat -= parseFloat(south.step);
-    }
+    boundaries._southWest.lat = val;
     drawnItems.getLayers()[0].setBounds(boundaries);
+    north.min = south.value
+    south.max = north.value
   }
 });
 
 west.addEventListener("change", () => {
   if (boundaries != null) {
     let val = parseFloat(west.value);
-    if (val > boundaries._southWest.lng) {
-      boundaries._southWest.lng += parseFloat(west.step);
-    } else if (val < boundaries._southWest.lng) {
-      boundaries._southWest.lng -= parseFloat(west.step);
-    }
+    boundaries._southWest.lng = val;
     drawnItems.getLayers()[0].setBounds(boundaries);
+    east.min = west.value
+    west.max = east.value
   }
 });
 
 east.addEventListener("change", () => {
   if (boundaries != null) {
     let val = parseFloat(east.value);
-    if (val > boundaries._northEast.lng) {
-      boundaries._northEast.lng += parseFloat(east.step);
-    } else if (val < boundaries._northEast.lng) {
-      boundaries._northEast.lng -= parseFloat(east.step);
-    }
+    boundaries._northEast.lng = val;
     drawnItems.getLayers()[0].setBounds(boundaries);
+    east.min = west.value
+    west.max = east.value
   }
 });
 
@@ -252,8 +258,6 @@ async function fetchData(mode) {
   }
   return result;
 }
-
-let overlaySpinner = document.getElementById("overlay-spinner");
 
 let fetchTopex = async () => {
   let _elevation;
