@@ -1,6 +1,21 @@
 let data = [];
 
 const RenderTable = () => {
+  let width =  200
+
+  if(window.innerWidth > 1100)
+  {
+    width = 250
+  }
+  else if(window.innerWidth > 1280)
+  {
+    width = 300
+  }
+  else if(window.innerWidth > 1600)
+  {
+    width = 400
+  }
+
   jspreadsheet(document.getElementById("spreadsheet"), {
     data: data,
     minDimensions: [4, 10],
@@ -8,12 +23,11 @@ const RenderTable = () => {
     lazyLoading: true,
     lazyColumns: true,
     tableOverflow: true,
-    tableWidth: "fit-content",
     columns: [
-      { type: "number", title: "Longitude", width: 200 },
-      { type: "number", title: "Latitude", width: 200 },
-      { type: "number", title: "Elevation", width: 200 },
-      { type: "number", title: "Gravity", width: 200 }
+      { type: "number", title: "Longitude", width: width },
+      { type: "number", title: "Latitude", width: width },
+      { type: "number", title: "Elevation", width: width },
+      { type: "number", title: "Gravity", width: width }
     ]
   })
   return jspreadsheet.getElement(document.getElementById("spreadsheet"))[0]["jspreadsheet"]

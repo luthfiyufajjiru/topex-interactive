@@ -167,3 +167,27 @@ footer {
   .danger strong {
       color: #d9534f;
   }
+
+@media screen and (max-width: 500px){
+  #spreadsheet .jexcel_content  {
+    width: 350px !important;
+  }
+}
+
+@media screen and (min-width: 500px) and (max-width:600px){
+  #spreadsheet .jexcel_content  {
+    width: 450px !important;
+  }
+}
+
+@media screen and (min-width: 600px) and (max-width:770px){
+  #spreadsheet .jexcel_content  {
+    width: 550px !important;
+  }
+}
+
+@media screen and (min-width: 770px) and (max-width:855px){
+  #spreadsheet .jexcel_content  {
+    width: 750px !important;
+  }
+}
