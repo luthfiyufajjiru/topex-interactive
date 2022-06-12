@@ -1,22 +1,34 @@
 let baseUri = "https://topex-downloader-api.herokuapp.com/api/v1/";
 
-async function fetchData(mode) {
+async function fetchData(mode, workonline) {
+  let result;
+
   let endpoint = baseUri + `${mode}?`;
   endpoint += `north=${parseFloat(north.value)}&`;
   endpoint += `west=${parseFloat(west.value)}&`;
   endpoint += `east=${parseFloat(east.value)}&`;
   endpoint += `south=${parseFloat(south.value)}`;
-
-  let result;
+  
+  if(!workonline){
+    endpoint += '&download=true';
+  }
 
   try {
-    const response = await fetch(endpoint, { headers: { 'mode': 'no-cors' } });
-    if (response.ok) {
+    if(workonline)
+    {
+      const response = await fetch(endpoint, { headers: { 'mode': 'no-cors' } })
       const jsonResponse = await response.json();
-      result = jsonResponse;
+      if (response.ok) {
+        result = jsonResponse;
+      } else if (response.status === 400){
+        throw new Error(jsonResponse.error)
+      }
+    }else if(!workonline){
+      window.open(endpoint, "_blank")
     }
+    
   } catch (error) {
-    console.log(error);
+    throw error
   }
   return result;
 }

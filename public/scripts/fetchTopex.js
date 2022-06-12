@@ -1,7 +1,6 @@
 import fetchData from './fetchData.js'
-import myTable from './Spreadsheets/index.js'
 
-let withGravity = false;
+let withGravity = false
 
 document.getElementById("data-switch").addEventListener("change", () => {
   if (withGravity) {
@@ -11,21 +10,54 @@ document.getElementById("data-switch").addEventListener("change", () => {
   }
 });
 
-let fetchTopex = async () => {
+const RenderWarning = (msg) => {
+  $('body').prepend(
+    `<div class="oaerror danger">
+      <strong>Application Error</strong> - ${msg} Please try again.
+    </div>`
+  );
+
+  setTimeout(function() {
+    $('.oaerror').fadeOut();
+  }, 2000);
+  
+  setTimeout(function() {
+    $('.oaerror').remove();
+  }, 2100);
+  
+}
+
+let fetchTopex = async (myTable, workonline) => {
   let _elevation;
 
-  if (withGravity) {
-    let _gravity;
+  if (withGravity && workonline)
+  {
+    let _gravity
+    let _err1
+    let _err2
+    
+    await Promise.all([
+      fetchData("elevation", workonline)
+      .then(r => r)
+      .catch(err => { _err1 = err.message }),
 
-    _elevation = await fetchData("elevation").then(async (r) => {
-      return await r;
-    });
+      fetchData("gravity", workonline)
+      .then(r => r)
+      .catch(err => { _err2 = err.message })
+    ])
+    .then((res) => {
+      _elevation = res[0]
+      _gravity = res[1]
+    })
 
-    _gravity = await fetchData("gravity").then(async (r) => {
-      return await r;
-    });
-
-    if (_gravity.length == _elevation.length) {
+    if( _err1 != null || _err2 != null)
+    {
+      if( _err1 == _err2)
+      {
+        RenderWarning(_err1)
+      }
+    } 
+    else if (_gravity.length == _elevation.length) {
       let _data = [];
 
       for (var i = 0; i < _elevation.length; i++) {
@@ -43,9 +75,16 @@ let fetchTopex = async () => {
       }
       myTable.setData(_data);
     }
-  } else if (!withGravity) {
-    _elevation = await fetchData("elevation").then(async (r) => {
+  }
+  else if(withGravity && !workonline)
+  {
+    await fetchData("gravity", workonline)
+  }
+  else if (!withGravity) {
+    _elevation = await fetchData("elevation", workonline).then(async (r) => {
       return await r;
+    }).catch(err => {
+      RenderWarning(err.message)
     });
 
     let _data = _elevation.map((i) => {

@@ -75,7 +75,7 @@
   }
 }
 
-#data-switch {
+#content-wrap > .form-switch {
   margin: auto 10px auto;
   width: fit-content;
 }
@@ -144,3 +144,26 @@ footer {
   height: 3rem; /* Footer height */
   background-color: #212529;
 }
+
+.oaerror {
+  position: absolute;
+  width: 80%;
+  background-color: #ffffff;
+  padding: 20px;
+  border: 1px solid #eee;
+  border-left-width: 5px;
+  border-radius: 3px;
+  margin: 10vh 10vw;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  z-index: 9999;
+}
+
+.danger {
+  border-left-color: #d9534f; /* Left side border color */
+  background-color: rgb(240, 225, 225); /*Same color as the left border with reduced alpha to 0.1*/
+}
+
+  .danger strong {
+      color: #d9534f;
+  }

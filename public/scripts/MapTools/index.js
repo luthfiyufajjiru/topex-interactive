@@ -86,9 +86,11 @@ export default function initMap(myTable){
     south.value = "";
 
     disableCoordinatesForm(true)
-
-    myTable.setData([]);
-    $("#fetch-data").prop("disabled", true);
+    if(myTable != null)
+    {
+      myTable.setData([]);
+      $("#fetch-data").prop("disabled", true);
+    }
   });
 
   north.addEventListener("change", () => {
