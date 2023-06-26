@@ -1,0 +1,6 @@
+go 1.20
+
+use (
+	./src/topex-downloader
+	./src/wasm
+)
