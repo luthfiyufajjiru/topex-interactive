@@ -2,7 +2,6 @@ package topexdownloader
 
 import (
 	"bufio"
-	"fmt"
 	"sync"
 	"testing"
 
@@ -16,42 +15,62 @@ func TestRenderHTML(t *testing.T) {
 			South: -10.2,
 			West:  360,
 			East:  360.5,
-			Mag:   0.1,
+			Mag:   1,
 		},
 		{
 			North: -10.1,
 			South: -10.2,
 			West:  360,
 			East:  360.5,
+			Mag:   0.1,
+		},
+		{
+			North: -10.1,
+			South: -10.2,
+			West:  359.5,
+			East:  360,
 			Mag:   1,
+		},
+		{
+			North: -10.1,
+			South: -10.2,
+			West:  359.5,
+			East:  360,
+			Mag:   0.1,
 		},
 	}
 
+	errExpect := [...]error{ErrMaxBound, ErrMaxBound, nil, nil}
+
 	wg := sync.WaitGroup{}
-	wg.Add(2)
+	wg.Add(4)
 
-	scanner := [2]*bufio.Scanner{}
+	scanner := [4]*bufio.Scanner{}
 
-	inp := func(i int, wg *sync.WaitGroup, inp [2]*bufio.Scanner) {
+	inp := func(i int, wg *sync.WaitGroup) {
 		defer wg.Done()
-		scanner, err := Fetch(area[i])
-		if err != nil {
-			logrus.WithError(err).Panic()
+		_scanner, err := Fetch(area[i])
+		if err != errExpect[i] {
+			logrus.WithError(err).Panic("not expected error")
 		}
-		inp[i] = scanner
+		scanner[i] = _scanner
 	}
 
-	for i := 0; i < 2; i++ {
-		go inp(i, &wg, scanner)
+	for i := 0; i < 4; i++ {
+		go inp(i, &wg)
 	}
+
+	wg.Wait()
 
 	res := make(chan string)
-	go RenderHTML(scanner[0], scanner[1], res)
+	csv := ""
+	go RenderHTML(scanner[2], scanner[3], &csv, res)
 	for {
-		data, ok := <-res
+		_, ok := <-res
 		if !ok {
 			break
 		}
-		fmt.Println(data)
+		// fmt.Println(data)
 	}
+	// t.Log(csv)
 }

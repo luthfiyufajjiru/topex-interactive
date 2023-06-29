@@ -4,36 +4,34 @@
     <title>Topex Interactive Downloader</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="./assets/icon.ico" type="image/icon type">
-    <link rel="stylesheet" href="scripts/libs/leaflet/leaflet.css" />
-    <link rel="stylesheet" href="scripts/libs/leaflet/leaflet.draw.css" />
+    <link rel="stylesheet" href="scripts/vendor/leaflet/leaflet.css" />
+    <link rel="stylesheet" href="scripts/vendor/leaflet/leaflet.draw.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
     <link rel="stylesheet" href="https://bossanova.uk/jspreadsheet/v4/jexcel.css" type="text/css" />
     <link rel="stylesheet" href="https://jsuites.net/v4/jsuites.css" type="text/css" />
     <link rel="stylesheet" href="styles/index.css" />
-    <script src="scripts/libs/leaflet/leaflet-src.js"></script>
-    <script src="scripts/libs/leaflet/Leaflet.draw.js"></script>
-    <script src="scripts/libs/leaflet/Leaflet.Draw.Event.js"></script>
-    <script src="scripts/libs/leaflet/Toolbar.js"></script>
-    <script src="scripts/libs/leaflet/Tooltip.js"></script>
-    <script src="scripts/libs/leaflet/ext/GeometryUtil.js"></script>
-    <script src="scripts/libs/leaflet/ext/LatLngUtil.js"></script>
-    <script src="scripts/libs/leaflet/ext/LineUtil.Intersect.js"></script>
-    <script src="scripts/libs/leaflet/ext/Polygon.Intersect.js"></script>
-    <script src="scripts/libs/leaflet/ext/Polyline.Intersect.js"></script>
-    <script src="scripts/libs/leaflet/ext/TouchEvents.js"></script>
-    <script src="scripts/libs/leaflet/draw/DrawToolbar.js"></script>
-    <script src="scripts/libs/leaflet/draw/handler/Draw.Feature.js"></script>
-    <script src="scripts/libs/leaflet/draw/handler/Draw.SimpleShape.js"></script>
-    <script src="scripts/libs/leaflet/draw/handler/Draw.Rectangle.js"></script>
-    <script src="scripts/libs/leaflet/edit/EditToolbar.js"></script>
-    <script src="scripts/libs/leaflet/edit/handler/EditToolbar.Edit.js"></script>
-    <script src="scripts/libs/leaflet/edit/handler/EditToolbar.Delete.js"></script>
-    <script src="scripts/libs/leaflet/Control.Draw.js"></script>
-    <script src="scripts/libs/leaflet/edit/handler/Edit.SimpleShape.js"></script>
-    <script src="scripts/libs/leaflet/edit/handler/Edit.Rectangle.js"></script>
-    <script src="https://bossanova.uk/jspreadsheet/v4/jexcel.js"></script>
-    <script src="https://jsuites.net/v4/jsuites.js"></script>
+    <script src="scripts/vendor/leaflet/leaflet-src.js"></script>
+    <script src="scripts/vendor/leaflet/Leaflet.draw.js"></script>
+    <script src="scripts/vendor/leaflet/Leaflet.Draw.Event.js"></script>
+    <script src="scripts/vendor/leaflet/Toolbar.js"></script>
+    <script src="scripts/vendor/leaflet/Tooltip.js"></script>
+    <script src="scripts/vendor/leaflet/ext/GeometryUtil.js"></script>
+    <script src="scripts/vendor/leaflet/ext/LatLngUtil.js"></script>
+    <script src="scripts/vendor/leaflet/ext/LineUtil.Intersect.js"></script>
+    <script src="scripts/vendor/leaflet/ext/Polygon.Intersect.js"></script>
+    <script src="scripts/vendor/leaflet/ext/Polyline.Intersect.js"></script>
+    <script src="scripts/vendor/leaflet/ext/TouchEvents.js"></script>
+    <script src="scripts/vendor/leaflet/draw/DrawToolbar.js"></script>
+    <script src="scripts/vendor/leaflet/draw/handler/Draw.Feature.js"></script>
+    <script src="scripts/vendor/leaflet/draw/handler/Draw.SimpleShape.js"></script>
+    <script src="scripts/vendor/leaflet/draw/handler/Draw.Rectangle.js"></script>
+    <script src="scripts/vendor/leaflet/edit/EditToolbar.js"></script>
+    <script src="scripts/vendor/leaflet/edit/handler/EditToolbar.Edit.js"></script>
+    <script src="scripts/vendor/leaflet/edit/handler/EditToolbar.Delete.js"></script>
+    <script src="scripts/vendor/leaflet/Control.Draw.js"></script>
+    <script src="scripts/vendor/leaflet/edit/handler/Edit.SimpleShape.js"></script>
+    <script src="scripts/vendor/leaflet/edit/handler/Edit.Rectangle.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
   </head>
   <body>
@@ -47,13 +45,9 @@
       <div id="content-wrap">
         <div id="map"></div>
 
-        <div id="data-switch-workonline" class="form-check form-switch" data-bs-toggle="tooltip" data-bs-placement="top" title="Uncheck this if You want to donwload as csv only and work on your device">
-          <input checked=true class="form-check-input" type="checkbox" role="switch" id="flexSwitchCheckDefault1">
-          <label class="form-check-label" for="flexSwitchCheckDefault1">Work Online</label>
-        </div>
-        <div id="data-switch" class="form-check form-switch" data-bs-toggle="tooltip" data-bs-placement="top" title="By default, you are fetching elevation data, this toggle is also fetching free air anomaly on the same area">
+        <div id="data-switch" class="form-check form-switch" data-bs-toggle="tooltip" data-bs-placement="top" title="By default, you are fetching topography data, this toggle is also fetching free air anomaly on the same area">
           <input class="form-check-input" type="checkbox" role="switch" id="flexSwitchCheckDefault">
-          <label class="form-check-label" for="flexSwitchCheckDefault">Including Free Air Gravity</label>
+          <label class="form-check-label" for="flexSwitchCheckDefault">Including free air gravity anomaly</label>
         </div>
 
         <div class="coordinates">
@@ -89,16 +83,6 @@
         </div>
         
         <button type="button" id= "fetch-data" class="btn-download" style="width:100%" disabled><i class="fa fa-download"></i> Fetch</button>
-        
-        <div id="overlay-spinner" style="display:none;" >
-          <div class="spinner"></div>
-          <br/>
-          Fetching...
-        </div>
-
-        <div id="spreadsheet-wrapper">
-          <div id="spreadsheet"></div>
-        </div>
 
         <div class = "disclaimer">
           <strong>Disclaimer</strong>

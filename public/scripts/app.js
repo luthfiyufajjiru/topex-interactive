@@ -1,31 +1,11 @@
-import initMap from './MapTools/index.js'
-import fetchTopex from './fetchTopex.js'
-import { RenderTable } from './Spreadsheets/index.js';
+import { initMap } from "./map.js";
 
-let workonline = true
+let map = new L.Map("map", {
+  center: new L.LatLng(0, 120),
+  zoom: 4.4
+})
 
-document.getElementById("data-switch-workonline").addEventListener("change", () => {
-  if (workonline) {
-    workonline = false;
-    $("#spreadsheet").empty()
-    $("#spreadsheet-wrapper").hide()
-  } else {
-    workonline = true;
-    $("#spreadsheet-wrapper").show()
-    myTable = RenderTable()
-  }
-});
+function deletePolygonCallback(event){
+}
 
-let myTable = workonline ? RenderTable() : null
-initMap(myTable)
-
-let fetchButton = document.getElementById("fetch-data");
-fetchButton.addEventListener("click", async () => {
-  $("#overlay-spinner").fadeIn();
-  try {
-    await fetchTopex(myTable, workonline);
-  } catch (error) {
-  } finally {
-    $("#overlay-spinner").fadeOut();
-  }
-});
+initMap(map, deletePolygonCallback)

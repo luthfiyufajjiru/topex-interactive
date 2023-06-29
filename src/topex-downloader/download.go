@@ -40,6 +40,7 @@ var (
 	ErrWLE        = errors.New("value of West is larger than East (W > E)")
 	ErrSLE        = errors.New("value of South is larger than North (S > N)")
 	ErrInvalidMag = errors.New("value of Mag is invalid")
+	ErrMaxBound   = errors.New("maximal bound area exceeded")
 )
 
 func Fetch(area Payload) (scanner *bufio.Scanner, err error) {
@@ -51,6 +52,11 @@ func Fetch(area Payload) (scanner *bufio.Scanner, err error) {
 		return
 	} else if area.Mag != 0.1 && area.Mag != 1 {
 		err = ErrInvalidMag
+		return
+	}
+
+	if area.West < -360 || area.East > 360 || area.North > 80.738 || area.South < -80.738 {
+		err = ErrMaxBound
 		return
 	}
 
@@ -83,35 +89,29 @@ type RenderData struct {
 	Long, Lat, Val, Type string
 }
 
-func split(line string) (string, string, string) {
-	line = strings.TrimLeft(line, " ")
-
-	idx := [...]int{
-		strings.Index(line, " "),
-		strings.LastIndex(line, " "),
+func split(line string) (str1, str2, str3 string) {
+	fields := strings.Fields(line)
+	if ln := len(fields); ln == 3 {
+		str1 = fields[0]
+		str2 = fields[1]
+		str3 = fields[2]
 	}
-	var (
-		str1, str2, str3 string
-	)
-
-	ok1 := idx[0] > -1
-	ok2 := idx[1] > -1
-
-	if ok1 {
-		str1 = line[:idx[0]]
-	}
-
-	if ok1 && ok2 {
-		str2 = line[idx[0]+1 : idx[1]-3]
-		str3 = line[idx[1]+1:]
-	} else if ok1 && !ok2 {
-		str2 = line[idx[0]+1:]
-	}
-
 	return str1, str2, str3
 }
 
-func Read(cancel context.CancelFunc, inp *bufio.Scanner, typeData string, ch chan<- RenderData) {
+func trySend(ch chan<- RenderData, data RenderData) (success bool) {
+	defer func() {
+		r := recover()
+		if r != nil {
+			success = false
+		}
+	}()
+	success = true
+	ch <- data
+	return
+}
+
+func Read(cancel context.CancelFunc, inp *bufio.Scanner, typeData string, ch chan<- RenderData, doneCh chan struct{}) {
 	defer cancel()
 	if inp != nil {
 		for inp.Scan() {
@@ -120,7 +120,11 @@ func Read(cancel context.CancelFunc, inp *bufio.Scanner, typeData string, ch cha
 				continue
 			}
 			str1, str2, str3 := split(line)
-			ch <- RenderData{str1, str2, str3, typeData}
+			ok := trySend(ch, RenderData{str1, str2, str3, typeData})
+			if !ok {
+				break
+			}
 		}
+		doneCh <- struct{}{}
 	}
 }

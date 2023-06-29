@@ -1,7 +1,3 @@
-window.ReceiveData = function (data) {
-
-}
-
-function FetchData() {
+export default function fetchData() {
     
 }
