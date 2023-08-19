@@ -54,10 +54,11 @@ signal:
 			var wr bytes.Buffer
 
 			templ, err := template.New("row").Parse(`
-			<tr class="{{.Type}}">
+			<tr class="align-middle text-center {{.Type}}">
 				<td class="long">{{.Long}}</td>
 				<td class="lat">{{.Lat}}</td>
 				<td class="val">{{.Val}}</td>
+				<td class="type">{{.Type}}</td>
 			</tr>
 			`)
 

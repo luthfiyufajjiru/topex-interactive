@@ -2,6 +2,7 @@ package topexdownloader
 
 import (
 	"bufio"
+	"fmt"
 	"sync"
 	"testing"
 
@@ -66,11 +67,11 @@ func TestRenderHTML(t *testing.T) {
 	csv := ""
 	go RenderHTML(scanner[2], scanner[3], &csv, res)
 	for {
-		_, ok := <-res
+		data, ok := <-res
 		if !ok {
 			break
 		}
-		// fmt.Println(data)
+		fmt.Println(data)
 	}
 	// t.Log(csv)
 }

@@ -2,8 +2,8 @@
   "go.testFlags": ["-race","-v"],
   "files.autoSave": "afterDelay",
   "go.testTimeout": "160s",
-  // "go.toolsEnvVars": {
-  //   "GOOS": "js",
-  //   "GOARCH": "wasm"
-  // }
+  "go.toolsEnvVars": {
+    "GOOS": "js",
+    "GOARCH": "wasm"
+  }
 }

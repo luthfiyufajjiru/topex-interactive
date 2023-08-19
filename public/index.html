@@ -1,106 +1,165 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <title>Topex Interactive Downloader</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" href="./assets/icon.ico" type="image/icon type">
-    <link rel="stylesheet" href="scripts/vendor/leaflet/leaflet.css" />
-    <link rel="stylesheet" href="scripts/vendor/leaflet/leaflet.draw.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
-    <link rel="stylesheet" href="https://bossanova.uk/jspreadsheet/v4/jexcel.css" type="text/css" />
-    <link rel="stylesheet" href="https://jsuites.net/v4/jsuites.css" type="text/css" />
-    <link rel="stylesheet" href="styles/index.css" />
-    <script src="scripts/vendor/leaflet/leaflet-src.js"></script>
-    <script src="scripts/vendor/leaflet/Leaflet.draw.js"></script>
-    <script src="scripts/vendor/leaflet/Leaflet.Draw.Event.js"></script>
-    <script src="scripts/vendor/leaflet/Toolbar.js"></script>
-    <script src="scripts/vendor/leaflet/Tooltip.js"></script>
-    <script src="scripts/vendor/leaflet/ext/GeometryUtil.js"></script>
-    <script src="scripts/vendor/leaflet/ext/LatLngUtil.js"></script>
-    <script src="scripts/vendor/leaflet/ext/LineUtil.Intersect.js"></script>
-    <script src="scripts/vendor/leaflet/ext/Polygon.Intersect.js"></script>
-    <script src="scripts/vendor/leaflet/ext/Polyline.Intersect.js"></script>
-    <script src="scripts/vendor/leaflet/ext/TouchEvents.js"></script>
-    <script src="scripts/vendor/leaflet/draw/DrawToolbar.js"></script>
-    <script src="scripts/vendor/leaflet/draw/handler/Draw.Feature.js"></script>
-    <script src="scripts/vendor/leaflet/draw/handler/Draw.SimpleShape.js"></script>
-    <script src="scripts/vendor/leaflet/draw/handler/Draw.Rectangle.js"></script>
-    <script src="scripts/vendor/leaflet/edit/EditToolbar.js"></script>
-    <script src="scripts/vendor/leaflet/edit/handler/EditToolbar.Edit.js"></script>
-    <script src="scripts/vendor/leaflet/edit/handler/EditToolbar.Delete.js"></script>
-    <script src="scripts/vendor/leaflet/Control.Draw.js"></script>
-    <script src="scripts/vendor/leaflet/edit/handler/Edit.SimpleShape.js"></script>
-    <script src="scripts/vendor/leaflet/edit/handler/Edit.Rectangle.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
-  </head>
-  <body>
-    <div id="page-container">
-      <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container-fluid">
-          <a class="navbar-brand" id="nav-title" href="#">Topex Interactive Downloader</a>
-        </div>
-      </nav>
 
-      <div id="content-wrap">
-        <div id="map"></div>
+<head>
+  <title>Topex Interactive Downloader</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="./assets/icon.ico" type="image/icon type">
+  <link rel="stylesheet" href="scripts/vendor/leaflet/leaflet.css" />
+  <link rel="stylesheet" href="scripts/vendor/leaflet/leaflet.draw.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://bossanova.uk/jspreadsheet/v4/jexcel.css" type="text/css" />
+  <link rel="stylesheet" href="https://jsuites.net/v4/jsuites.css" type="text/css" />
+  <link rel="stylesheet" href="styles/index.css" />
+  <script src="scripts/vendor/leaflet/leaflet-src.js"></script>
+  <script src="scripts/vendor/leaflet/Leaflet.draw.js"></script>
+  <script src="scripts/vendor/leaflet/Leaflet.Draw.Event.js"></script>
+  <script src="scripts/vendor/leaflet/Toolbar.js"></script>
+  <script src="scripts/vendor/leaflet/Tooltip.js"></script>
+  <script src="scripts/vendor/leaflet/ext/GeometryUtil.js"></script>
+  <script src="scripts/vendor/leaflet/ext/LatLngUtil.js"></script>
+  <script src="scripts/vendor/leaflet/ext/LineUtil.Intersect.js"></script>
+  <script src="scripts/vendor/leaflet/ext/Polygon.Intersect.js"></script>
+  <script src="scripts/vendor/leaflet/ext/Polyline.Intersect.js"></script>
+  <script src="scripts/vendor/leaflet/ext/TouchEvents.js"></script>
+  <script src="scripts/vendor/leaflet/draw/DrawToolbar.js"></script>
+  <script src="scripts/vendor/leaflet/draw/handler/Draw.Feature.js"></script>
+  <script src="scripts/vendor/leaflet/draw/handler/Draw.SimpleShape.js"></script>
+  <script src="scripts/vendor/leaflet/draw/handler/Draw.Rectangle.js"></script>
+  <script src="scripts/vendor/leaflet/edit/EditToolbar.js"></script>
+  <script src="scripts/vendor/leaflet/edit/handler/EditToolbar.Edit.js"></script>
+  <script src="scripts/vendor/leaflet/edit/handler/EditToolbar.Delete.js"></script>
+  <script src="scripts/vendor/leaflet/Control.Draw.js"></script>
+  <script src="scripts/vendor/leaflet/edit/handler/Edit.SimpleShape.js"></script>
+  <script src="scripts/vendor/leaflet/edit/handler/Edit.Rectangle.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"
+    integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+  <script src="./scripts/vendor/wasm/wasm_exec.js"></script>
+</head>
 
-        <div id="data-switch" class="form-check form-switch" data-bs-toggle="tooltip" data-bs-placement="top" title="By default, you are fetching topography data, this toggle is also fetching free air anomaly on the same area">
-          <input class="form-check-input" type="checkbox" role="switch" id="flexSwitchCheckDefault">
-          <label class="form-check-label" for="flexSwitchCheckDefault">Including free air gravity anomaly</label>
-        </div>
-
-        <div class="coordinates">
-
-          <div class="coordinates-container">
-            <div class="row justify-content-center">
-              <div class="wrapper-coordinate col-6">
-                <input type="number" class="form-control" id="north" max="80.738" min="-80.738" step="0.1" placeholder="North" disabled>
-              </div>
+<body>
+  <div id="page-container">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+      <div class="container-fluid">
+        <a class="navbar-brand" id="nav-title" href="#">Topex Interactive Downloader</a>
+      </div>
+    </nav>
+    <div id="content-wrap">
+      <div id="map"></div>
+      <div id="data-switch" class="form-check form-switch" data-bs-toggle="tooltip" data-bs-placement="top"
+        title="By default, you are fetching topography data, this toggle is also fetching free air anomaly on the same area">
+        <input class="form-check-input" type="checkbox" role="switch" id="flexSwitchCheckDefault">
+        <label class="form-check-label" for="flexSwitchCheckDefault">Including free air gravity anomaly</label>
+      </div>
+      <div class="coordinates">
+        <div class="coordinates-container">
+          <div class="row justify-content-center">
+            <div class="wrapper-coordinate col-6">
+              <input type="number" class="form-control" id="north" max="80.738" min="-80.738" step="0.1"
+                placeholder="North" disabled>
             </div>
           </div>
-
-          <div class="coordinates-container">
-            <div class="row justify-content-center">
-              <div class="wrapper-coordinate col">
-                <input type="number" class="form-control" id="west" max="360" min="-360" step="0.1" placeholder="West" disabled>
-              </div>
-
-              <div class="wrapper-coordinate col">
-                <input type="number" class="form-control" id="east" max="360" min="-360" step="0.1" placeholder="East" disabled>
-              </div>
+        </div>
+        <div class="coordinates-container">
+          <div class="row justify-content-center">
+            <div class="wrapper-coordinate col">
+              <input type="number" class="form-control" id="west" max="360" min="-360" step="0.1" placeholder="West"
+                disabled>
+            </div>
+            <div class="wrapper-coordinate col">
+              <input type="number" class="form-control" id="east" max="360" min="-360" step="0.1" placeholder="East"
+                disabled>
             </div>
           </div>
-
-          <div class="coordinates-container">
-            <div class="row justify-content-center">
-              <div class="wrapper-coordinate col-6">
-                <input type="number" class="form-control" id="south" max="80.738" min="-80.738" step="0.1" placeholder="South" disabled>
-              </div>
-            </div>
-          </div> 
-
         </div>
-        
-        <button type="button" id= "fetch-data" class="btn-download" style="width:100%" disabled><i class="fa fa-download"></i> Fetch</button>
-
-        <div class = "disclaimer">
-          <strong>Disclaimer</strong>
-          <div>
-            We are not owning the corresponding data, the data set are belongs to Scripps Institution of Oceanography, University
-            of California San Diego. You can also visit the original data source downloader <a target="_blank" href="https://topex.ucsd.edu/cgi-bin/get_data.cgi">Here</a>
+        <div class="coordinates-container">
+          <div class="row justify-content-center">
+            <div class="wrapper-coordinate col-6">
+              <input type="number" class="form-control" id="south" max="80.738" min="-80.738" step="0.1"
+                placeholder="South" disabled>
+            </div>
           </div>
         </div>
       </div>
-
-      <footer id="footer-content">
-        Made with <span id="footer-content-love">&#10084</span> by <a id ="linkedin" target="_blank" href="https://www.linkedin.com/in/yufajjiru/">Luthfi Yufajjiru</a> 2022
-      </footer>
+      <button type="button" id="fetch-data" class="btn-download" style="width:100%" disabled><i class="fa fa-download"></i> Fetch</button>
+      <div id="download-status" class="alert alert-info" role="alert" style="display: none;">
+        downloading...
+      </div>
+      <div id="error-status" class="alert alert-danger" role="alert" style="display: none;">
+        err: error
+      </div>
+      <table id="data-table" class="table table-hover scrollable-tbody">
+        <thead>
+          <tr>
+            <th class="align-middle text-center">Longitude</th>
+            <th class="align-middle text-center">Latitude</th>
+            <th class="align-middle text-center">Value</th>
+            <th class="align-middle text-center">
+              <div class="btn-group dropend">
+                <button type="button" class="btn btn-dark btn-sm dropdown-toggle" data-bs-toggle="dropdown"
+                  aria-expanded="false">
+                  Type
+                </button>
+                <ul class="dropdown-menu">
+                  <li class="dropdown-item">All</li>
+                  <li class="dropdown-item">Topography</li>
+                  <li class="dropdown-item">Gravity</li>
+                </ul>
+              </div>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="align-middle text-center">
+            <td class="long">-</td>
+            <td class="lat">-</td>
+            <td class="val">-</td>
+            <td class="type">-</td>
+          </tr>
+          <tr class="align-middle text-center">
+            <td class="long">-</td>
+            <td class="lat">-</td>
+            <td class="val">-</td>
+            <td class="type">-</td>
+          </tr>
+        </tbody>
+      </table>
+      <div id="save-wrapper" class="dropdown w-100" style="display: none;">
+        <button class="btn btn-save dropdown-toggle w-100 rounded-0 border-0" type="button" id="save-data"
+          data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          <i class="fa fa-floppy-o"></i> Save As
+        </button>
+        <div class="dropdown-menu w-100 rounded-0 border-0">
+          <a class="dropdown-item" href="#">CSV</a>
+          <a class="dropdown-item" href="#">TSV</a>
+          <a class="dropdown-item" href="#">PDF</a>
+          <a class="dropdown-item" href="#">Cloud (coming soon)</a>
+        </div>
+      </div>
+      <div class="disclaimer">
+        <strong>Disclaimer</strong>
+        <div>
+          We are not owning the corresponding data, the data set are belongs to Scripps Institution of Oceanography,
+          University
+          of California San Diego. You can also visit the original data source downloader <a target="_blank"
+            href="https://topex.ucsd.edu/cgi-bin/get_data.cgi">Here</a>
+        </div>
+      </div>
     </div>
-    
-    <script type="module" src="scripts/firebase.config.js"></script>
-    <script type="module" src="scripts/index.js"></script>
-    <script type="module" src="scripts/app.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-pprn3073KE6tl6bjs2QrFaJGz5/SUsLqktiwsUTF55Jfv3qYSDhgCecCxMW52nD2" crossorigin="anonymous"></script>
-  </body>
+    <footer id="footer-content">
+      Made with <span id="footer-content-love">&#10084</span> by <a id="linkedin" target="_blank"
+        href="https://www.linkedin.com/in/yufajjiru/">Luthfi Yufajjiru</a> 2022
+    </footer>
+  </div>
+  <script type="module" src="scripts/firebase.config.js"></script>
+  <script type="module" src="scripts/index.js"></script>
+  <script type="module" src="./scripts/vendor/wasm/load.js" defer></script>
+  <script type="module" src="scripts/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-pprn3073KE6tl6bjs2QrFaJGz5/SUsLqktiwsUTF55Jfv3qYSDhgCecCxMW52nD2"
+    crossorigin="anonymous"></script>
+</body>
+
 </html>

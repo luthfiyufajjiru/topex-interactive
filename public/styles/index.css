@@ -77,9 +77,15 @@
   font-size: 20px;
 }
 
+
+
 /* Darker background on mouse-over */
 .btn-download:hover {
   background-color: RoyalBlue;
+}
+
+.btn-download:disabled {
+  background-color:#ccc;
 }
 
 #spreadsheet-wrapper {
@@ -129,6 +135,36 @@ footer {
   .danger strong {
       color: #d9534f;
   }
+
+  .scrollable-tbody tbody {
+    display: block;  /* Enable block properties on tbody */
+    max-height: calc(1.5em * 10);  /* Adjust depending on the number of rows to display */
+    overflow-y: auto;  /* Enable vertical scroll */
+}
+
+.scrollable-tbody thead,
+.scrollable-tbody tbody tr {
+    display: table;  /* Return table properties for thead and tr */
+    width: 100%;  /* Full width table */
+    table-layout: fixed;  /* Fixed layout to enable horizontal scroll if necessary */
+}
+
+thead th {
+  vertical-align: middle;
+  text-align: center;
+}
+
+.dropdown-menu {
+  overflow: visible;
+}
+
+.btn-save {
+  background-color: white !important;
+}
+
+.btn-save:hover {
+  background-color: #f2f2f2 !important;
+}
 
 @media screen and (max-width: 500px){
   #spreadsheet .jexcel_content  {

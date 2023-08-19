@@ -121,4 +121,4 @@ function initMap(map, deletedMapCallback) {
     });
 }
 
-export { initMap }
+export { initMap, north, south, east, west }
