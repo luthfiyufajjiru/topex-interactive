@@ -16,10 +16,20 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Environment
+# Environment & Cloudflare secrets
 .env
 .env.local
 .env.*.local
+.dev.vars
+.dev.vars.*
+
+# Certificates & Keys
+*.pem
+*.key
+*.crt
+*.cert
+credentials.json
+secrets.json
 
 # Editor & OS
 .DS_Store

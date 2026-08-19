@@ -7,3 +7,11 @@ compatibility_flags = ["nodejs_compat"]
 directory = "./dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
+
+[vars]
+ENVIRONMENT = "production"
+
+# Custom Domain Configuration
+routes = [
+  { pattern = "topex-interactive.yufajjiru.work", custom_domain = true }
+]
