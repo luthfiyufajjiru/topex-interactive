@@ -1823,6 +1823,24 @@ footer {
   padding: 4px 10px;
   border-radius: 4px;
   border: 1px solid #e2e8f0;
+  flex-wrap: wrap;
+}
+
+.pin-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #ecfdf5;
+  color: #065f46;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid #a7f3d0;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+.correlation-group {
+  pointer-events: none;
 }
 
 .probe-highlight-dist {

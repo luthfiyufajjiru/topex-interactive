@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import type { ProfilePoint, NamedProfileLine } from '@/types';
 import { exportProfileToCsv } from '@/utils/geophysics/profile';
 import { exportProfileGraphToPng } from '@/utils/exporters/profileImage';
-import { Download, TrendingUp, Compass, Plus, Trash2, Image } from 'lucide-react';
+import { Download, TrendingUp, Compass, Plus, Trash2, Image, Pin, PinOff } from 'lucide-react';
 
 interface ProfileGraphProps {
   lines: NamedProfileLine[];
@@ -30,6 +30,7 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
   onSetPresetLine,
 }) => {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const [pinnedIndex, setPinnedIndex] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   if (points.length === 0) return null;
@@ -74,7 +75,7 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
 
   // SVG Dimensions
   const svgWidth = 1000;
-  const svgHeight = 360;
+  const svgHeight = 370;
   const margin = { top: 25, right: 35, bottom: 45, left: 65 };
   const graphWidth = svgWidth - margin.left - margin.right;
   const splitY = 165; // Height split between gravity (top) and topo (bottom)
@@ -122,27 +123,46 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
   // Zero Gravity line (0 mGal)
   const zeroGravY = Math.max(margin.top, Math.min(margin.top + gravHeight, scaleYGrav(0)));
 
-  // Mouse move handler
-  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+  // Calculate index from mouse client X
+  const getIndexFromMouseEvent = (e: React.MouseEvent<SVGSVGElement>): number => {
     const svg = e.currentTarget;
     const rect = svg.getBoundingClientRect();
     const clientX = e.clientX - rect.left;
     const normX = (clientX / rect.width) * svgWidth;
-
     const clampedX = Math.max(margin.left, Math.min(margin.left + graphWidth, normX));
     const distRatio = (clampedX - margin.left) / graphWidth;
-    const idx = Math.min(points.length - 1, Math.max(0, Math.round(distRatio * (points.length - 1))));
+    return Math.min(points.length - 1, Math.max(0, Math.round(distRatio * (points.length - 1))));
+  };
 
+  // Mouse move handler
+  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (pinnedIndex !== null) return; // Keep pinned point active
+    const idx = getIndexFromMouseEvent(e);
     setHoverIndex(idx);
     onHoverPoint(points[idx]);
   };
 
-  const handleMouseLeave = () => {
-    setHoverIndex(null);
-    onHoverPoint(null);
+  // Click handler: Toggle Pinned Correlation Line
+  const handleClick = (e: React.MouseEvent<SVGSVGElement>) => {
+    const idx = getIndexFromMouseEvent(e);
+    if (pinnedIndex === idx) {
+      setPinnedIndex(null);
+    } else {
+      setPinnedIndex(idx);
+      onHoverPoint(points[idx]);
+    }
   };
 
-  const activePoint = hoverIndex !== null ? points[hoverIndex] : hoveredPoint;
+  const handleMouseLeave = () => {
+    if (pinnedIndex === null) {
+      setHoverIndex(null);
+      onHoverPoint(null);
+    }
+  };
+
+  // Active Correlation Point (Pinned has priority, fallback to hover, fallback to mid-point default)
+  const activeIdx = pinnedIndex !== null ? pinnedIndex : hoverIndex !== null ? hoverIndex : Math.floor(points.length / 2);
+  const activePoint = points[activeIdx] || hoveredPoint;
 
   return (
     <div className="profile-graph-card">
@@ -251,8 +271,8 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
           <button
             type="button"
             className="btn-save-plot-png"
-            onClick={() => exportProfileGraphToPng({ points, line: activeLine })}
-            title="Download publication-ready 2D Cross-Section Plot (PNG)"
+            onClick={() => exportProfileGraphToPng({ points, line: activeLine, activePoint })}
+            title="Download publication-ready 2D Cross-Section Plot (PNG) with correlation line"
           >
             <Image size={14} />
             <span>Save Plot (PNG)</span>
@@ -270,13 +290,15 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
         </div>
       </div>
 
-      {/* SVG Interactive Profile Canvas (Clean Light Scientific Theme) */}
+      {/* SVG Interactive Profile Canvas with Correlation Line & Picked Value Tags */}
       <div className="svg-profile-wrapper" ref={containerRef}>
         <svg
           viewBox={`0 0 ${svgWidth} ${svgHeight}`}
           className="profile-svg"
           onMouseMove={handleMouseMove}
+          onClick={handleClick}
           onMouseLeave={handleMouseLeave}
+          style={{ cursor: 'crosshair' }}
         >
           <defs>
             {/* Topography Crust Gradient (Light Earth Sandstone) */}
@@ -456,16 +478,6 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
             0 km ({activeLine.labelStart})
           </text>
           <text
-            x={margin.left + graphWidth / 2}
-            y={bottomY + 18}
-            fill="#475569"
-            fontSize="11"
-            textAnchor="middle"
-            fontFamily="monospace"
-          >
-            {(totalDist / 2).toFixed(1)} km
-          </text>
-          <text
             x={margin.left + graphWidth}
             y={bottomY + 18}
             fill="#475569"
@@ -486,56 +498,158 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
             Profile Distance (km)
           </text>
 
-          {/* Interactive Hover Tracker Line & Target Points */}
-          {activePoint && (
-            <>
-              <line
-                x1={scaleX(activePoint.distanceKm)}
-                y1={margin.top}
-                x2={scaleX(activePoint.distanceKm)}
-                y2={bottomY}
-                stroke="#0f172a"
-                strokeWidth={1.5}
-                strokeDasharray="3 3"
-              />
+          {/* Continuous Vertical Correlation Tracker Line Across Both Panels */}
+          {activePoint && (() => {
+            const posX = scaleX(activePoint.distanceKm);
+            const isRightSide = posX > margin.left + graphWidth * 0.75;
+            const badgeAnchor = isRightSide ? 'end' : 'start';
+            const badgeOffset = isRightSide ? -10 : 10;
 
-              {/* Gravity Target Dots */}
-              {activePoint.bouguer !== undefined && (
-                <circle
-                  cx={scaleX(activePoint.distanceKm)}
-                  cy={scaleYGrav(activePoint.bouguer)}
-                  r={5}
-                  fill="#d97706"
-                  stroke="#ffffff"
+            const yCba = activePoint.bouguer !== undefined ? scaleYGrav(activePoint.bouguer) : null;
+            const yFaa = activePoint.freeAir !== undefined ? scaleYGrav(activePoint.freeAir) : null;
+            const yTopo = scaleYTopo(activePoint.elevation);
+
+            return (
+              <g className="correlation-group">
+                {/* 1. Full vertical correlation dashed line */}
+                <line
+                  x1={posX}
+                  y1={margin.top}
+                  x2={posX}
+                  y2={bottomY}
+                  stroke="#0f172a"
                   strokeWidth={2}
+                  strokeDasharray="4 3"
                 />
-              )}
-              {activePoint.freeAir !== undefined && (
-                <circle
-                  cx={scaleX(activePoint.distanceKm)}
-                  cy={scaleYGrav(activePoint.freeAir)}
-                  r={4.5}
-                  fill="#0284c7"
-                  stroke="#ffffff"
-                  strokeWidth={1.5}
-                />
-              )}
 
-              {/* Topo Target Dot */}
-              <circle
-                cx={scaleX(activePoint.distanceKm)}
-                cy={scaleYTopo(activePoint.elevation)}
-                r={5}
-                fill="#059669"
-                stroke="#ffffff"
-                strokeWidth={2}
-              />
-            </>
-          )}
+                {/* 2. Topo Picked Anchor Dot & Value Tag */}
+                <circle
+                  cx={posX}
+                  cy={yTopo}
+                  r={5.5}
+                  fill="#059669"
+                  stroke="#ffffff"
+                  strokeWidth={2.5}
+                />
+                <rect
+                  x={isRightSide ? posX - 76 : posX + 8}
+                  y={yTopo - 10}
+                  width={68}
+                  height={20}
+                  rx={4}
+                  fill="#f0fdf4"
+                  stroke="#86efac"
+                  strokeWidth={1}
+                />
+                <text
+                  x={posX + badgeOffset}
+                  y={yTopo + 4}
+                  fill="#166534"
+                  fontSize="10.5"
+                  fontWeight="bold"
+                  textAnchor={badgeAnchor}
+                  fontFamily="monospace"
+                >
+                  {activePoint.elevation.toFixed(1)} m
+                </text>
+
+                {/* 3. FAA Picked Anchor Dot & Value Tag */}
+                {yFaa !== null && (
+                  <>
+                    <circle
+                      cx={posX}
+                      cy={yFaa}
+                      r={5}
+                      fill="#0284c7"
+                      stroke="#ffffff"
+                      strokeWidth={2}
+                    />
+                    <rect
+                      x={isRightSide ? posX - 84 : posX + 8}
+                      y={yFaa - 10}
+                      width={76}
+                      height={20}
+                      rx={4}
+                      fill="#f0f9ff"
+                      stroke="#bae6fd"
+                      strokeWidth={1}
+                    />
+                    <text
+                      x={posX + badgeOffset}
+                      y={yFaa + 4}
+                      fill="#0369a1"
+                      fontSize="10.5"
+                      fontWeight="bold"
+                      textAnchor={badgeAnchor}
+                      fontFamily="monospace"
+                    >
+                      {activePoint.freeAir?.toFixed(1)} mGal
+                    </text>
+                  </>
+                )}
+
+                {/* 4. CBA Picked Anchor Dot & Value Tag */}
+                {yCba !== null && (
+                  <>
+                    <circle
+                      cx={posX}
+                      cy={yCba}
+                      r={5.5}
+                      fill="#d97706"
+                      stroke="#ffffff"
+                      strokeWidth={2.5}
+                    />
+                    <rect
+                      x={isRightSide ? posX - 84 : posX + 8}
+                      y={yCba - 10}
+                      width={76}
+                      height={20}
+                      rx={4}
+                      fill="#fffbeb"
+                      stroke="#fde68a"
+                      strokeWidth={1}
+                    />
+                    <text
+                      x={posX + badgeOffset}
+                      y={yCba + 4}
+                      fill="#b45309"
+                      fontSize="10.5"
+                      fontWeight="bold"
+                      textAnchor={badgeAnchor}
+                      fontFamily="monospace"
+                    >
+                      {activePoint.bouguer?.toFixed(1)} mGal
+                    </text>
+                  </>
+                )}
+
+                {/* 5. Bottom Distance Callout Tag */}
+                <rect
+                  x={posX - 38}
+                  y={bottomY + 4}
+                  width={76}
+                  height={18}
+                  rx={3}
+                  fill="#0f172a"
+                />
+                <text
+                  x={posX}
+                  y={bottomY + 17}
+                  fill="#ffffff"
+                  fontSize="10.5"
+                  fontWeight="bold"
+                  textAnchor="middle"
+                  fontFamily="monospace"
+                >
+                  {activePoint.distanceKm.toFixed(1)} km
+                </text>
+              </g>
+            );
+          })()}
         </svg>
       </div>
 
-      {/* Legend & Hover Data Bar (Clean Light Theme) */}
+      {/* Legend & Hover Data Bar with Pin/Unpin Status */}
       <div className="profile-footer-bar">
         <div className="profile-legends">
           <div className="legend-item">
@@ -552,8 +666,14 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
           </div>
         </div>
 
-        {activePoint ? (
+        {activePoint && (
           <div className="profile-probe-values">
+            {pinnedIndex !== null ? (
+              <span className="pin-indicator">
+                <Pin size={13} className="text-emerald" />
+                <strong>Pinned Pick</strong>
+              </span>
+            ) : null}
             <span className="probe-highlight-dist">
               Dist: <strong>{activePoint.distanceKm.toFixed(1)} km</strong>
             </span>
@@ -569,10 +689,18 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
             <span>
               Bouguer: <strong className="text-amber">{activePoint.bouguer?.toFixed(1) ?? 'N/A'} mGal</strong>
             </span>
-          </div>
-        ) : (
-          <div className="profile-probe-hint">
-            Hover over the cross-section graph to probe continuous values along transect {activeLine.labelStart} &rarr; {activeLine.labelEnd}
+
+            {pinnedIndex !== null && (
+              <button
+                type="button"
+                className="btn-unpin"
+                onClick={() => setPinnedIndex(null)}
+                title="Unpin correlation line"
+              >
+                <PinOff size={12} />
+                <span>Unpin</span>
+              </button>
+            )}
           </div>
         )}
       </div>

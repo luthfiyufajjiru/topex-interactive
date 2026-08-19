@@ -3,17 +3,18 @@ import type { ProfilePoint, NamedProfileLine } from '@/types';
 export interface ProfileImageExportOptions {
   points: ProfilePoint[];
   line: NamedProfileLine;
+  activePoint?: ProfilePoint | null;
   filename?: string;
 }
 
 export function exportProfileGraphToPng(options: ProfileImageExportOptions): void {
-  const { points, line, filename = `topex_${line.name.toLowerCase().replace(/\s+/g, '_')}_cross_section.png` } = options;
+  const { points, line, activePoint, filename = `topex_${line.name.toLowerCase().replace(/\s+/g, '_')}_cross_section.png` } = options;
 
   if (points.length === 0) return;
 
   const canvas = document.createElement('canvas');
   const width = 1600;
-  const height = 900;
+  const height = 920;
   canvas.width = width;
   canvas.height = height;
 
@@ -176,6 +177,100 @@ export function exportProfileGraphToPng(options: ProfileImageExportOptions): voi
     ctx.stroke();
   }
 
+  // Draw Vertical Correlation Line & Picked Value Tags if activePoint present
+  const targetPick = activePoint || points[Math.floor(points.length / 2)];
+  if (targetPick) {
+    const posX = scaleX(targetPick.distanceKm);
+    const isRightSide = posX > margin.left + graphWidth * 0.75;
+    const badgeOffset = isRightSide ? -100 : 12;
+
+    // 1. Full Vertical Dashed Correlation Line
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    ctx.moveTo(posX, margin.top);
+    ctx.lineTo(posX, topoTopY + topoHeight);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 2. Topo Picked Anchor Dot & Value Tag
+    const yTopo = scaleYTopo(targetPick.elevation);
+    ctx.fillStyle = '#059669';
+    ctx.beginPath();
+    ctx.arc(posX, yTopo, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    // Topo Tag box
+    ctx.fillStyle = '#f0fdf4';
+    ctx.fillRect(posX + badgeOffset, yTopo - 12, 90, 24);
+    ctx.strokeStyle = '#86efac';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(posX + badgeOffset, yTopo - 12, 90, 24);
+
+    ctx.fillStyle = '#166534';
+    ctx.font = 'bold 12px "JetBrains Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${targetPick.elevation.toFixed(1)} m`, posX + badgeOffset + 45, yTopo + 4);
+
+    // 3. FAA Picked Anchor Dot & Value Tag
+    if (targetPick.freeAir !== undefined) {
+      const yFaa = scaleYGrav(targetPick.freeAir);
+      ctx.fillStyle = '#0284c7';
+      ctx.beginPath();
+      ctx.arc(posX, yFaa, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+
+      ctx.fillStyle = '#f0f9ff';
+      ctx.fillRect(posX + badgeOffset, yFaa - 12, 95, 24);
+      ctx.strokeStyle = '#bae6fd';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(posX + badgeOffset, yFaa - 12, 95, 24);
+
+      ctx.fillStyle = '#0369a1';
+      ctx.font = 'bold 12px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(`${targetPick.freeAir.toFixed(1)} mGal`, posX + badgeOffset + 47, yFaa + 4);
+    }
+
+    // 4. CBA Picked Anchor Dot & Value Tag
+    if (targetPick.bouguer !== undefined) {
+      const yCba = scaleYGrav(targetPick.bouguer);
+      ctx.fillStyle = '#d97706';
+      ctx.beginPath();
+      ctx.arc(posX, yCba, 6.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+
+      ctx.fillStyle = '#fffbeb';
+      ctx.fillRect(posX + badgeOffset, yCba - 12, 95, 24);
+      ctx.strokeStyle = '#fde68a';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(posX + badgeOffset, yCba - 12, 95, 24);
+
+      ctx.fillStyle = '#b45309';
+      ctx.font = 'bold 12px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(`${targetPick.bouguer.toFixed(1)} mGal`, posX + badgeOffset + 47, yCba + 4);
+    }
+
+    // 5. Bottom Distance Tag on Axis
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(posX - 45, topoTopY + topoHeight + 4, 90, 22);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 12px "JetBrains Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${targetPick.distanceKm.toFixed(1)} km`, posX, topoTopY + topoHeight + 19);
+  }
+
   // Axis Labels & Ticks
   ctx.fillStyle = '#334155';
   ctx.font = '13px "JetBrains Mono", monospace';
@@ -211,9 +306,6 @@ export function exportProfileGraphToPng(options: ProfileImageExportOptions): voi
   ctx.fillStyle = '#334155';
   ctx.textAlign = 'left';
   ctx.fillText(`0 km (${line.labelStart})`, margin.left, topoTopY + topoHeight + 22);
-
-  ctx.textAlign = 'center';
-  ctx.fillText(`${(totalDist / 2).toFixed(1)} km`, margin.left + graphWidth / 2, topoTopY + topoHeight + 22);
 
   ctx.textAlign = 'right';
   ctx.fillText(`${totalDist.toFixed(1)} km (${line.labelEnd})`, margin.left + graphWidth, topoTopY + topoHeight + 22);
