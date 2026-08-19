@@ -271,7 +271,7 @@ export const App: React.FC = () => {
 
       <footer>
         <div className="footer-inner">
-          <div className="footer-links-row">
+          <div className="footer-left">
             <span>
               Made with <span id="footer-content-love">&#10084;</span> by{' '}
               <a
@@ -284,7 +284,9 @@ export const App: React.FC = () => {
               </a>{' '}
               2022&ndash;2026
             </span>
-            <span className="footer-dot-sep">&bull;</span>
+          </div>
+
+          <div className="footer-right">
             <a
               className="footer-repo-link"
               target="_blank"
@@ -292,12 +294,9 @@ export const App: React.FC = () => {
               href="https://github.com/luthfiyufajjiru/topex-interactive"
               title="View source repository on GitHub"
             >
-              <Github size={14} />
+              <Github size={16} />
               <span>GitHub Repository</span>
             </a>
-          </div>
-          <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
-            TOPEX/Poseidon &bull; Scripps Oceanography Data Extractor &bull; Oasis Montaj Studio &bull; <a href="https://topex-interactive.yufajjiru.work" style={{ color: '#0284c7', textDecoration: 'none' }}>topex-interactive.yufajjiru.work</a>
           </div>
         </div>
       </footer>

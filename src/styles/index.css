@@ -2231,32 +2231,64 @@ footer {
   color: #38bdf8;
 }
 
-.footer-links-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 4px;
+footer {
+  background: var(--bg-footer);
+  color: var(--text-white);
+  padding: 16px 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: auto;
 }
 
-.footer-dot-sep {
-  color: #64748b;
+.footer-inner {
+  max-width: 1320px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.footer-left {
+  font-size: 0.88rem;
+  color: #cbd5e1;
+}
+
+.footer-left a {
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.footer-left a:hover {
+  color: #38bdf8;
+  text-decoration: underline;
+}
+
+.footer-right {
+  display: flex;
+  align-items: center;
 }
 
 .footer-repo-link {
-  color: #38bdf8;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-weight: 600;
-  transition: color 0.15s ease;
+  gap: 8px;
+  transition: all 0.15s ease;
 }
 
 .footer-repo-link:hover {
-  color: #7dd3fc;
-  text-decoration: underline;
+  background: rgba(255, 255, 255, 0.18);
+  border-color: #38bdf8;
+  color: #38bdf8;
 }
 
 /* ==========================================================================
