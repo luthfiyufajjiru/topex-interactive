@@ -8,22 +8,23 @@ interface RateLimitRecord {
 // In-memory sliding window rate limiter
 const ipRequestMap = new Map<string, RateLimitRecord>();
 
-// Clean up stale IP records every 60 seconds
-setInterval(() => {
-  const now = Date.now();
-  for (const [ip, record] of ipRequestMap.entries()) {
-    if (now > record.resetTime) {
-      ipRequestMap.delete(ip);
+function cleanupStaleRecords(now: number): void {
+  // Perform lazy cleanup when map grows
+  if (ipRequestMap.size > 200) {
+    for (const [ip, record] of ipRequestMap.entries()) {
+      if (now > record.resetTime) {
+        ipRequestMap.delete(ip);
+      }
     }
   }
-}, 60000);
-
-export interface RateLimitOptions {
-  windowMs: number; // e.g., 60,000 ms (1 min)
-  maxRequests: number; // e.g., 120 requests per window
 }
 
-export function createRateLimiter(options: RateLimitOptions = { windowMs: 60000, maxRequests: 150 }) {
+export interface RateLimitOptions {
+  windowMs: number;
+  maxRequests: number;
+}
+
+export function createRateLimiter(options: RateLimitOptions = { windowMs: 60000, maxRequests: 300 }) {
   return async function rateLimiterMiddleware(c: Context, next: Next) {
     const ip =
       c.req.header('cf-connecting-ip') ||
@@ -32,6 +33,8 @@ export function createRateLimiter(options: RateLimitOptions = { windowMs: 60000,
       '127.0.0.1';
 
     const now = Date.now();
+    cleanupStaleRecords(now);
+
     let record = ipRequestMap.get(ip);
 
     if (!record || now > record.resetTime) {
