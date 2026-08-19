@@ -2,11 +2,20 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { topexQuerySchema, TopexApiResponse, TopexRecord } from '../../shared/schema';
 import { fetchUcsdGrid } from '../services/ucsdClient';
+import { createRateLimiter } from '../middleware/rateLimiter';
+import {
+  generateCacheKey,
+  getFromLocalCache,
+  setToLocalCache,
+} from '../services/cacheService';
 
 export const topexRoute = new Hono()
+  // Apply edge rate limiter: max 300 requests per minute per IP
+  .use('/extract', createRateLimiter({ windowMs: 60000, maxRequests: 300 }))
+
   /**
    * POST /api/topex/extract
-   * Fetches and parses topography (and optionally gravity) from UCSD
+   * Fetches and parses topography (and optionally gravity) from UCSD with edge caching
    */
   .post(
     '/extract',
@@ -30,6 +39,23 @@ export const topexRoute = new Hono()
       const startTime = performance.now();
       const params = c.req.valid('json');
 
+      const cacheKey = generateCacheKey({
+        north: params.north,
+        south: params.south,
+        west: params.west,
+        east: params.east,
+        mag: params.mag,
+        includeGravity: params.includeGravity,
+      });
+
+      // 1. Check Worker / Edge Cache
+      const cached = getFromLocalCache(cacheKey);
+      if (cached) {
+        c.header('X-Cache', 'HIT');
+        c.header('Cache-Control', 'public, max-age=86400, s-maxage=604800, immutable');
+        return c.json(cached);
+      }
+
       try {
         if (params.includeGravity) {
           // Fetch Elevation and Free Air Gravity in parallel
@@ -51,10 +77,8 @@ export const topexRoute = new Hono()
           ]);
 
           // Build merged records
-          // Create coordinate map for reliable gravity lookup
           const gravityMap = new Map<string, number>();
           for (const g of gravityPoints) {
-            // Key by 4 decimal places
             const key = `${g.longitude.toFixed(4)}_${g.latitude.toFixed(4)}`;
             gravityMap.set(key, g.value);
           }
@@ -62,7 +86,6 @@ export const topexRoute = new Hono()
           const records: TopexRecord[] = topoPoints.map((t, idx) => {
             const key = `${t.longitude.toFixed(4)}_${t.latitude.toFixed(4)}`;
             let gravVal = gravityMap.get(key);
-            // Fallback to index match if coordinates line up exactly
             if (gravVal === undefined && idx < gravityPoints.length) {
               gravVal = gravityPoints[idx].value;
             }
@@ -90,6 +113,11 @@ export const topexRoute = new Hono()
             executionTimeMs,
           };
 
+          // Save to edge cache
+          setToLocalCache(cacheKey, response);
+
+          c.header('X-Cache', 'MISS');
+          c.header('Cache-Control', 'public, max-age=86400, s-maxage=604800, immutable');
           return c.json(response);
         } else {
           // Topography only or Gravity only based on mag param
@@ -124,6 +152,11 @@ export const topexRoute = new Hono()
             executionTimeMs,
           };
 
+          // Save to edge cache
+          setToLocalCache(cacheKey, response);
+
+          c.header('X-Cache', 'MISS');
+          c.header('Cache-Control', 'public, max-age=86400, s-maxage=604800, immutable');
           return c.json(response);
         }
       } catch (err: unknown) {
