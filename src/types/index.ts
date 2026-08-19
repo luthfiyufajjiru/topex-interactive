@@ -25,6 +25,22 @@ export interface ProcessedRecord extends TopexRecord {
   slabCorrection?: number;
 }
 
+export interface ProfilePoint {
+  index: number;
+  distanceKm: number;
+  latitude: number;
+  longitude: number;
+  elevation: number;
+  freeAir?: number;
+  bouguer?: number;
+  slabCorrection?: number;
+}
+
+export interface ProfileLine {
+  start: { lat: number; lon: number };
+  end: { lat: number; lon: number };
+}
+
 export interface VariableStats {
   min: number;
   max: number;

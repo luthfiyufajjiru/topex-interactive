@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import type { ProcessedRecord, BoundingBox, InterpolationMethod } from '@/types';
+import type { ProcessedRecord, BoundingBox, InterpolationMethod, ProfileLine, ProfilePoint } from '@/types';
 import { ColormapName } from '@/utils/geophysics/colormaps';
 import { buildRegularGrid, renderInterpolatedRasterToCanvas } from '@/utils/geophysics/interpolation';
+import { extractProfilePoints } from '@/utils/geophysics/profile';
 import { MapColorbar } from './MapColorbar';
+import { ProfileGraph } from './ProfileGraph';
 import { exportToOasisMontajXYZ, exportToGeosoftGXF } from '@/utils/exporters/geosoft';
 import { exportMapToPng } from '@/utils/exporters/mapImage';
 import { FileCode, Image, Crosshair, SlidersHorizontal, Pin, PinOff } from 'lucide-react';
@@ -23,13 +25,25 @@ interface MapConfig {
 export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, bounds }) => {
   const [hoveredRecord, setHoveredRecord] = useState<ProcessedRecord | null>(null);
   const [pinnedRecord, setPinnedRecord] = useState<ProcessedRecord | null>(null);
+  const [hoveredProfilePoint, setHoveredProfilePoint] = useState<ProfilePoint | null>(null);
   const [interpolationMethod, setInterpolationMethod] = useState<InterpolationMethod>('bicubic');
+
+  // Default transect line A -> A' across the center
+  const [profileLine, setProfileLine] = useState<ProfileLine>(() => {
+    const midLat = (bounds.north + bounds.south) / 2;
+    const w = bounds.west + (bounds.east - bounds.west) * 0.1;
+    const e = bounds.west + (bounds.east - bounds.west) * 0.9;
+    return {
+      start: { lat: midLat, lon: w },
+      end: { lat: midLat, lon: e },
+    };
+  });
 
   const canvasTopoRef = useRef<HTMLCanvasElement | null>(null);
   const canvasFaaRef = useRef<HTMLCanvasElement | null>(null);
   const canvasBgRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Active inspected record (pinned has priority over hover)
+  // Active inspected record
   const activeRecord = pinnedRecord || hoveredRecord;
 
   // Build Regular Grids for each variable
@@ -46,9 +60,49 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
     [records, bounds]
   );
 
-  // Draw Crosshair Marker on Canvas
-  const drawTargetMarker = (canvas: HTMLCanvasElement | null, target: ProcessedRecord | null) => {
-    if (!canvas || !target) return;
+  // Extract Profile Points along line
+  const profilePoints = useMemo(() => {
+    return extractProfilePoints(profileLine, gridTopo, gridFaa, gridBg, bounds, interpolationMethod, 120);
+  }, [profileLine, gridTopo, gridFaa, gridBg, bounds, interpolationMethod]);
+
+  // Set Profile Line Presets
+  const handleSetPresetLine = (preset: 'we' | 'ns' | 'diag1' | 'diag2') => {
+    const midLat = (bounds.north + bounds.south) / 2;
+    const midLon = (bounds.west + bounds.east) / 2;
+    const padLat = (bounds.north - bounds.south) * 0.1;
+    const padLon = (bounds.east - bounds.west) * 0.1;
+
+    switch (preset) {
+      case 'we': // West to East
+        setProfileLine({
+          start: { lat: midLat, lon: bounds.west + padLon },
+          end: { lat: midLat, lon: bounds.east - padLon },
+        });
+        break;
+      case 'ns': // North to South
+        setProfileLine({
+          start: { lat: bounds.north - padLat, lon: midLon },
+          end: { lat: bounds.south + padLat, lon: midLon },
+        });
+        break;
+      case 'diag1': // SW to NE
+        setProfileLine({
+          start: { lat: bounds.south + padLat, lon: bounds.west + padLon },
+          end: { lat: bounds.north - padLat, lon: bounds.east - padLon },
+        });
+        break;
+      case 'diag2': // NW to SE
+        setProfileLine({
+          start: { lat: bounds.north - padLat, lon: bounds.west + padLon },
+          end: { lat: bounds.south + padLat, lon: bounds.east - padLon },
+        });
+        break;
+    }
+  };
+
+  // Draw Crosshair Marker and Transect Line on Canvas
+  const drawOverlayElements = (canvas: HTMLCanvasElement | null) => {
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
@@ -58,40 +112,104 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
     const lonRange = bounds.east - bounds.west || 1;
     const latRange = bounds.north - bounds.south || 1;
 
-    const xNorm = (target.longitude - bounds.west) / lonRange;
-    const yNorm = (bounds.north - target.latitude) / latRange;
-
-    const px = Math.round(xNorm * w);
-    const py = Math.round(yNorm * h);
+    // 1. Draw Transect Line A -> A'
+    const xA = ((profileLine.start.lon - bounds.west) / lonRange) * w;
+    const yA = ((bounds.north - profileLine.start.lat) / latRange) * h;
+    const xB = ((profileLine.end.lon - bounds.west) / lonRange) * w;
+    const yB = ((bounds.north - profileLine.end.lat) / latRange) * h;
 
     ctx.save();
-    // Outer glow ring
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2.5;
+    // Glowing underlay
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.lineWidth = 4;
     ctx.beginPath();
-    ctx.arc(px, py, 7, 0, Math.PI * 2);
+    ctx.moveTo(xA, yA);
+    ctx.lineTo(xB, yB);
     ctx.stroke();
 
-    // Inner dark ring
-    ctx.strokeStyle = '#0284c7';
+    // Main transect line
+    ctx.strokeStyle = '#facc15';
     ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
     ctx.beginPath();
-    ctx.arc(px, py, 5, 0, Math.PI * 2);
+    ctx.moveTo(xA, yA);
+    ctx.lineTo(xB, yB);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Endpoint A badge
+    ctx.fillStyle = '#facc15';
+    ctx.beginPath();
+    ctx.arc(xA, yA, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    // Cross lines
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 1.5;
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 10px Inter, sans-serif';
+    ctx.fillText('A', xA - 12, yA - 4);
+
+    // Endpoint A' badge
+    ctx.fillStyle = '#facc15';
     ctx.beginPath();
-    ctx.moveTo(px - 11, py);
-    ctx.lineTo(px - 4, py);
-    ctx.moveTo(px + 4, py);
-    ctx.lineTo(px + 11, py);
-    ctx.moveTo(px, py - 11);
-    ctx.lineTo(px, py - 4);
-    ctx.moveTo(px, py + 4);
-    ctx.lineTo(px, py + 11);
+    ctx.arc(xB, yB, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 1.5;
     ctx.stroke();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText("A'", xB + 6, yB - 4);
+
+    // 2. If hovering over Profile Graph, highlight tracking point on map
+    if (hoveredProfilePoint) {
+      const xTrack = ((hoveredProfilePoint.longitude - bounds.west) / lonRange) * w;
+      const yTrack = ((bounds.north - hoveredProfilePoint.latitude) / latRange) * h;
+
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(xTrack, yTrack, 7, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+    }
+
+    // 3. Draw active target reticle if soundings probe active
+    if (activeRecord) {
+      const px = Math.round(((activeRecord.longitude - bounds.west) / lonRange) * w);
+      const py = Math.round(((bounds.north - activeRecord.latitude) / latRange) * h);
+
+      // Outer ring
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(px, py, 7, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Inner ring
+      ctx.strokeStyle = '#0284c7';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(px, py, 5, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Cross lines
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(px - 11, py);
+      ctx.lineTo(px - 4, py);
+      ctx.moveTo(px + 4, py);
+      ctx.lineTo(px + 11, py);
+      ctx.moveTo(px, py - 11);
+      ctx.lineTo(px, py - 4);
+      ctx.moveTo(px, py + 4);
+      ctx.lineTo(px, py + 11);
+      ctx.stroke();
+    }
 
     ctx.restore();
   };
@@ -100,17 +218,17 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
   const renderAllCanvases = useCallback(() => {
     if (canvasTopoRef.current && gridTopo) {
       renderInterpolatedRasterToCanvas(canvasTopoRef.current, gridTopo, 'gebco', interpolationMethod);
-      if (activeRecord) drawTargetMarker(canvasTopoRef.current, activeRecord);
+      drawOverlayElements(canvasTopoRef.current);
     }
     if (canvasFaaRef.current && gridFaa) {
       renderInterpolatedRasterToCanvas(canvasFaaRef.current, gridFaa, 'coolwarm', interpolationMethod);
-      if (activeRecord) drawTargetMarker(canvasFaaRef.current, activeRecord);
+      drawOverlayElements(canvasFaaRef.current);
     }
     if (canvasBgRef.current && gridBg) {
       renderInterpolatedRasterToCanvas(canvasBgRef.current, gridBg, 'viridis', interpolationMethod);
-      if (activeRecord) drawTargetMarker(canvasBgRef.current, activeRecord);
+      drawOverlayElements(canvasBgRef.current);
     }
-  }, [gridTopo, gridFaa, gridBg, interpolationMethod, activeRecord]);
+  }, [gridTopo, gridFaa, gridBg, interpolationMethod, activeRecord, profileLine, hoveredProfilePoint]);
 
   useEffect(() => {
     renderAllCanvases();
@@ -143,7 +261,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
 
   // Synchronized Mouse Move Probe
   const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (pinnedRecord) return; // Keep pinned record active
+    if (pinnedRecord) return;
     const nearest = findNearestSounding(e);
     setHoveredRecord(nearest);
   };
@@ -152,7 +270,6 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const nearest = findNearestSounding(e);
     if (nearest) {
-      // Toggle or set pinned sounding
       if (pinnedRecord && pinnedRecord.latitude === nearest.latitude && pinnedRecord.longitude === nearest.longitude) {
         setPinnedRecord(null);
       } else {
@@ -210,7 +327,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
             <span className="badge-live-geophysics">Live Geophysics</span>
           </div>
           <p className="studio-desc">
-            Multi-field comparative analysis of Topography, Free-Air, and Complete Bouguer anomalies with real-time spatial interpolation.
+            Multi-field comparative analysis of Topography, Free-Air, and Complete Bouguer anomalies with real-time spatial interpolation and 2D cross-section profiling.
           </p>
         </div>
 
@@ -429,6 +546,15 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
           )}
         </div>
       </div>
+
+      {/* 2D Geophysical Cross-Section Profile Graph */}
+      <ProfileGraph
+        points={profilePoints}
+        line={profileLine}
+        hoveredPoint={hoveredProfilePoint}
+        onHoverPoint={setHoveredProfilePoint}
+        onSetPresetLine={handleSetPresetLine}
+      />
     </div>
   );
 };
