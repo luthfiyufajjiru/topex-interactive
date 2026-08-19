@@ -5,7 +5,7 @@ import { buildRegularGrid, renderInterpolatedRasterToCanvas } from '@/utils/geop
 import { MapColorbar } from './MapColorbar';
 import { exportToOasisMontajXYZ, exportToGeosoftGXF } from '@/utils/exporters/geosoft';
 import { exportMapToPng } from '@/utils/exporters/mapImage';
-import { FileCode, Image, Crosshair, Sparkles, SlidersHorizontal } from 'lucide-react';
+import { FileCode, Image, Crosshair, SlidersHorizontal, Pin, PinOff } from 'lucide-react';
 
 interface SatelliteGravityStudioProps {
   records: ProcessedRecord[];
@@ -22,11 +22,15 @@ interface MapConfig {
 
 export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, bounds }) => {
   const [hoveredRecord, setHoveredRecord] = useState<ProcessedRecord | null>(null);
+  const [pinnedRecord, setPinnedRecord] = useState<ProcessedRecord | null>(null);
   const [interpolationMethod, setInterpolationMethod] = useState<InterpolationMethod>('bicubic');
 
   const canvasTopoRef = useRef<HTMLCanvasElement | null>(null);
   const canvasFaaRef = useRef<HTMLCanvasElement | null>(null);
   const canvasBgRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Active inspected record (pinned has priority over hover)
+  const activeRecord = pinnedRecord || hoveredRecord;
 
   // Build Regular Grids for each variable
   const gridTopo = useMemo(
@@ -42,25 +46,78 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
     [records, bounds]
   );
 
+  // Draw Crosshair Marker on Canvas
+  const drawTargetMarker = (canvas: HTMLCanvasElement | null, target: ProcessedRecord | null) => {
+    if (!canvas || !target) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const w = canvas.width;
+    const h = canvas.height;
+
+    const lonRange = bounds.east - bounds.west || 1;
+    const latRange = bounds.north - bounds.south || 1;
+
+    const xNorm = (target.longitude - bounds.west) / lonRange;
+    const yNorm = (bounds.north - target.latitude) / latRange;
+
+    const px = Math.round(xNorm * w);
+    const py = Math.round(yNorm * h);
+
+    ctx.save();
+    // Outer glow ring
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(px, py, 7, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Inner dark ring
+    ctx.strokeStyle = '#0284c7';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(px, py, 5, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Cross lines
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(px - 11, py);
+    ctx.lineTo(px - 4, py);
+    ctx.moveTo(px + 4, py);
+    ctx.lineTo(px + 11, py);
+    ctx.moveTo(px, py - 11);
+    ctx.lineTo(px, py - 4);
+    ctx.moveTo(px, py + 4);
+    ctx.lineTo(px, py + 11);
+    ctx.stroke();
+
+    ctx.restore();
+  };
+
   // Render Raster Heatmaps on Canvas using Selected Interpolation
   const renderAllCanvases = useCallback(() => {
     if (canvasTopoRef.current && gridTopo) {
       renderInterpolatedRasterToCanvas(canvasTopoRef.current, gridTopo, 'gebco', interpolationMethod);
+      if (activeRecord) drawTargetMarker(canvasTopoRef.current, activeRecord);
     }
     if (canvasFaaRef.current && gridFaa) {
       renderInterpolatedRasterToCanvas(canvasFaaRef.current, gridFaa, 'coolwarm', interpolationMethod);
+      if (activeRecord) drawTargetMarker(canvasFaaRef.current, activeRecord);
     }
     if (canvasBgRef.current && gridBg) {
       renderInterpolatedRasterToCanvas(canvasBgRef.current, gridBg, 'viridis', interpolationMethod);
+      if (activeRecord) drawTargetMarker(canvasBgRef.current, activeRecord);
     }
-  }, [gridTopo, gridFaa, gridBg, interpolationMethod]);
+  }, [gridTopo, gridFaa, gridBg, interpolationMethod, activeRecord]);
 
   useEffect(() => {
     renderAllCanvases();
   }, [renderAllCanvases]);
 
-  // Synchronized Mouse Probe
-  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  // Find nearest sounding to a mouse coordinate
+  const findNearestSounding = (e: React.MouseEvent<HTMLCanvasElement>): ProcessedRecord | null => {
     const canvas = e.currentTarget;
     const rect = canvas.getBoundingClientRect();
     const xNorm = (e.clientX - rect.left) / rect.width;
@@ -69,7 +126,6 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
     const lon = bounds.west + xNorm * (bounds.east - bounds.west);
     const lat = bounds.north - yNorm * (bounds.north - bounds.south);
 
-    // Find nearest sounding
     let nearest: ProcessedRecord | null = null;
     let minDist = Infinity;
 
@@ -82,7 +138,27 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
       }
     }
 
+    return nearest;
+  };
+
+  // Synchronized Mouse Move Probe
+  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (pinnedRecord) return; // Keep pinned record active
+    const nearest = findNearestSounding(e);
     setHoveredRecord(nearest);
+  };
+
+  // Interactive Click to Pin / Lock Sounding Point
+  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const nearest = findNearestSounding(e);
+    if (nearest) {
+      // Toggle or set pinned sounding
+      if (pinnedRecord && pinnedRecord.latitude === nearest.latitude && pinnedRecord.longitude === nearest.longitude) {
+        setPinnedRecord(null);
+      } else {
+        setPinnedRecord(nearest);
+      }
+    }
   };
 
   const handleExportMap = (cfg: MapConfig) => {
@@ -134,7 +210,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
             <span className="badge-live-geophysics">Live Geophysics</span>
           </div>
           <p className="studio-desc">
-            Simultaneous comparative visualization of Topography, Free-Air Gravity, and Complete Bouguer Anomaly with scientific interpolation.
+            Multi-field comparative analysis of Topography, Free-Air, and Complete Bouguer anomalies with real-time spatial interpolation.
           </p>
         </div>
 
@@ -162,94 +238,83 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
         </div>
       </div>
 
-      {/* Interpolation Control Toolbar */}
+      {/* Interpolation Control Dropdown Toolbar */}
       <div className="interpolation-toolbar-card">
         <div className="interp-label-group">
           <SlidersHorizontal size={17} className="text-primary-blue" />
           <span className="interp-title">Spatial Interpolation Filter:</span>
         </div>
 
-        <div className="interp-options-group">
-          <button
-            type="button"
-            className={`btn-interp-option ${interpolationMethod === 'bicubic' ? 'active' : ''}`}
-            onClick={() => setInterpolationMethod('bicubic')}
-            title="Bicubic Hermite/Catmull-Rom Spline (Continuous 1st derivatives, standard potential field)"
+        <div className="interp-select-wrapper">
+          <select
+            id="interp-method-select"
+            className="form-control interp-select"
+            value={interpolationMethod}
+            onChange={(e) => setInterpolationMethod(e.target.value as InterpolationMethod)}
           >
-            <Sparkles size={14} />
-            <span>Bicubic Spline</span>
-          </button>
-
-          <button
-            type="button"
-            className={`btn-interp-option ${interpolationMethod === 'spline' ? 'active' : ''}`}
-            onClick={() => setInterpolationMethod('spline')}
-            title="Thin Plate Spline / Minimum Curvature (Harmonic potential field surface)"
-          >
-            <span>Thin Plate Spline</span>
-          </button>
-
-          <button
-            type="button"
-            className={`btn-interp-option ${interpolationMethod === 'bilinear' ? 'active' : ''}`}
-            onClick={() => setInterpolationMethod('bilinear')}
-            title="Bilinear 2D Linear Mesh"
-          >
-            <span>Bilinear</span>
-          </button>
-
-          <button
-            type="button"
-            className={`btn-interp-option ${interpolationMethod === 'idw' ? 'active' : ''}`}
-            onClick={() => setInterpolationMethod('idw')}
-            title="Inverse Distance Weighting (IDW Power 2)"
-          >
-            <span>IDW</span>
-          </button>
-
-          <button
-            type="button"
-            className={`btn-interp-option ${interpolationMethod === 'nearest' ? 'active' : ''}`}
-            onClick={() => setInterpolationMethod('nearest')}
-            title="Nearest Neighbor (Discrete raw sounding points)"
-          >
-            <span>Nearest (Raw)</span>
-          </button>
+            <option value="bicubic">Bicubic Spline (Continuous 1st Derivatives — Standard Potential Field)</option>
+            <option value="spline">Thin Plate Spline (Minimum Curvature Harmonic Surface)</option>
+            <option value="bilinear">Bilinear (2D Linear Mesh)</option>
+            <option value="idw">Inverse Distance Weighting (IDW Power 2)</option>
+            <option value="nearest">Nearest Neighbor (Raw Discrete Soundings)</option>
+          </select>
         </div>
       </div>
 
-      {/* Synchronized Hover Probe HUD */}
-      <div className="probe-hud-card">
+      {/* Synchronized Probe HUD (Hover or Click to Pin) */}
+      <div className={`probe-hud-card ${pinnedRecord ? 'is-pinned' : ''}`}>
         <div className="probe-icon-label">
-          <Crosshair size={18} className="text-primary-blue animate-pulse" />
-          <span>Synchronized Probe:</span>
+          {pinnedRecord ? (
+            <div className="pin-badge">
+              <Pin size={15} className="text-emerald animate-bounce" />
+              <span>Pinned Target:</span>
+            </div>
+          ) : (
+            <div className="probe-badge">
+              <Crosshair size={17} className="text-primary-blue animate-pulse" />
+              <span>Probe Sounding:</span>
+            </div>
+          )}
         </div>
-        {hoveredRecord ? (
+
+        {activeRecord ? (
           <div className="probe-values-row">
             <div className="probe-val-item">
-              <span className="probe-key">Lat / Lon:</span>
-              <strong>{hoveredRecord.latitude.toFixed(4)}°, {hoveredRecord.longitude.toFixed(4)}°</strong>
+              <span className="probe-key">Coordinate:</span>
+              <strong>{activeRecord.latitude.toFixed(4)}°, {activeRecord.longitude.toFixed(4)}°</strong>
             </div>
             <div className="probe-val-item">
               <span className="probe-key">Topography:</span>
-              <strong className="text-emerald">{hoveredRecord.elevation?.toFixed(1) ?? 'N/A'} m</strong>
+              <strong className="text-emerald">{activeRecord.elevation?.toFixed(1) ?? 'N/A'} m</strong>
             </div>
             <div className="probe-val-item">
               <span className="probe-key">Free-Air:</span>
-              <strong className="text-sky">{hoveredRecord.gravity?.toFixed(1) ?? 'N/A'} mGal</strong>
+              <strong className="text-sky">{activeRecord.gravity?.toFixed(1) ?? 'N/A'} mGal</strong>
             </div>
             <div className="probe-val-item">
               <span className="probe-key">Bouguer:</span>
-              <strong className="text-amber">{hoveredRecord.bouguer?.toFixed(1) ?? 'N/A'} mGal</strong>
+              <strong className="text-amber">{activeRecord.bouguer?.toFixed(1) ?? 'N/A'} mGal</strong>
             </div>
             <div className="probe-val-item">
               <span className="probe-key">Slab Correction:</span>
-              <span style={{ color: '#94a3b8' }}>{hoveredRecord.slabCorrection?.toFixed(1) ?? 'N/A'} mGal</span>
+              <span style={{ color: '#94a3b8' }}>{activeRecord.slabCorrection?.toFixed(1) ?? 'N/A'} mGal</span>
             </div>
+
+            {pinnedRecord && (
+              <button
+                type="button"
+                className="btn-unpin"
+                onClick={() => setPinnedRecord(null)}
+                title="Unpin target and resume hover probing"
+              >
+                <PinOff size={13} />
+                <span>Unpin</span>
+              </button>
+            )}
           </div>
         ) : (
           <div className="probe-placeholder">
-            Hover over any of the 3 maps to probe synchronized values across all datasets.
+            Click or hover on any of the 3 maps to inspect and pin synchronized values across all datasets.
           </div>
         )}
       </div>
@@ -277,7 +342,8 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
               height={360}
               className="raster-canvas"
               onMouseMove={handleCanvasMouseMove}
-              onMouseLeave={() => setHoveredRecord(null)}
+              onClick={handleCanvasClick}
+              onMouseLeave={() => !pinnedRecord && setHoveredRecord(null)}
             />
           </div>
           {gridTopo && (
@@ -312,7 +378,8 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
               height={360}
               className="raster-canvas"
               onMouseMove={handleCanvasMouseMove}
-              onMouseLeave={() => setHoveredRecord(null)}
+              onClick={handleCanvasClick}
+              onMouseLeave={() => !pinnedRecord && setHoveredRecord(null)}
             />
           </div>
           {gridFaa && (
@@ -347,7 +414,8 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
               height={360}
               className="raster-canvas"
               onMouseMove={handleCanvasMouseMove}
-              onMouseLeave={() => setHoveredRecord(null)}
+              onClick={handleCanvasClick}
+              onMouseLeave={() => !pinnedRecord && setHoveredRecord(null)}
             />
           </div>
           {gridBg && (
