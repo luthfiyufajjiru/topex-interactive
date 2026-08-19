@@ -1251,6 +1251,88 @@ footer {
   color: #166534;
 }
 
+.studio-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.badge-live-geophysics {
+  background: #eff6ff;
+  color: var(--primary-blue);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid #bfdbfe;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Interpolation Toolbar */
+.interpolation-toolbar-card {
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 10px 16px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--shadow-sm);
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.interp-label-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.interp-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.interp-options-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.btn-interp-option {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+}
+
+.btn-interp-option:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.btn-interp-option.active {
+  background: var(--primary-blue);
+  border-color: var(--primary-blue-dark);
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(30, 136, 229, 0.25);
+}
+
 .probe-hud-card {
   background: #0f172a;
   color: #ffffff;

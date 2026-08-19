@@ -1,12 +1,13 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import type { ProcessedRecord, BoundingBox } from '@/types';
-import { getInterpolatedColor, ColormapName } from '@/utils/geophysics/colormaps';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import type { ProcessedRecord, BoundingBox, InterpolationMethod } from '@/types';
+import { ColormapName } from '@/utils/geophysics/colormaps';
+import { buildRegularGrid, renderInterpolatedRasterToCanvas } from '@/utils/geophysics/interpolation';
 import { MapColorbar } from './MapColorbar';
 import { exportToOasisMontajXYZ, exportToGeosoftGXF } from '@/utils/exporters/geosoft';
 import { exportMapToPng } from '@/utils/exporters/mapImage';
-import { FileCode, Image, Crosshair } from 'lucide-react';
+import { FileCode, Image, Crosshair, Sparkles, SlidersHorizontal } from 'lucide-react';
 
-interface TriMapViewerProps {
+interface SatelliteGravityStudioProps {
   records: ProcessedRecord[];
   bounds: BoundingBox;
 }
@@ -19,97 +20,44 @@ interface MapConfig {
   getValue: (r: ProcessedRecord) => number | undefined;
 }
 
-export const TriMapViewer: React.FC<TriMapViewerProps> = ({ records, bounds }) => {
+export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, bounds }) => {
   const [hoveredRecord, setHoveredRecord] = useState<ProcessedRecord | null>(null);
+  const [interpolationMethod, setInterpolationMethod] = useState<InterpolationMethod>('bicubic');
 
   const canvasTopoRef = useRef<HTMLCanvasElement | null>(null);
   const canvasFaaRef = useRef<HTMLCanvasElement | null>(null);
   const canvasBgRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Compute min and max for each dataset
-  const [stats, setStats] = useState({
-    topo: { min: -6000, max: 2000 },
-    faa: { min: -100, max: 100 },
-    bg: { min: -50, max: 250 },
-  });
-
-  useEffect(() => {
-    if (records.length === 0) return;
-
-    let tMin = Infinity, tMax = -Infinity;
-    let fMin = Infinity, fMax = -Infinity;
-    let bMin = Infinity, bMax = -Infinity;
-
-    for (let i = 0; i < records.length; i++) {
-      const r = records[i];
-      if (r.elevation !== undefined) {
-        if (r.elevation < tMin) tMin = r.elevation;
-        if (r.elevation > tMax) tMax = r.elevation;
-      }
-
-      if (r.gravity !== undefined) {
-        if (r.gravity < fMin) fMin = r.gravity;
-        if (r.gravity > fMax) fMax = r.gravity;
-      }
-
-      if (r.bouguer !== undefined) {
-        if (r.bouguer < bMin) bMin = r.bouguer;
-        if (r.bouguer > bMax) bMax = r.bouguer;
-      }
-    }
-
-    setStats({
-      topo: { min: tMin === Infinity ? -1000 : tMin, max: tMax === -Infinity ? 1000 : tMax },
-      faa: { min: fMin === Infinity ? -50 : fMin, max: fMax === -Infinity ? 50 : fMax },
-      bg: { min: bMin === Infinity ? 0 : bMin, max: bMax === -Infinity ? 100 : bMax },
-    });
-  }, [records]);
-
-  // Render Raster Heatmaps on Canvas
-  const drawHeatmap = useCallback(
-    (canvas: HTMLCanvasElement | null, getValue: (r: ProcessedRecord) => number | undefined, min: number, max: number, colormap: ColormapName) => {
-      if (!canvas || records.length === 0) return;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      const w = canvas.width;
-      const h = canvas.height;
-      ctx.clearRect(0, 0, w, h);
-
-      // Dark background for oceanic aesthetic
-      ctx.fillStyle = '#060b14';
-      ctx.fillRect(0, 0, w, h);
-
-      const lonRange = bounds.east - bounds.west || 1;
-      const latRange = bounds.north - bounds.south || 1;
-
-      const stepX = Math.max(3, Math.ceil(w / 100));
-      const stepY = Math.max(3, Math.ceil(h / 100));
-
-      for (let i = 0; i < records.length; i++) {
-        const r = records[i];
-        const val = getValue(r);
-        if (val === undefined || isNaN(val)) continue;
-
-        const xNorm = (r.longitude - bounds.west) / lonRange;
-        const yNorm = (bounds.north - r.latitude) / latRange;
-
-        const px = Math.round(xNorm * w);
-        const py = Math.round(yNorm * h);
-
-        const [red, green, blue] = getInterpolatedColor(val, min, max, colormap);
-        ctx.fillStyle = `rgb(${red}, ${green}, ${blue})`;
-        ctx.fillRect(px - stepX / 2, py - stepY / 2, stepX, stepY);
-      }
-    },
+  // Build Regular Grids for each variable
+  const gridTopo = useMemo(
+    () => buildRegularGrid(records, bounds, (r) => r.elevation),
+    [records, bounds]
+  );
+  const gridFaa = useMemo(
+    () => buildRegularGrid(records, bounds, (r) => r.gravity),
+    [records, bounds]
+  );
+  const gridBg = useMemo(
+    () => buildRegularGrid(records, bounds, (r) => r.bouguer),
     [records, bounds]
   );
 
+  // Render Raster Heatmaps on Canvas using Selected Interpolation
+  const renderAllCanvases = useCallback(() => {
+    if (canvasTopoRef.current && gridTopo) {
+      renderInterpolatedRasterToCanvas(canvasTopoRef.current, gridTopo, 'gebco', interpolationMethod);
+    }
+    if (canvasFaaRef.current && gridFaa) {
+      renderInterpolatedRasterToCanvas(canvasFaaRef.current, gridFaa, 'coolwarm', interpolationMethod);
+    }
+    if (canvasBgRef.current && gridBg) {
+      renderInterpolatedRasterToCanvas(canvasBgRef.current, gridBg, 'viridis', interpolationMethod);
+    }
+  }, [gridTopo, gridFaa, gridBg, interpolationMethod]);
+
   useEffect(() => {
-    drawHeatmap(canvasTopoRef.current, (r) => r.elevation, stats.topo.min, stats.topo.max, 'gebco');
-    drawHeatmap(canvasFaaRef.current, (r) => r.gravity, stats.faa.min, stats.faa.max, 'coolwarm');
-    drawHeatmap(canvasBgRef.current, (r) => r.bouguer, stats.bg.min, stats.bg.max, 'viridis');
-  }, [drawHeatmap, stats]);
+    renderAllCanvases();
+  }, [renderAllCanvases]);
 
   // Synchronized Mouse Probe
   const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -138,14 +86,18 @@ export const TriMapViewer: React.FC<TriMapViewerProps> = ({ records, bounds }) =
   };
 
   const handleExportMap = (cfg: MapConfig) => {
-    exportMapToPng({
-      title: `TOPEX ${cfg.title}`,
-      variable: cfg.id,
-      unit: cfg.unit,
-      colormap: cfg.colormap,
-      bounds,
-      records,
-    }, `topex_${cfg.id}_map.png`);
+    exportMapToPng(
+      {
+        title: `TOPEX ${cfg.title}`,
+        variable: cfg.id,
+        unit: cfg.unit,
+        colormap: cfg.colormap,
+        interpolationMethod,
+        bounds,
+        records,
+      },
+      `topex_${cfg.id}_${interpolationMethod}_map.png`
+    );
   };
 
   const mapConfigs: MapConfig[] = [
@@ -177,9 +129,12 @@ export const TriMapViewer: React.FC<TriMapViewerProps> = ({ records, bounds }) =
       {/* Studio Header & Global Exporters */}
       <div className="studio-header">
         <div>
-          <h2 className="studio-title">Tri-Map Geophysical Studio</h2>
+          <div className="studio-badge-row">
+            <h2 className="studio-title">Satellite Gravity Studio</h2>
+            <span className="badge-live-geophysics">Live Geophysics</span>
+          </div>
           <p className="studio-desc">
-            Simultaneous comparative visualization of Topography, Free-Air Gravity, and Complete Bouguer Anomaly.
+            Simultaneous comparative visualization of Topography, Free-Air Gravity, and Complete Bouguer Anomaly with scientific interpolation.
           </p>
         </div>
 
@@ -203,6 +158,62 @@ export const TriMapViewer: React.FC<TriMapViewerProps> = ({ records, bounds }) =
           >
             <FileCode size={16} />
             <span>Geosoft Grid (.GXF)</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Interpolation Control Toolbar */}
+      <div className="interpolation-toolbar-card">
+        <div className="interp-label-group">
+          <SlidersHorizontal size={17} className="text-primary-blue" />
+          <span className="interp-title">Spatial Interpolation Filter:</span>
+        </div>
+
+        <div className="interp-options-group">
+          <button
+            type="button"
+            className={`btn-interp-option ${interpolationMethod === 'bicubic' ? 'active' : ''}`}
+            onClick={() => setInterpolationMethod('bicubic')}
+            title="Bicubic Hermite/Catmull-Rom Spline (Continuous 1st derivatives, standard potential field)"
+          >
+            <Sparkles size={14} />
+            <span>Bicubic Spline</span>
+          </button>
+
+          <button
+            type="button"
+            className={`btn-interp-option ${interpolationMethod === 'spline' ? 'active' : ''}`}
+            onClick={() => setInterpolationMethod('spline')}
+            title="Thin Plate Spline / Minimum Curvature (Harmonic potential field surface)"
+          >
+            <span>Thin Plate Spline</span>
+          </button>
+
+          <button
+            type="button"
+            className={`btn-interp-option ${interpolationMethod === 'bilinear' ? 'active' : ''}`}
+            onClick={() => setInterpolationMethod('bilinear')}
+            title="Bilinear 2D Linear Mesh"
+          >
+            <span>Bilinear</span>
+          </button>
+
+          <button
+            type="button"
+            className={`btn-interp-option ${interpolationMethod === 'idw' ? 'active' : ''}`}
+            onClick={() => setInterpolationMethod('idw')}
+            title="Inverse Distance Weighting (IDW Power 2)"
+          >
+            <span>IDW</span>
+          </button>
+
+          <button
+            type="button"
+            className={`btn-interp-option ${interpolationMethod === 'nearest' ? 'active' : ''}`}
+            onClick={() => setInterpolationMethod('nearest')}
+            title="Nearest Neighbor (Discrete raw sounding points)"
+          >
+            <span>Nearest (Raw)</span>
           </button>
         </div>
       </div>
@@ -269,13 +280,15 @@ export const TriMapViewer: React.FC<TriMapViewerProps> = ({ records, bounds }) =
               onMouseLeave={() => setHoveredRecord(null)}
             />
           </div>
-          <MapColorbar
-            colormap="gebco"
-            min={stats.topo.min}
-            max={stats.topo.max}
-            unit="m"
-            label="Elevation"
-          />
+          {gridTopo && (
+            <MapColorbar
+              colormap="gebco"
+              min={gridTopo.minVal}
+              max={gridTopo.maxVal}
+              unit="m"
+              label="Elevation"
+            />
+          )}
         </div>
 
         {/* Map 2: Free Air Anomaly */}
@@ -302,13 +315,15 @@ export const TriMapViewer: React.FC<TriMapViewerProps> = ({ records, bounds }) =
               onMouseLeave={() => setHoveredRecord(null)}
             />
           </div>
-          <MapColorbar
-            colormap="coolwarm"
-            min={stats.faa.min}
-            max={stats.faa.max}
-            unit="mGal"
-            label="Free-Air"
-          />
+          {gridFaa && (
+            <MapColorbar
+              colormap="coolwarm"
+              min={gridFaa.minVal}
+              max={gridFaa.maxVal}
+              unit="mGal"
+              label="Free-Air"
+            />
+          )}
         </div>
 
         {/* Map 3: Bouguer Anomaly */}
@@ -335,13 +350,15 @@ export const TriMapViewer: React.FC<TriMapViewerProps> = ({ records, bounds }) =
               onMouseLeave={() => setHoveredRecord(null)}
             />
           </div>
-          <MapColorbar
-            colormap="viridis"
-            min={stats.bg.min}
-            max={stats.bg.max}
-            unit="mGal"
-            label="Bouguer"
-          />
+          {gridBg && (
+            <MapColorbar
+              colormap="viridis"
+              min={gridBg.minVal}
+              max={gridBg.maxVal}
+              unit="mGal"
+              label="Bouguer"
+            />
+          )}
         </div>
       </div>
     </div>

@@ -5,6 +5,8 @@ export type WorkflowStep = 'extract' | 'process' | 'studio';
 
 export type DatasetType = 'topography' | 'freeAir' | 'bouguer';
 
+export type InterpolationMethod = 'bicubic' | 'spline' | 'bilinear' | 'idw' | 'nearest';
+
 export interface BoundingBox {
   north: number;
   south: number;

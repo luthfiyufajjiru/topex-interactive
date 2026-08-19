@@ -200,7 +200,7 @@ export const BouguerControlPanel: React.FC<BouguerControlPanelProps> = ({
           {/* Action Button */}
           <div className="processing-action-bar">
             <button type="button" className="btn-proceed-studio" onClick={onProceedToStudio}>
-              <span>Launch 3-Map Studio & Oasis Montaj Suite</span>
+              <span>Launch Satellite Gravity Studio</span>
               <ArrowRight size={18} />
             </button>
           </div>

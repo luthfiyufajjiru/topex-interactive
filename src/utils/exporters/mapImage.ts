@@ -1,17 +1,19 @@
-import type { ProcessedRecord, BoundingBox } from '@/types';
+import type { ProcessedRecord, BoundingBox, InterpolationMethod } from '@/types';
 import { getInterpolatedColor, ColormapName } from '@/utils/geophysics/colormaps';
+import { buildRegularGrid, sampleInterpolatedValue } from '@/utils/geophysics/interpolation';
 
 export interface MapExportOptions {
   title: string;
   variable: 'topography' | 'freeAir' | 'bouguer';
   unit: string;
   colormap: ColormapName;
+  interpolationMethod?: InterpolationMethod;
   bounds: BoundingBox;
   records: ProcessedRecord[];
 }
 
 export function exportMapToPng(options: MapExportOptions, filename = 'topex_map.png'): void {
-  const { title, variable, unit, colormap, bounds, records } = options;
+  const { title, variable, unit, colormap, interpolationMethod = 'bicubic', bounds, records } = options;
 
   if (records.length === 0) return;
 
@@ -33,46 +35,38 @@ export function exportMapToPng(options: MapExportOptions, filename = 'topex_map.
   const mapWidth = width - margin.left - margin.right;
   const mapHeight = height - margin.top - margin.bottom;
 
-  // Extract min/max for the chosen variable
-  let min = Infinity;
-  let max = -Infinity;
-  for (let i = 0; i < records.length; i++) {
-    const r = records[i];
-    const val = variable === 'bouguer' ? r.bouguer : variable === 'freeAir' ? r.gravity : r.elevation;
-    if (val !== undefined && !isNaN(val)) {
-      if (val < min) min = val;
-      if (val > max) max = val;
+  // Build regular grid for smooth interpolation
+  const getValue = (r: ProcessedRecord) =>
+    variable === 'bouguer' ? r.bouguer : variable === 'freeAir' ? r.gravity : r.elevation;
+
+  const grid = buildRegularGrid(records, bounds, getValue);
+  if (!grid) return;
+
+  const min = grid.minVal;
+  const max = grid.maxVal;
+
+  // Render high-res interpolated pixels
+  const mapImgData = ctx.createImageData(mapWidth, mapHeight);
+  const pixels = mapImgData.data;
+
+  for (let py = 0; py < mapHeight; py++) {
+    const v = py / (mapHeight - 1);
+    const rowOffset = py * mapWidth * 4;
+
+    for (let px = 0; px < mapWidth; px++) {
+      const u = px / (mapWidth - 1);
+      const val = sampleInterpolatedValue(grid, u, v, interpolationMethod);
+      const [r, g, b, a] = getInterpolatedColor(val, min, max, colormap);
+
+      const idx = rowOffset + px * 4;
+      pixels[idx] = r;
+      pixels[idx + 1] = g;
+      pixels[idx + 2] = b;
+      pixels[idx + 3] = a;
     }
   }
 
-  if (min === Infinity) {
-    min = -100;
-    max = 100;
-  }
-
-  // Draw Map Grid Pixels
-  const lonRange = bounds.east - bounds.west || 1;
-  const latRange = bounds.north - bounds.south || 1;
-
-  // Estimate grid step size
-  const stepX = Math.max(2, mapWidth / 120);
-  const stepY = Math.max(2, mapHeight / 120);
-
-  for (let i = 0; i < records.length; i++) {
-    const r = records[i];
-    const val = variable === 'bouguer' ? r.bouguer : variable === 'freeAir' ? r.gravity : r.elevation;
-    if (val === undefined || isNaN(val)) continue;
-
-    const xNorm = (r.longitude - bounds.west) / lonRange;
-    const yNorm = (bounds.north - r.latitude) / latRange;
-
-    const px = margin.left + xNorm * mapWidth;
-    const py = margin.top + yNorm * mapHeight;
-
-    const [red, green, blue] = getInterpolatedColor(val, min, max, colormap);
-    ctx.fillStyle = `rgb(${red}, ${green}, ${blue})`;
-    ctx.fillRect(px - stepX / 2, py - stepY / 2, stepX + 1, stepY + 1);
-  }
+  ctx.putImageData(mapImgData, margin.left, margin.top);
 
   // Neatline / Map Border
   ctx.strokeStyle = '#0f172a';
@@ -83,6 +77,9 @@ export function exportMapToPng(options: MapExportOptions, filename = 'topex_map.
   ctx.fillStyle = '#334155';
   ctx.font = '12px "JetBrains Mono", monospace';
   ctx.textAlign = 'center';
+
+  const lonRange = bounds.east - bounds.west || 1;
+  const latRange = bounds.north - bounds.south || 1;
 
   // Top/Bottom Lon ticks
   const numXTicks = 4;
@@ -123,14 +120,14 @@ export function exportMapToPng(options: MapExportOptions, filename = 'topex_map.
   ctx.fillStyle = '#0f172a';
   ctx.font = 'bold 22px Inter, sans-serif';
   ctx.textAlign = 'left';
-  ctx.fillText(title, margin.left, 45);
+  ctx.fillText(title, margin.left, 42);
 
   ctx.font = '13px Inter, sans-serif';
   ctx.fillStyle = '#64748b';
   ctx.fillText(
-    `TOPEX/Poseidon & SIO/UCSD Altimetry Model • Extracted: ${new Date().toLocaleDateString()}`,
+    `TOPEX/Poseidon & SIO/UCSD Model • Interpolation: ${interpolationMethod.toUpperCase()} • Extracted: ${new Date().toLocaleDateString()}`,
     margin.left,
-    68
+    66
   );
 
   // Vertical Colorbar on the Right

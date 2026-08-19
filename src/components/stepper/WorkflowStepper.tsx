@@ -1,6 +1,6 @@
 import React from 'react';
 import type { WorkflowStep } from '@/types';
-import { Layers, Activity, Map as MapIcon, CheckCircle2 } from 'lucide-react';
+import { Layers, Activity, Satellite, CheckCircle2 } from 'lucide-react';
 
 interface WorkflowStepperProps {
   currentStep: WorkflowStep;
@@ -32,9 +32,9 @@ export const WorkflowStepper: React.FC<WorkflowStepperProps> = ({
     },
     {
       id: 'studio',
-      label: '3. Tri-Map Studio',
+      label: '3. Satellite Gravity Studio',
       sub: '3 Maps & Oasis Montaj',
-      icon: <MapIcon size={18} />,
+      icon: <Satellite size={18} />,
       disabled: recordCount === 0 || !hasGravity,
     },
   ];
