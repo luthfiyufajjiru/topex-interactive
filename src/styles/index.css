@@ -1708,10 +1708,37 @@ footer {
   transition: all 0.15s ease;
 }
 
-.btn-preset-transect:hover {
+.transect-drag-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  color: #475569;
+  background: #f1f5f9;
+  padding: 5px 10px;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+}
+
+.btn-save-plot-png {
   background: #ffffff;
+  color: #1e293b;
+  border: 1.5px solid #cbd5e1;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.btn-save-plot-png:hover {
+  background: #eff6ff;
+  border-color: var(--primary-blue);
   color: var(--primary-blue);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .btn-export-profile-csv {

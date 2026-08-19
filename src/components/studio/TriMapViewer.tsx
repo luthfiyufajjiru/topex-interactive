@@ -7,7 +7,7 @@ import { MapColorbar } from './MapColorbar';
 import { ProfileGraph } from './ProfileGraph';
 import { exportToOasisMontajXYZ, exportToGeosoftGXF } from '@/utils/exporters/geosoft';
 import { exportMapToPng } from '@/utils/exporters/mapImage';
-import { FileCode, Image, Crosshair, SlidersHorizontal, Pin, PinOff } from 'lucide-react';
+import { FileCode, Image, Crosshair, SlidersHorizontal, Pin, PinOff, Move } from 'lucide-react';
 
 interface SatelliteGravityStudioProps {
   records: ProcessedRecord[];
@@ -39,6 +39,10 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
   const [pinnedRecord, setPinnedRecord] = useState<ProcessedRecord | null>(null);
   const [hoveredProfilePoint, setHoveredProfilePoint] = useState<ProfilePoint | null>(null);
   const [interpolationMethod, setInterpolationMethod] = useState<InterpolationMethod>('bicubic');
+
+  // Interactive Dragging State for Profile Line
+  const [draggingMode, setDraggingMode] = useState<'start' | 'end' | 'draw' | null>(null);
+  const [cursorStyle, setCursorStyle] = useState<string>('crosshair');
 
   // Initial Multi-Line Profiles
   const [lines, setLines] = useState<NamedProfileLine[]>(() => {
@@ -192,7 +196,134 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
     );
   };
 
-  // Draw Crosshair Marker and All Profile Lines on Canvas
+  // Convert client mouse event to Lat/Lon
+  const getLatLonFromEvent = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = e.currentTarget;
+    const rect = canvas.getBoundingClientRect();
+    const xNorm = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const yNorm = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+
+    const lon = bounds.west + xNorm * (bounds.east - bounds.west);
+    const lat = bounds.north - yNorm * (bounds.north - bounds.south);
+    return { lat, lon, xNorm, yNorm, rect };
+  };
+
+  // Check proximity to endpoints
+  const getEndpointProximity = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const { xNorm, yNorm, rect } = getLatLonFromEvent(e);
+    const lonRange = bounds.east - bounds.west || 1;
+    const latRange = bounds.north - bounds.south || 1;
+
+    const px = xNorm * rect.width;
+    const py = yNorm * rect.height;
+
+    const xA = ((activeLine.start.lon - bounds.west) / lonRange) * rect.width;
+    const yA = ((bounds.north - activeLine.start.lat) / latRange) * rect.height;
+    const distA = Math.sqrt((px - xA) ** 2 + (py - yA) ** 2);
+
+    const xB = ((activeLine.end.lon - bounds.west) / lonRange) * rect.width;
+    const yB = ((bounds.north - activeLine.end.lat) / latRange) * rect.height;
+    const distB = Math.sqrt((px - xB) ** 2 + (py - yB) ** 2);
+
+    if (distA <= 16) return 'start';
+    if (distB <= 16) return 'end';
+    return null;
+  };
+
+  // Interactive Mouse Down on Map Canvas (Drag Endpoint or Freehand Draw)
+  const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const endpoint = getEndpointProximity(e);
+    const { lat, lon } = getLatLonFromEvent(e);
+
+    if (endpoint === 'start') {
+      setDraggingMode('start');
+      setCursorStyle('grabbing');
+    } else if (endpoint === 'end') {
+      setDraggingMode('end');
+      setCursorStyle('grabbing');
+    } else {
+      // Click-and-drag to freely draw a new line transect from this location
+      setDraggingMode('draw');
+      setCursorStyle('crosshair');
+      setLines(
+        lines.map((l) =>
+          l.id === activeLineId
+            ? { ...l, start: { lat, lon }, end: { lat, lon } }
+            : l
+        )
+      );
+    }
+  };
+
+  // Interactive Mouse Move on Map Canvas
+  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const { lat, lon } = getLatLonFromEvent(e);
+
+    if (draggingMode === 'start') {
+      setLines(
+        lines.map((l) => (l.id === activeLineId ? { ...l, start: { lat, lon } } : l))
+      );
+      return;
+    } else if (draggingMode === 'end' || draggingMode === 'draw') {
+      setLines(
+        lines.map((l) => (l.id === activeLineId ? { ...l, end: { lat, lon } } : l))
+      );
+      return;
+    }
+
+    // Hover cursor feedback
+    const endpoint = getEndpointProximity(e);
+    if (endpoint) {
+      setCursorStyle('grab');
+    } else {
+      setCursorStyle('crosshair');
+    }
+
+    // Sounding Probe
+    if (!pinnedRecord) {
+      const nearest = findNearestSounding(lat, lon);
+      setHoveredRecord(nearest);
+    }
+  };
+
+  // Mouse Up: Commit line
+  const handleCanvasMouseUp = () => {
+    setDraggingMode(null);
+    setCursorStyle('crosshair');
+  };
+
+  // Find nearest sounding to coordinate
+  const findNearestSounding = (lat: number, lon: number): ProcessedRecord | null => {
+    let nearest: ProcessedRecord | null = null;
+    let minDist = Infinity;
+
+    for (let i = 0; i < records.length; i++) {
+      const r = records[i];
+      const dist = (r.latitude - lat) ** 2 + (r.longitude - lon) ** 2;
+      if (dist < minDist) {
+        minDist = dist;
+        nearest = r;
+      }
+    }
+
+    return nearest;
+  };
+
+  // Interactive Click to Pin / Lock Sounding Point (only when not dragging line)
+  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (draggingMode) return;
+    const { lat, lon } = getLatLonFromEvent(e);
+    const nearest = findNearestSounding(lat, lon);
+    if (nearest) {
+      if (pinnedRecord && pinnedRecord.latitude === nearest.latitude && pinnedRecord.longitude === nearest.longitude) {
+        setPinnedRecord(null);
+      } else {
+        setPinnedRecord(nearest);
+      }
+    }
+  };
+
+  // Draw Overlay Elements on Canvas
   const drawOverlayElements = (canvas: HTMLCanvasElement | null) => {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -206,7 +337,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
 
     ctx.save();
 
-    // 1. Draw ALL Profile Lines (Inactive lines subtle, active line prominent)
+    // 1. Draw ALL Profile Lines
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const isLineActive = line.id === activeLineId;
@@ -218,8 +349,8 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
 
       if (isLineActive) {
         // Glowing underlay
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
-        ctx.lineWidth = 4;
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.lineWidth = 5;
         ctx.beginPath();
         ctx.moveTo(xA, yA);
         ctx.lineTo(xB, yB);
@@ -227,40 +358,40 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
 
         // Main active line
         ctx.strokeStyle = line.color;
-        ctx.lineWidth = 2.5;
-        ctx.setLineDash([6, 3]);
+        ctx.lineWidth = 3;
+        ctx.setLineDash([7, 4]);
         ctx.beginPath();
         ctx.moveTo(xA, yA);
         ctx.lineTo(xB, yB);
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Endpoint A badge
+        // Endpoint A handle
         ctx.fillStyle = line.color;
         ctx.beginPath();
-        ctx.arc(xA, yA, 6, 0, Math.PI * 2);
+        ctx.arc(xA, yA, 7.5, 0, Math.PI * 2);
         ctx.fill();
         ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2.5;
         ctx.stroke();
 
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 10px Inter, sans-serif';
-        ctx.fillText(line.labelStart, xA - 12, yA - 4);
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 11px Inter, sans-serif';
+        ctx.fillText(line.labelStart, xA - 14, yA - 6);
 
-        // Endpoint A' badge
+        // Endpoint A' handle
         ctx.fillStyle = line.color;
         ctx.beginPath();
-        ctx.arc(xB, yB, 6, 0, Math.PI * 2);
+        ctx.arc(xB, yB, 7.5, 0, Math.PI * 2);
         ctx.fill();
         ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2.5;
         ctx.stroke();
 
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText(line.labelEnd, xB + 6, yB - 4);
+        ctx.fillStyle = '#0f172a';
+        ctx.fillText(line.labelEnd, xB + 8, yB - 6);
       } else {
-        // Inactive line (thinner, subtle)
+        // Inactive line
         ctx.strokeStyle = line.color;
         ctx.globalAlpha = 0.55;
         ctx.lineWidth = 1.5;
@@ -272,16 +403,15 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
         ctx.setLineDash([]);
         ctx.globalAlpha = 1.0;
 
-        // Inactive endpoints
         ctx.fillStyle = line.color;
         ctx.beginPath();
-        ctx.arc(xA, yA, 3.5, 0, Math.PI * 2);
-        ctx.arc(xB, yB, 3.5, 0, Math.PI * 2);
+        ctx.arc(xA, yA, 4, 0, Math.PI * 2);
+        ctx.arc(xB, yB, 4, 0, Math.PI * 2);
         ctx.fill();
       }
     }
 
-    // 2. If hovering over Profile Graph, highlight tracking point on map
+    // 2. Tracking point along line
     if (hoveredProfilePoint) {
       const xTrack = ((hoveredProfilePoint.longitude - bounds.west) / lonRange) * w;
       const yTrack = ((bounds.north - hoveredProfilePoint.latitude) / latRange) * h;
@@ -296,26 +426,23 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
       ctx.stroke();
     }
 
-    // 3. Draw active target reticle if soundings probe active
+    // 3. Active target reticle
     if (activeRecord) {
       const px = Math.round(((activeRecord.longitude - bounds.west) / lonRange) * w);
       const py = Math.round(((bounds.north - activeRecord.latitude) / latRange) * h);
 
-      // Outer ring
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 2.5;
       ctx.beginPath();
       ctx.arc(px, py, 7, 0, Math.PI * 2);
       ctx.stroke();
 
-      // Inner ring
       ctx.strokeStyle = '#0284c7';
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(px, py, 5, 0, Math.PI * 2);
       ctx.stroke();
 
-      // Cross lines
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
@@ -333,7 +460,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
     ctx.restore();
   };
 
-  // Render Raster Heatmaps on Canvas using Selected Interpolation
+  // Render Raster Heatmaps on Canvas
   const renderAllCanvases = useCallback(() => {
     if (canvasTopoRef.current && gridTopo) {
       renderInterpolatedRasterToCanvas(canvasTopoRef.current, gridTopo, 'gebco', interpolationMethod);
@@ -347,55 +474,11 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
       renderInterpolatedRasterToCanvas(canvasBgRef.current, gridBg, 'viridis', interpolationMethod);
       drawOverlayElements(canvasBgRef.current);
     }
-  }, [gridTopo, gridFaa, gridBg, interpolationMethod, activeRecord, lines, activeLineId, hoveredProfilePoint]);
+  }, [gridTopo, gridFaa, gridBg, interpolationMethod, activeRecord, lines, activeLineId, hoveredProfilePoint, draggingMode]);
 
   useEffect(() => {
     renderAllCanvases();
   }, [renderAllCanvases]);
-
-  // Find nearest sounding to a mouse coordinate
-  const findNearestSounding = (e: React.MouseEvent<HTMLCanvasElement>): ProcessedRecord | null => {
-    const canvas = e.currentTarget;
-    const rect = canvas.getBoundingClientRect();
-    const xNorm = (e.clientX - rect.left) / rect.width;
-    const yNorm = (e.clientY - rect.top) / rect.height;
-
-    const lon = bounds.west + xNorm * (bounds.east - bounds.west);
-    const lat = bounds.north - yNorm * (bounds.north - bounds.south);
-
-    let nearest: ProcessedRecord | null = null;
-    let minDist = Infinity;
-
-    for (let i = 0; i < records.length; i++) {
-      const r = records[i];
-      const dist = (r.latitude - lat) ** 2 + (r.longitude - lon) ** 2;
-      if (dist < minDist) {
-        minDist = dist;
-        nearest = r;
-      }
-    }
-
-    return nearest;
-  };
-
-  // Synchronized Mouse Move Probe
-  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (pinnedRecord) return;
-    const nearest = findNearestSounding(e);
-    setHoveredRecord(nearest);
-  };
-
-  // Interactive Click to Pin / Lock Sounding Point
-  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const nearest = findNearestSounding(e);
-    if (nearest) {
-      if (pinnedRecord && pinnedRecord.latitude === nearest.latitude && pinnedRecord.longitude === nearest.longitude) {
-        setPinnedRecord(null);
-      } else {
-        setPinnedRecord(nearest);
-      }
-    }
-  };
 
   const handleExportMap = (cfg: MapConfig) => {
     exportMapToPng(
@@ -407,6 +490,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
         interpolationMethod,
         bounds,
         records,
+        activeLine,
       },
       `topex_${cfg.id}_${interpolationMethod}_map.png`
     );
@@ -446,7 +530,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
             <span className="badge-live-geophysics">Live Geophysics</span>
           </div>
           <p className="studio-desc">
-            Multi-field comparative analysis of Topography, Free-Air, and Complete Bouguer anomalies with real-time spatial interpolation and multi-line 2D cross-section profiling.
+            Multi-field comparative analysis of Topography, Free-Air, and Complete Bouguer anomalies with real-time spatial interpolation and freely drawable 2D cross-section profiling.
           </p>
         </div>
 
@@ -474,7 +558,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
         </div>
       </div>
 
-      {/* Interpolation Control Dropdown Toolbar */}
+      {/* Interpolation Control Dropdown Toolbar & Interactive Drawing Hint */}
       <div className="interpolation-toolbar-card">
         <div className="interp-label-group">
           <SlidersHorizontal size={17} className="text-primary-blue" />
@@ -495,9 +579,14 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
             <option value="nearest">Nearest Neighbor (Raw Discrete Soundings)</option>
           </select>
         </div>
+
+        <div className="transect-drag-hint">
+          <Move size={14} className="text-primary-blue" />
+          <span>Click and drag on any map to freely draw or adjust cross-section transect ({activeLine.labelStart} &rarr; {activeLine.labelEnd})</span>
+        </div>
       </div>
 
-      {/* Synchronized Probe HUD (Hover or Click to Pin) */}
+      {/* Synchronized Probe HUD */}
       <div className={`probe-hud-card ${pinnedRecord ? 'is-pinned' : ''}`}>
         <div className="probe-icon-label">
           {pinnedRecord ? (
@@ -550,7 +639,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
           </div>
         ) : (
           <div className="probe-placeholder">
-            Click or hover on any of the 3 maps to inspect and pin synchronized values across all datasets.
+            Click on any of the 3 maps to pin a sounding coordinate or drag to draw a cross-section line.
           </div>
         )}
       </div>
@@ -565,7 +654,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
               type="button"
               className="btn-map-save-png"
               onClick={() => handleExportMap(mapConfigs[0])}
-              title="Export Topography Map as PNG"
+              title="Export Topography Map as PNG with Attribution & Transect"
             >
               <Image size={14} />
               <span>Save PNG</span>
@@ -577,9 +666,15 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
               width={480}
               height={360}
               className="raster-canvas"
+              style={{ cursor: cursorStyle }}
+              onMouseDown={handleCanvasMouseDown}
               onMouseMove={handleCanvasMouseMove}
+              onMouseUp={handleCanvasMouseUp}
               onClick={handleCanvasClick}
-              onMouseLeave={() => !pinnedRecord && setHoveredRecord(null)}
+              onMouseLeave={() => {
+                handleCanvasMouseUp();
+                if (!pinnedRecord) setHoveredRecord(null);
+              }}
             />
           </div>
           {gridTopo && (
@@ -601,7 +696,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
               type="button"
               className="btn-map-save-png"
               onClick={() => handleExportMap(mapConfigs[1])}
-              title="Export Free-Air Map as PNG"
+              title="Export Free-Air Map as PNG with Attribution & Transect"
             >
               <Image size={14} />
               <span>Save PNG</span>
@@ -613,9 +708,15 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
               width={480}
               height={360}
               className="raster-canvas"
+              style={{ cursor: cursorStyle }}
+              onMouseDown={handleCanvasMouseDown}
               onMouseMove={handleCanvasMouseMove}
+              onMouseUp={handleCanvasMouseUp}
               onClick={handleCanvasClick}
-              onMouseLeave={() => !pinnedRecord && setHoveredRecord(null)}
+              onMouseLeave={() => {
+                handleCanvasMouseUp();
+                if (!pinnedRecord) setHoveredRecord(null);
+              }}
             />
           </div>
           {gridFaa && (
@@ -637,7 +738,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
               type="button"
               className="btn-map-save-png"
               onClick={() => handleExportMap(mapConfigs[2])}
-              title="Export Bouguer Map as PNG"
+              title="Export Bouguer Map as PNG with Attribution & Transect"
             >
               <Image size={14} />
               <span>Save PNG</span>
@@ -649,9 +750,15 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
               width={480}
               height={360}
               className="raster-canvas"
+              style={{ cursor: cursorStyle }}
+              onMouseDown={handleCanvasMouseDown}
               onMouseMove={handleCanvasMouseMove}
+              onMouseUp={handleCanvasMouseUp}
               onClick={handleCanvasClick}
-              onMouseLeave={() => !pinnedRecord && setHoveredRecord(null)}
+              onMouseLeave={() => {
+                handleCanvasMouseUp();
+                if (!pinnedRecord) setHoveredRecord(null);
+              }}
             />
           </div>
           {gridBg && (

@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
 import type { ProfilePoint, NamedProfileLine } from '@/types';
 import { exportProfileToCsv } from '@/utils/geophysics/profile';
-import { Download, TrendingUp, Compass, Plus, Trash2 } from 'lucide-react';
+import { exportProfileGraphToPng } from '@/utils/exporters/profileImage';
+import { Download, TrendingUp, Compass, Plus, Trash2, Image } from 'lucide-react';
 
 interface ProfileGraphProps {
   lines: NamedProfileLine[];
@@ -249,6 +250,16 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
 
           <button
             type="button"
+            className="btn-save-plot-png"
+            onClick={() => exportProfileGraphToPng({ points, line: activeLine })}
+            title="Download publication-ready 2D Cross-Section Plot (PNG)"
+          >
+            <Image size={14} />
+            <span>Save Plot (PNG)</span>
+          </button>
+
+          <button
+            type="button"
             className="btn-export-profile-csv"
             onClick={() => exportProfileToCsv(points, `${activeLine.name.toLowerCase().replace(/\s+/g, '_')}_profile.csv`)}
             title="Download Active Profile Data as CSV"
@@ -286,6 +297,16 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
             height={gravHeight}
             fill="#f8fafc"
             stroke="#e2e8f0"
+            strokeWidth={1}
+          />
+
+          {/* Horizontal grid lines for gravity */}
+          <line
+            x1={margin.left}
+            y1={margin.top + gravHeight / 2}
+            x2={margin.left + graphWidth}
+            y2={margin.top + gravHeight / 2}
+            stroke="#f1f5f9"
             strokeWidth={1}
           />
 
