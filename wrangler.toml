@@ -10,3 +10,13 @@ not_found_handling = "single-page-application"
 
 [vars]
 ENVIRONMENT = "production"
+
+# Cloudflare Workers Observability
+[observability]
+enabled = true
+head_sampling_rate = 1.0
+
+# Custom Domain Configuration
+[[routes]]
+pattern = "topex-interactive.yufajjiru.work"
+custom_domain = true
