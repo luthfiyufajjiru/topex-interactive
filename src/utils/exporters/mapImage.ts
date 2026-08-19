@@ -1,4 +1,4 @@
-import type { ProcessedRecord, BoundingBox, InterpolationMethod, NamedProfileLine } from '@/types';
+import type { ProcessedRecord, BoundingBox, InterpolationMethod, NamedProfileLine, ProfilePoint } from '@/types';
 import { getInterpolatedColor, ColormapName } from '@/utils/geophysics/colormaps';
 import { buildRegularGrid, sampleInterpolatedValue } from '@/utils/geophysics/interpolation';
 
@@ -11,6 +11,7 @@ export interface MapExportOptions {
   bounds: BoundingBox;
   records: ProcessedRecord[];
   activeLine?: NamedProfileLine;
+  activePoint?: ProfilePoint | null;
 }
 
 export function exportMapToPng(options: MapExportOptions, filename = 'topex_map.png'): void {
@@ -122,6 +123,28 @@ export function exportMapToPng(options: MapExportOptions, filename = 'topex_map.
 
     ctx.fillStyle = '#0f172a';
     ctx.fillText(activeLine.labelEnd, xB + 8, yB - 6);
+
+    // Picked Correlation Target Point on Map
+    if (options.activePoint) {
+      const xPick = margin.left + ((options.activePoint.longitude - bounds.west) / lonRange) * mapWidth;
+      const yPick = margin.top + ((bounds.north - options.activePoint.latitude) / latRange) * mapHeight;
+
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.arc(xPick, yPick, 9, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(xPick, yPick, 7.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#0284c7';
+      ctx.beginPath();
+      ctx.arc(xPick, yPick, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     ctx.restore();
   }

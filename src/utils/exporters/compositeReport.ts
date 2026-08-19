@@ -16,7 +16,7 @@ export interface CompositeReportOptions {
 
 /**
  * Generates and downloads a single high-resolution composite geophysical report image (.PNG)
- * combining all 3 maps, the 2D cross-section profile, picked correlation markers, and survey metadata.
+ * combining all 3 maps with correlation points, the 2D cross-section profile, picked correlation markers, and survey metadata.
  */
 export function exportCompositeReportImage(options: CompositeReportOptions): void {
   const {
@@ -50,6 +50,9 @@ export function exportCompositeReportImage(options: CompositeReportOptions): voi
   ctx.lineWidth = 3;
   ctx.strokeRect(24, 24, W - 48, H - 48);
 
+  // Selected Correlation Target Point
+  const targetPick = activePoint || profilePoints[Math.floor(profilePoints.length / 2)];
+
   // ==========================================
   // 1. Header Banner
   // ==========================================
@@ -57,25 +60,25 @@ export function exportCompositeReportImage(options: CompositeReportOptions): voi
   ctx.fillRect(24, 24, W - 48, 110);
 
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 36px Inter, sans-serif';
+  ctx.font = 'bold 34px Inter, sans-serif';
   ctx.textAlign = 'left';
-  ctx.fillText('TOPEX SATELLITE GRAVITY & GEOPHYSICAL SUITE REPORT', 65, 72);
+  ctx.fillText('SATELLITE GRAVITY & GEOPHYSICAL CROSS-SECTION REPORT', 65, 70);
 
-  ctx.font = '16px Inter, sans-serif';
+  ctx.font = '15px Inter, sans-serif';
   ctx.fillStyle = '#94a3b8';
   ctx.fillText(
-    `Boundaries: [N: ${bounds.north.toFixed(4)}°, S: ${bounds.south.toFixed(4)}°, W: ${bounds.west.toFixed(4)}°, E: ${bounds.east.toFixed(4)}°] • Points: ${records.length.toLocaleString()} • Filter: ${interpolationMethod.toUpperCase()}`,
+    `Survey Extent: [${bounds.north.toFixed(4)}°N, ${bounds.south.toFixed(4)}°S, ${bounds.west.toFixed(4)}°W, ${bounds.east.toFixed(4)}°E] • Total Soundings: ${records.length.toLocaleString()} • Filter: ${interpolationMethod.toUpperCase()} Spline`,
     65,
-    106
+    104
   );
 
   ctx.textAlign = 'right';
   ctx.font = 'bold 16px Inter, sans-serif';
   ctx.fillStyle = '#38bdf8';
-  ctx.fillText('https://topex-interactive.yufajjiru.work', W - 65, 72);
+  ctx.fillText('https://topex-interactive.yufajjiru.work', W - 65, 70);
   ctx.font = '14px Inter, sans-serif';
   ctx.fillStyle = '#94a3b8';
-  ctx.fillText('Scripps Institution of Oceanography (SIO/UCSD)', W - 65, 100);
+  ctx.fillText('Scripps Institution of Oceanography (SIO/UCSD)', W - 65, 98);
 
   // ==========================================
   // 2. Three Side-by-Side Geophysical Maps
@@ -129,6 +132,7 @@ export function exportCompositeReportImage(options: CompositeReportOptions): voi
     const yB = mapY + ((bounds.north - activeLine.end.lat) / latRange) * mapH;
 
     ctx.save();
+    // Shadow line
     ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
     ctx.lineWidth = 5;
     ctx.beginPath();
@@ -136,6 +140,7 @@ export function exportCompositeReportImage(options: CompositeReportOptions): voi
     ctx.lineTo(xB, yB);
     ctx.stroke();
 
+    // Main line
     ctx.strokeStyle = '#facc15';
     ctx.lineWidth = 3;
     ctx.setLineDash([8, 4]);
@@ -148,17 +153,43 @@ export function exportCompositeReportImage(options: CompositeReportOptions): voi
     // Endpoints
     ctx.fillStyle = '#facc15';
     ctx.beginPath();
-    ctx.arc(xA, yA, 7, 0, Math.PI * 2);
-    ctx.arc(xB, yB, 7, 0, Math.PI * 2);
+    ctx.arc(xA, yA, 7.5, 0, Math.PI * 2);
+    ctx.arc(xB, yB, 7.5, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = '#0f172a';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2.5;
     ctx.stroke();
 
     ctx.fillStyle = '#0f172a';
     ctx.font = 'bold 13px Inter, sans-serif';
     ctx.fillText(activeLine.labelStart, xA - 16, yA - 6);
     ctx.fillText(activeLine.labelEnd, xB + 8, yB - 6);
+
+    // >>> CORRELATION POINT ON THE MAP <<<
+    if (targetPick) {
+      const xPick = mCfg.x + ((targetPick.longitude - bounds.west) / lonRange) * mapW;
+      const yPick = mapY + ((bounds.north - targetPick.latitude) / latRange) * mapH;
+
+      // Glow halo
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.arc(xPick, yPick, 9, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // White fill
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(xPick, yPick, 7.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Colored center reticle dot
+      ctx.fillStyle = '#0284c7';
+      ctx.beginPath();
+      ctx.arc(xPick, yPick, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     ctx.restore();
 
     // Map Border
@@ -199,19 +230,19 @@ export function exportCompositeReportImage(options: CompositeReportOptions): voi
   // ==========================================
   // 3. 2D Cross-Section Profile Graph
   // ==========================================
-  const profX = 110;
-  const profY = 730;
-  const profW = W - profX - 110;
-  const profH = 700;
-  const splitProfY = profY + 330;
+  const profX = 120;
+  const profY = 745;
+  const profW = W - profX - 120;
+  const profH = 680;
+  const splitProfY = profY + 315;
 
   ctx.fillStyle = '#0f172a';
-  ctx.font = 'bold 22px Inter, sans-serif';
+  ctx.font = 'bold 20px Inter, sans-serif';
   ctx.textAlign = 'left';
   ctx.fillText(
-    `2D Geophysical Cross-Section Profile: ${activeLine.name} (${activeLine.labelStart} → ${activeLine.labelEnd})`,
+    `2D Geophysical Cross-Section: ${activeLine.name} (${activeLine.labelStart} → ${activeLine.labelEnd})`,
     profX,
-    profY - 14
+    profY - 18
   );
 
   const totalDist = profilePoints[profilePoints.length - 1].distanceKm;
@@ -222,8 +253,9 @@ export function exportCompositeReportImage(options: CompositeReportOptions): voi
     if (p.elevation < minElev) minElev = p.elevation;
     if (p.elevation > maxElev) maxElev = p.elevation;
   }
-  minElev = Math.floor(minElev - 200);
-  maxElev = Math.ceil(maxElev + 200);
+  const elevPad = Math.max(100, (maxElev - minElev) * 0.1);
+  minElev = Math.floor(minElev - elevPad);
+  maxElev = Math.ceil(maxElev + elevPad);
 
   // Gravity min/max
   let minGrav = 0, maxGrav = 0;
@@ -237,12 +269,13 @@ export function exportCompositeReportImage(options: CompositeReportOptions): voi
       if (p.bouguer > maxGrav) maxGrav = p.bouguer;
     }
   }
-  minGrav = Math.floor(minGrav - 20);
-  maxGrav = Math.ceil(maxGrav + 20);
+  const gravPad = Math.max(10, (maxGrav - minGrav) * 0.1);
+  minGrav = Math.floor(minGrav - gravPad);
+  maxGrav = Math.ceil(maxGrav + gravPad);
 
   const gravH = splitProfY - profY;
-  const topoH = profH - gravH - 50;
-  const topoY = splitProfY + 50;
+  const topoH = profH - gravH - 45;
+  const topoY = splitProfY + 45;
 
   const scaleX = (d: number) => profX + (d / (totalDist || 1)) * profW;
   const scaleYGrav = (v: number) => profY + gravH - ((v - minGrav) / ((maxGrav - minGrav) || 1)) * gravH;
@@ -348,13 +381,12 @@ export function exportCompositeReportImage(options: CompositeReportOptions): voi
   ctx.stroke();
 
   // Picked Correlation Line & Floating Value Badges
-  const targetPick = activePoint || profilePoints[Math.floor(profilePoints.length / 2)];
   if (targetPick) {
     const posX = scaleX(targetPick.distanceKm);
     const isRight = posX > profX + profW * 0.75;
     const offX = isRight ? -115 : 14;
 
-    // Full vertical dashed line
+    // Full vertical dashed correlation line
     ctx.strokeStyle = '#0f172a';
     ctx.lineWidth = 2.5;
     ctx.setLineDash([6, 4]);
@@ -451,13 +483,13 @@ export function exportCompositeReportImage(options: CompositeReportOptions): voi
   ctx.fillStyle = '#0f172a';
 
   ctx.save();
-  ctx.translate(profX - 55, profY + gravH / 2);
+  ctx.translate(profX - 60, profY + gravH / 2);
   ctx.rotate(-Math.PI / 2);
   ctx.fillText('Gravity (mGal)', 0, 0);
   ctx.restore();
 
   ctx.save();
-  ctx.translate(profX - 55, topoY + topoH / 2);
+  ctx.translate(profX - 60, topoY + topoH / 2);
   ctx.rotate(-Math.PI / 2);
   ctx.fillText('Elevation (m)', 0, 0);
   ctx.restore();
@@ -471,7 +503,7 @@ export function exportCompositeReportImage(options: CompositeReportOptions): voi
 
   // Legends
   const legX = W - 580;
-  const legY = profY - 14;
+  const legY = profY - 18;
   ctx.font = 'bold 12px Inter, sans-serif';
 
   ctx.fillStyle = '#d97706';

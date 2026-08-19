@@ -419,19 +419,30 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
       }
     }
 
-    // 2. Tracking point along line
-    if (hoveredProfilePoint) {
-      const xTrack = ((hoveredProfilePoint.longitude - bounds.west) / lonRange) * w;
-      const yTrack = ((bounds.north - hoveredProfilePoint.latitude) / latRange) * h;
+    // 2. Correlation Tracking point along transect line
+    const effectivePickedPoint = hoveredProfilePoint || (profilePoints.length > 0 ? profilePoints[Math.floor(profilePoints.length / 2)] : null);
+    if (effectivePickedPoint) {
+      const xTrack = ((effectivePickedPoint.longitude - bounds.west) / lonRange) * w;
+      const yTrack = ((bounds.north - effectivePickedPoint.latitude) / latRange) * h;
 
+      // Glow halo
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(xTrack, yTrack, 9, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // White circle
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.arc(xTrack, yTrack, 7, 0, Math.PI * 2);
+      ctx.arc(xTrack, yTrack, 7.5, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.strokeStyle = activeLine.color;
-      ctx.lineWidth = 3;
-      ctx.stroke();
+      // Center blue reticle dot
+      ctx.fillStyle = '#0284c7';
+      ctx.beginPath();
+      ctx.arc(xTrack, yTrack, 4.5, 0, Math.PI * 2);
+      ctx.fill();
     }
 
     // 3. Active target reticle
@@ -499,6 +510,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
         bounds,
         records,
         activeLine,
+        activePoint: hoveredProfilePoint || (profilePoints.length > 0 ? profilePoints[Math.floor(profilePoints.length / 2)] : null),
       },
       `topex_${cfg.id}_${interpolationMethod}_map.png`
     );

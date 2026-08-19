@@ -44,15 +44,15 @@ export async function generateCompositeReportCanvas(options: FullSuiteOptions): 
   ctx.fillRect(20, 20, W - 40, 110);
 
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 36px Inter, sans-serif';
+  ctx.font = 'bold 34px Inter, sans-serif';
   ctx.textAlign = 'left';
-  ctx.fillText('TOPEX SATELLITE GRAVITY & GEOPHYSICAL SUITE REPORT', 60, 70);
+  ctx.fillText('SATELLITE GRAVITY & GEOPHYSICAL CROSS-SECTION REPORT', 65, 70);
 
-  ctx.font = '16px Inter, sans-serif';
+  ctx.font = '15px Inter, sans-serif';
   ctx.fillStyle = '#94a3b8';
   ctx.fillText(
-    `Boundaries: [N: ${bounds.north.toFixed(4)}°, S: ${bounds.south.toFixed(4)}°, W: ${bounds.west.toFixed(4)}°, E: ${bounds.east.toFixed(4)}°] • Points: ${records.length.toLocaleString()} • Filter: ${interpolationMethod.toUpperCase()} • Date: ${new Date().toLocaleDateString()}`,
-    60,
+    `Survey Extent: [${bounds.north.toFixed(4)}°N, ${bounds.south.toFixed(4)}°S, ${bounds.west.toFixed(4)}°W, ${bounds.east.toFixed(4)}°E] • Total Soundings: ${records.length.toLocaleString()} • Filter: ${interpolationMethod.toUpperCase()} Spline`,
+    65,
     104
   );
 
@@ -138,14 +138,40 @@ export async function generateCompositeReportCanvas(options: FullSuiteOptions): 
     // Endpoints
     ctx.fillStyle = '#facc15';
     ctx.beginPath();
-    ctx.arc(xA, yA, 7, 0, Math.PI * 2);
-    ctx.arc(xB, yB, 7, 0, Math.PI * 2);
+    ctx.arc(xA, yA, 7.5, 0, Math.PI * 2);
+    ctx.arc(xB, yB, 7.5, 0, Math.PI * 2);
     ctx.fill();
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
 
     ctx.fillStyle = '#0f172a';
     ctx.font = 'bold 13px Inter, sans-serif';
     ctx.fillText(activeLine.labelStart, xA - 16, yA - 6);
     ctx.fillText(activeLine.labelEnd, xB + 8, yB - 6);
+
+    // Picked Correlation Target Point on Map
+    const targetPick = activePoint || profilePoints[Math.floor(profilePoints.length / 2)];
+    if (targetPick) {
+      const xPick = mCfg.x + ((targetPick.longitude - bounds.west) / lonRange) * mapW;
+      const yPick = mapY + ((bounds.north - targetPick.latitude) / latRange) * mapH;
+
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.arc(xPick, yPick, 9, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(xPick, yPick, 7.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#0284c7';
+      ctx.beginPath();
+      ctx.arc(xPick, yPick, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.restore();
 
     // Map Border
@@ -192,12 +218,12 @@ export async function generateCompositeReportCanvas(options: FullSuiteOptions): 
   const splitProfY = profY + 340;
 
   ctx.fillStyle = '#0f172a';
-  ctx.font = 'bold 22px Inter, sans-serif';
+  ctx.font = 'bold 20px Inter, sans-serif';
   ctx.textAlign = 'left';
   ctx.fillText(
-    `2D Geophysical Cross-Section Profile: ${activeLine.name} (${activeLine.labelStart} → ${activeLine.labelEnd})`,
+    `2D Geophysical Cross-Section: ${activeLine.name} (${activeLine.labelStart} → ${activeLine.labelEnd})`,
     profX,
-    profY - 14
+    profY - 18
   );
 
   const totalDist = profilePoints[profilePoints.length - 1].distanceKm;
