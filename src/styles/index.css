@@ -810,32 +810,34 @@ footer {
    ========================================================================== */
 .stepper-container {
   width: 100%;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .stepper-track {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   background: #ffffff;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow-sm);
-  padding: 8px;
+  padding: 6px;
   gap: 8px;
+  align-items: stretch;
 }
 
 .stepper-step {
-  flex: 1;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 16px;
+  padding: 10px 14px;
   border-radius: var(--radius-md);
-  border: 1px solid transparent;
+  border: 1.5px solid transparent;
   background: transparent;
   cursor: pointer;
   text-align: left;
-  transition: all 0.2s ease;
-  position: relative;
+  transition: all 0.15s ease;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .stepper-step:hover:not(:disabled) {
@@ -844,7 +846,8 @@ footer {
 
 .stepper-step.active {
   background: #eff6ff;
-  border-color: #bfdbfe;
+  border-color: #93c5fd;
+  box-shadow: 0 1px 3px rgba(2, 132, 199, 0.1);
 }
 
 .stepper-step.disabled {
@@ -2331,14 +2334,19 @@ footer {
 
   /* Stepper */
   .stepper-container {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 8px;
+    width: 100%;
+    margin-bottom: 16px;
+  }
+
+  .stepper-track {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    padding: 6px;
   }
 
   .stepper-step {
-    min-width: 130px;
-    padding: 6px 10px;
+    padding: 8px 12px;
+    width: 100%;
   }
 
   /* Step 1: Controls & Map */
