@@ -86,15 +86,11 @@ body {
   color: var(--text-white);
 }
 
-.brand-icon-box {
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-sm);
-  background: var(--primary-blue);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
+.navbar-brand-icon {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  border-radius: 4px;
 }
 
 .navbar-title {
