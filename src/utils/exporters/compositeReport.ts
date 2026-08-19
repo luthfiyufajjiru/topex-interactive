@@ -17,6 +17,7 @@ export interface CompositeReportOptions {
 /**
  * Generates and downloads a single high-resolution composite geophysical report image (.PNG)
  * combining all 3 maps with correlation points, the 2D cross-section profile, picked correlation markers, and survey metadata.
+ * Designed in a clean, publication-ready Light Scientific Theme.
  */
 export function exportCompositeReportImage(options: CompositeReportOptions): void {
   const {
@@ -41,44 +42,51 @@ export function exportCompositeReportImage(options: CompositeReportOptions): voi
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
-  // Background
+  // Background (Clean White)
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, W, H);
 
   // Outer Neatline Frame
-  ctx.strokeStyle = '#0f172a';
-  ctx.lineWidth = 3;
+  ctx.strokeStyle = '#cbd5e1';
+  ctx.lineWidth = 2;
   ctx.strokeRect(24, 24, W - 48, H - 48);
 
   // Selected Correlation Target Point
   const targetPick = activePoint || profilePoints[Math.floor(profilePoints.length / 2)];
 
   // ==========================================
-  // 1. Header Banner
+  // 1. Header Banner (Clean Light Scientific Theme)
   // ==========================================
-  ctx.fillStyle = '#0f172a';
+  ctx.fillStyle = '#f8fafc';
   ctx.fillRect(24, 24, W - 48, 110);
+  ctx.strokeStyle = '#e2e8f0';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(24, 24, W - 48, 110);
 
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 34px Inter, sans-serif';
+  // Left Oceanic Blue Accent Stripe
+  ctx.fillStyle = '#0284c7';
+  ctx.fillRect(24, 24, 6, 110);
+
+  ctx.fillStyle = '#0f172a';
+  ctx.font = 'bold 32px Inter, sans-serif';
   ctx.textAlign = 'left';
-  ctx.fillText('SATELLITE GRAVITY & GEOPHYSICAL CROSS-SECTION REPORT', 65, 70);
+  ctx.fillText('SATELLITE GRAVITY & GEOPHYSICAL CROSS-SECTION REPORT', 55, 68);
 
   ctx.font = '15px Inter, sans-serif';
-  ctx.fillStyle = '#94a3b8';
+  ctx.fillStyle = '#475569';
   ctx.fillText(
-    `Survey Extent: [${bounds.north.toFixed(4)}°N, ${bounds.south.toFixed(4)}°S, ${bounds.west.toFixed(4)}°W, ${bounds.east.toFixed(4)}°E] • Total Soundings: ${records.length.toLocaleString()} • Filter: ${interpolationMethod.toUpperCase()} Spline`,
-    65,
-    104
+    `Survey Extent: [${bounds.north.toFixed(4)}°N, ${bounds.south.toFixed(4)}°S, ${bounds.west.toFixed(4)}°W, ${bounds.east.toFixed(4)}°E] • Total Soundings: ${records.length.toLocaleString()} • Spatial Filter: ${interpolationMethod.toUpperCase()}`,
+    55,
+    102
   );
 
   ctx.textAlign = 'right';
   ctx.font = 'bold 16px Inter, sans-serif';
-  ctx.fillStyle = '#38bdf8';
-  ctx.fillText('https://topex-interactive.yufajjiru.work', W - 65, 70);
+  ctx.fillStyle = '#0284c7';
+  ctx.fillText('https://topex-interactive.yufajjiru.work', W - 55, 68);
   ctx.font = '14px Inter, sans-serif';
-  ctx.fillStyle = '#94a3b8';
-  ctx.fillText('Scripps Institution of Oceanography (SIO/UCSD)', W - 65, 98);
+  ctx.fillStyle = '#64748b';
+  ctx.fillText('Scripps Institution of Oceanography (SIO/UCSD)', W - 55, 96);
 
   // ==========================================
   // 2. Three Side-by-Side Geophysical Maps
@@ -193,8 +201,8 @@ export function exportCompositeReportImage(options: CompositeReportOptions): voi
     ctx.restore();
 
     // Map Border
-    ctx.strokeStyle = '#0f172a';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 1.5;
     ctx.strokeRect(mCfg.x, mapY, mapW, mapH);
 
     // Map Title
@@ -215,7 +223,7 @@ export function exportCompositeReportImage(options: CompositeReportOptions): voi
     }
     ctx.fillStyle = grad;
     ctx.fillRect(mCfg.x, cbY, mapW, cbH);
-    ctx.strokeStyle = '#334155';
+    ctx.strokeStyle = '#cbd5e1';
     ctx.lineWidth = 1;
     ctx.strokeRect(mCfg.x, cbY, mapW, cbH);
 

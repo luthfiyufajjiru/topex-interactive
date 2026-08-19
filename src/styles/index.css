@@ -2210,3 +2210,376 @@ footer {
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+.btn-nav-github {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.btn-nav-github:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #38bdf8;
+}
+
+.footer-links-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.footer-dot-sep {
+  color: #64748b;
+}
+
+.footer-repo-link {
+  color: #38bdf8;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 600;
+  transition: color 0.15s ease;
+}
+
+.footer-repo-link:hover {
+  color: #7dd3fc;
+  text-decoration: underline;
+}
+
+/* ==========================================================================
+   Comprehensive Mobile & Responsive Styles (max-width: 1024px & 768px)
+   ========================================================================== */
+@media (max-width: 1024px) {
+  #content-wrap {
+    padding: 12px 12px 48px;
+  }
+
+  .trimap-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .canvas-wrapper {
+    max-width: 100%;
+  }
+
+  .raster-canvas {
+    width: 100% !important;
+    height: auto !important;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Navbar */
+  .navbar {
+    padding: 10px 14px;
+  }
+
+  .navbar-inner {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .navbar-title {
+    font-size: 1rem;
+  }
+
+  /* Stepper */
+  .stepper-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 8px;
+  }
+
+  .stepper-step {
+    min-width: 130px;
+    padding: 6px 10px;
+  }
+
+  /* Step 1: Controls & Map */
+  .controls-section {
+    padding: 14px;
+  }
+
+  .toggles-ribbon {
+    gap: 14px;
+    justify-content: flex-start;
+  }
+
+  #map {
+    height: 45vh;
+    min-height: 300px;
+  }
+
+  .step-advance-banner {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    text-align: center;
+  }
+
+  .btn-next-step,
+  .btn-download {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Step 2: Bouguer Control Panel */
+  .bouguer-card {
+    padding: 14px;
+  }
+
+  .density-inputs-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .btn-proceed-studio {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Step 3: Studio Header */
+  .studio-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .studio-title {
+    font-size: 1.15rem;
+  }
+
+  .studio-desc {
+    font-size: 0.78rem;
+  }
+
+  .studio-export-suite {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .studio-export-suite button {
+    width: 100%;
+    justify-content: center;
+    font-size: 0.76rem;
+    padding: 7px 8px;
+  }
+
+  /* Interpolation Toolbar */
+  .interpolation-toolbar-card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .interp-select-wrapper {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .transect-drag-hint {
+    width: 100%;
+    justify-content: center;
+    font-size: 0.72rem;
+    text-align: center;
+  }
+
+  /* Probe Sounding HUD */
+  .probe-hud-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .probe-values-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 6px;
+    width: 100%;
+  }
+
+  .probe-val-item {
+    font-size: 0.75rem;
+  }
+
+  /* 2D Cross Section Profile Card */
+  .profile-graph-card {
+    padding: 12px;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .profile-multiline-bar {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 6px;
+  }
+
+  .multiline-tabs-group {
+    flex-wrap: nowrap;
+  }
+
+  .profile-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .profile-title {
+    font-size: 0.95rem;
+  }
+
+  .profile-desc {
+    font-size: 0.74rem;
+  }
+
+  .profile-actions-group {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .preset-buttons-group {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    width: 100%;
+  }
+
+  .btn-preset-transect {
+    justify-content: center;
+    padding: 6px 2px;
+    font-size: 0.68rem;
+  }
+
+  .btn-save-plot-png,
+  .btn-export-profile-csv {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .svg-profile-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .profile-svg {
+    min-width: 580px;
+    width: 100%;
+    height: auto;
+  }
+
+  .profile-footer-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .profile-legends {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .profile-probe-values {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 6px;
+    width: 100%;
+    font-size: 0.74rem;
+  }
+
+  /* Export Suite Modal */
+  .modal-overlay {
+    padding: 10px;
+  }
+
+  .export-modal-card {
+    width: 100%;
+    max-height: 94vh;
+    border-radius: 8px;
+  }
+
+  .export-modal-header {
+    padding: 12px 14px;
+  }
+
+  .export-modal-title {
+    font-size: 1rem;
+  }
+
+  .export-presets-bar {
+    padding: 10px 14px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .preset-chips-row {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .export-items-container {
+    grid-template-columns: 1fr;
+    padding: 12px 14px;
+    gap: 8px;
+  }
+
+  .export-modal-footer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .modal-footer-buttons {
+    width: 100%;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .btn-download-bundle,
+  .btn-cancel-modal {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Footer */
+  footer {
+    padding: 16px 12px;
+  }
+
+  .footer-inner {
+    flex-direction: column;
+    text-align: center;
+    gap: 6px;
+  }
+
+  .footer-links-row {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .footer-dot-sep {
+    display: none;
+  }
+}

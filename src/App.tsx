@@ -14,7 +14,7 @@ import { DatasetToggles } from '@/components/hud/DatasetToggles';
 import { DataTable } from '@/components/table/DataTable';
 import { BouguerControlPanel } from '@/components/processing/BouguerControlPanel';
 import { TriMapViewer } from '@/components/studio/TriMapViewer';
-import { Download, Loader2, ArrowRight } from 'lucide-react';
+import { Download, Loader2, ArrowRight, Github } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<WorkflowStep>('extract');
@@ -271,20 +271,33 @@ export const App: React.FC = () => {
 
       <footer>
         <div className="footer-inner">
-          <div>
-            Made with <span id="footer-content-love">&#10084;</span> by{' '}
+          <div className="footer-links-row">
+            <span>
+              Made with <span id="footer-content-love">&#10084;</span> by{' '}
+              <a
+                id="linkedin"
+                target="_blank"
+                rel="noopener noreferrer"
+                href="https://www.linkedin.com/in/yufajjiru/"
+              >
+                Luthfi Yufajjiru
+              </a>{' '}
+              2022&ndash;2026
+            </span>
+            <span className="footer-dot-sep">&bull;</span>
             <a
-              id="linkedin"
+              className="footer-repo-link"
               target="_blank"
               rel="noopener noreferrer"
-              href="https://www.linkedin.com/in/yufajjiru/"
+              href="https://github.com/luthfiyufajjiru/topex-interactive"
+              title="View source repository on GitHub"
             >
-              Luthfi Yufajjiru
-            </a>{' '}
-            2022&ndash;2026
+              <Github size={14} />
+              <span>GitHub Repository</span>
+            </a>
           </div>
           <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
-            TOPEX/Poseidon &bull; Scripps Oceanography Data Extractor &bull; Oasis Montaj Studio
+            TOPEX/Poseidon &bull; Scripps Oceanography Data Extractor &bull; Oasis Montaj Studio &bull; <a href="https://topex-interactive.yufajjiru.work" style={{ color: '#0284c7', textDecoration: 'none' }}>topex-interactive.yufajjiru.work</a>
           </div>
         </div>
       </footer>
