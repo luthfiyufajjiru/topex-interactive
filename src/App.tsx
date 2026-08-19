@@ -258,10 +258,10 @@ export const App: React.FC = () => {
           </div>
         )}
 
-        {/* STEP 3: Tri-Map Studio & Oasis Montaj Exporters */}
+        {/* STEP 3: Satellite Gravity Studio & Exporters */}
         {currentStep === 'studio' && bounds && (
           <div className="step-fade-in">
-            <TriMapViewer records={processedRecords} bounds={bounds} />
+            <TriMapViewer records={processedRecords} bounds={bounds} bouguerParams={bouguerParams} />
           </div>
         )}
 

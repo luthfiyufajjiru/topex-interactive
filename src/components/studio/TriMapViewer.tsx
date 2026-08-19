@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import type { ProcessedRecord, BoundingBox, InterpolationMethod, NamedProfileLine, ProfilePoint } from '@/types';
+import type { ProcessedRecord, BoundingBox, BouguerParams, InterpolationMethod, NamedProfileLine, ProfilePoint } from '@/types';
 import { ColormapName } from '@/utils/geophysics/colormaps';
 import { buildRegularGrid, renderInterpolatedRasterToCanvas } from '@/utils/geophysics/interpolation';
 import { extractProfilePoints } from '@/utils/geophysics/profile';
@@ -7,11 +7,14 @@ import { MapColorbar } from './MapColorbar';
 import { ProfileGraph } from './ProfileGraph';
 import { exportToOasisMontajXYZ, exportToGeosoftGXF } from '@/utils/exporters/geosoft';
 import { exportMapToPng } from '@/utils/exporters/mapImage';
-import { FileCode, Image, Crosshair, SlidersHorizontal, Pin, PinOff, Move } from 'lucide-react';
+import { exportCompositeReportImage } from '@/utils/exporters/compositeReport';
+import { ExportSuiteModal } from './ExportSuiteModal';
+import { FileCode, Image, Crosshair, SlidersHorizontal, Pin, PinOff, Move, LayoutGrid, PackageCheck } from 'lucide-react';
 
 interface SatelliteGravityStudioProps {
   records: ProcessedRecord[];
   bounds: BoundingBox;
+  bouguerParams?: BouguerParams;
 }
 
 interface MapConfig {
@@ -34,11 +37,16 @@ const LINE_LETTERS = [
   ['H', "H'"],
 ];
 
-export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, bounds }) => {
+export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
+  records,
+  bounds,
+  bouguerParams = { crustalDensity: 2.67, waterDensity: 1.03, includeCurvatureBullardB: false },
+}) => {
   const [hoveredRecord, setHoveredRecord] = useState<ProcessedRecord | null>(null);
   const [pinnedRecord, setPinnedRecord] = useState<ProcessedRecord | null>(null);
   const [hoveredProfilePoint, setHoveredProfilePoint] = useState<ProfilePoint | null>(null);
   const [interpolationMethod, setInterpolationMethod] = useState<InterpolationMethod>('bicubic');
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   // Interactive Dragging State for Profile Line
   const [draggingMode, setDraggingMode] = useState<'start' | 'end' | 'draw' | null>(null);
@@ -496,6 +504,20 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
     );
   };
 
+  // Export Full Suite Composite Single Image Report
+  const handleExportFullSuiteImage = () => {
+    exportCompositeReportImage({
+      records,
+      bounds,
+      params: bouguerParams,
+      lines,
+      activeLine,
+      profilePoints,
+      activePoint: hoveredProfilePoint || (profilePoints.length > 0 ? profilePoints[Math.floor(profilePoints.length / 2)] : null),
+      interpolationMethod,
+    });
+  };
+
   const mapConfigs: MapConfig[] = [
     {
       id: 'topography',
@@ -530,12 +552,34 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
             <span className="badge-live-geophysics">Live Geophysics</span>
           </div>
           <p className="studio-desc">
-            Multi-field comparative analysis of Topography, Free-Air, and Complete Bouguer anomalies with real-time spatial interpolation and freely drawable 2D cross-section profiling.
+            Multi-field comparative analysis of Topography, Free-Air, and Complete Bouguer anomalies with real-time spatial interpolation, freely drawable 2D cross-section profiling, and full export suites.
           </p>
         </div>
 
         {/* Oasis Montaj & High-Res Export Suite */}
         <div className="studio-export-suite">
+          {/* Checkbox Package Center Dialog Button */}
+          <button
+            type="button"
+            className="btn-export-suite-modal"
+            onClick={() => setIsExportModalOpen(true)}
+            title="Open Geophysical Suite Export Center to pick datasets, grids, and reports"
+          >
+            <PackageCheck size={16} />
+            <span>Export Suite (.ZIP)...</span>
+          </button>
+
+          {/* Full Suite Composite Single Image Report Button */}
+          <button
+            type="button"
+            className="btn-export-full-suite"
+            onClick={handleExportFullSuiteImage}
+            title="Download complete single-image geophysical report plate (3 Maps + 2D Profile + Metadata in 1 Picture)"
+          >
+            <LayoutGrid size={16} />
+            <span>Full Report (PNG)</span>
+          </button>
+
           <button
             type="button"
             className="btn-export-oasis"
@@ -785,6 +829,20 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
         hoveredPoint={hoveredProfilePoint}
         onHoverPoint={setHoveredProfilePoint}
         onSetPresetLine={handleSetPresetLine}
+      />
+
+      {/* Checkbox Export Suite Modal */}
+      <ExportSuiteModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        records={records}
+        bounds={bounds}
+        params={bouguerParams}
+        lines={lines}
+        activeLine={activeLine}
+        profilePoints={profilePoints}
+        activePoint={hoveredProfilePoint || (profilePoints.length > 0 ? profilePoints[Math.floor(profilePoints.length / 2)] : null)}
+        interpolationMethod={interpolationMethod}
       />
     </div>
   );
