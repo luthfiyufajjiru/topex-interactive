@@ -559,10 +559,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
       {/* Studio Header & Global Exporters */}
       <div className="studio-header">
         <div>
-          <div className="studio-badge-row">
-            <h2 className="studio-title">Satellite Gravity Studio</h2>
-            <span className="badge-live-geophysics">Live Geophysics</span>
-          </div>
+          <h2 className="studio-title">Satellite Gravity Studio</h2>
           <p className="studio-desc">
             Multi-field comparative analysis of Topography, Free-Air, and Complete Bouguer anomalies with real-time spatial interpolation, freely drawable 2D cross-section profiling, and full export suites.
           </p>
