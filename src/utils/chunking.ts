@@ -2,82 +2,109 @@ import type { BoundingBox } from '@/types';
 
 export interface ChunkTile {
   id: string;
+  gridRow: number;
+  gridCol: number;
   index: number;
   total: number;
   bounds: BoundingBox;
 }
 
-// 0.5 degrees is approx quarter of Bali island size (~30 nautical miles / ~900 soundings per tile)
-// for ultra-fast, snappy parallel streaming.
-const MAX_TILE_SPAN = 0.5;
+// Canonical discrete grid resolution: 0.5° x 0.5° (quarter Bali island size)
+// All bounding boxes snap to this universal global grid.
+// This guarantees that any overlapping user selections anywhere in the world
+// hit the exact same deterministic cache keys at Cloudflare Edge and in browser memory!
+export const CANONICAL_GRID_STEP = 0.5;
 
 /**
- * Splits a bounding box across 0 longitude if it spans negative and positive longitudes
- */
-function splitAcrossZeroMeridian(bounds: BoundingBox): BoundingBox[] {
-  if (bounds.west < 0 && bounds.east > 0) {
-    return [
-      {
-        north: bounds.north,
-        south: bounds.south,
-        west: bounds.west,
-        east: -0.001,
-      },
-      {
-        north: bounds.north,
-        south: bounds.south,
-        west: 0.001,
-        east: bounds.east,
-      },
-    ];
-  }
-  return [bounds];
-}
-
-/**
- * Subdivides any bounding box into mini-tiles (<= 0.5 degrees)
- * for rapid parallel extraction from UCSD TOPEX.
+ * Generates canonical discrete grid tiles that cover the given bounding box.
+ * Every tile has deterministic boundaries aligned to integer multiples of 0.5°.
  */
 export function generateChunkTiles(bounds: BoundingBox): ChunkTile[] {
-  const initialBoxes = splitAcrossZeroMeridian(bounds);
-  const rawTiles: BoundingBox[] = [];
+  const minLat = Math.min(bounds.south, bounds.north);
+  const maxLat = Math.max(bounds.south, bounds.north);
+  const minLon = Math.min(bounds.west, bounds.east);
+  const maxLon = Math.max(bounds.west, bounds.east);
 
-  for (const box of initialBoxes) {
-    const latSpan = Math.abs(box.north - box.south);
-    const lonSpan = Math.abs(box.east - box.west);
+  const startRow = Math.floor(minLat / CANONICAL_GRID_STEP);
+  const endRow = Math.floor((maxLat - 0.00001) / CANONICAL_GRID_STEP);
 
-    const latSteps = Math.max(1, Math.ceil(latSpan / MAX_TILE_SPAN));
-    const lonSteps = Math.max(1, Math.ceil(lonSpan / MAX_TILE_SPAN));
+  const startCol = Math.floor(minLon / CANONICAL_GRID_STEP);
+  const endCol = Math.floor((maxLon - 0.00001) / CANONICAL_GRID_STEP);
 
-    const latStepSize = latSpan / latSteps;
-    const lonStepSize = lonSpan / lonSteps;
+  const tiles: ChunkTile[] = [];
+  let index = 1;
 
-    for (let r = 0; r < latSteps; r++) {
-      const south = parseFloat((box.south + r * latStepSize).toFixed(4));
-      const north = parseFloat(
-        (r === latSteps - 1 ? box.north : box.south + (r + 1) * latStepSize).toFixed(4)
-      );
+  for (let r = startRow; r <= endRow; r++) {
+    const south = parseFloat((r * CANONICAL_GRID_STEP).toFixed(4));
+    const north = parseFloat(((r + 1) * CANONICAL_GRID_STEP).toFixed(4));
 
-      for (let c = 0; c < lonSteps; c++) {
-        const west = parseFloat((box.west + c * lonStepSize).toFixed(4));
-        const east = parseFloat(
-          (c === lonSteps - 1 ? box.east : box.west + (c + 1) * lonStepSize).toFixed(4)
-        );
+    for (let c = startCol; c <= endCol; c++) {
+      let west = parseFloat((c * CANONICAL_GRID_STEP).toFixed(4));
+      let east = parseFloat(((c + 1) * CANONICAL_GRID_STEP).toFixed(4));
 
-        rawTiles.push({
-          north,
-          south,
-          west,
-          east,
-        });
+      // Handle 0-meridian wrap boundary
+      if (west < 0 && east >= 0) {
+        // Tile spans 0: split at 0
+        if (west < 0) {
+          tiles.push({
+            id: `tile_r${r}_c${c}_neg`,
+            gridRow: r,
+            gridCol: c,
+            index: index++,
+            total: 0,
+            bounds: { north, south, west, east: -0.001 },
+          });
+        }
+        if (east > 0) {
+          tiles.push({
+            id: `tile_r${r}_c${c}_pos`,
+            gridRow: r,
+            gridCol: c,
+            index: index++,
+            total: 0,
+            bounds: { north, south, west: 0.001, east },
+          });
+        }
+        continue;
       }
+
+      tiles.push({
+        id: `tile_r${r}_c${c}`,
+        gridRow: r,
+        gridCol: c,
+        index: index++,
+        total: 0,
+        bounds: { north, south, west, east },
+      });
     }
   }
 
-  return rawTiles.map((tileBounds, i) => ({
-    id: `tile_${i + 1}_of_${rawTiles.length}`,
-    index: i + 1,
-    total: rawTiles.length,
-    bounds: tileBounds,
-  }));
+  // Update total counts
+  const total = tiles.length;
+  tiles.forEach((t) => {
+    t.total = total;
+  });
+
+  return tiles;
+}
+
+/**
+ * Clips an array of soundings to the exact user-specified bounding box
+ */
+export function clipRecordsToBounds<T extends { latitude: number; longitude: number }>(
+  records: T[],
+  bounds: BoundingBox
+): T[] {
+  const minLat = Math.min(bounds.south, bounds.north);
+  const maxLat = Math.max(bounds.south, bounds.north);
+  const minLon = Math.min(bounds.west, bounds.east);
+  const maxLon = Math.max(bounds.west, bounds.east);
+
+  return records.filter(
+    (r) =>
+      r.latitude >= minLat - 0.0001 &&
+      r.latitude <= maxLat + 0.0001 &&
+      r.longitude >= minLon - 0.0001 &&
+      r.longitude <= maxLon + 0.0001
+  );
 }
