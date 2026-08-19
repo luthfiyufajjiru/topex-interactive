@@ -41,6 +41,16 @@ export interface ProfileLine {
   end: { lat: number; lon: number };
 }
 
+export interface NamedProfileLine {
+  id: string;
+  name: string;
+  labelStart: string;
+  labelEnd: string;
+  color: string;
+  start: { lat: number; lon: number };
+  end: { lat: number; lon: number };
+}
+
 export interface VariableStats {
   min: number;
   max: number;

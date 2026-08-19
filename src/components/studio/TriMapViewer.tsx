@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import type { ProcessedRecord, BoundingBox, InterpolationMethod, ProfileLine, ProfilePoint } from '@/types';
+import type { ProcessedRecord, BoundingBox, InterpolationMethod, NamedProfileLine, ProfilePoint } from '@/types';
 import { ColormapName } from '@/utils/geophysics/colormaps';
 import { buildRegularGrid, renderInterpolatedRasterToCanvas } from '@/utils/geophysics/interpolation';
 import { extractProfilePoints } from '@/utils/geophysics/profile';
@@ -22,22 +22,68 @@ interface MapConfig {
   getValue: (r: ProcessedRecord) => number | undefined;
 }
 
+const LINE_COLORS = ['#f59e0b', '#10b981', '#0284c7', '#8b5cf6', '#ec4899', '#f97316'];
+const LINE_LETTERS = [
+  ['A', "A'"],
+  ['B', "B'"],
+  ['C', "C'"],
+  ['D', "D'"],
+  ['E', "E'"],
+  ['F', "F'"],
+  ['G', "G'"],
+  ['H', "H'"],
+];
+
 export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, bounds }) => {
   const [hoveredRecord, setHoveredRecord] = useState<ProcessedRecord | null>(null);
   const [pinnedRecord, setPinnedRecord] = useState<ProcessedRecord | null>(null);
   const [hoveredProfilePoint, setHoveredProfilePoint] = useState<ProfilePoint | null>(null);
   const [interpolationMethod, setInterpolationMethod] = useState<InterpolationMethod>('bicubic');
 
-  // Default transect line A -> A' across the center
-  const [profileLine, setProfileLine] = useState<ProfileLine>(() => {
+  // Initial Multi-Line Profiles
+  const [lines, setLines] = useState<NamedProfileLine[]>(() => {
     const midLat = (bounds.north + bounds.south) / 2;
-    const w = bounds.west + (bounds.east - bounds.west) * 0.1;
-    const e = bounds.west + (bounds.east - bounds.west) * 0.9;
-    return {
-      start: { lat: midLat, lon: w },
-      end: { lat: midLat, lon: e },
-    };
+    const midLon = (bounds.west + bounds.east) / 2;
+    const latSpan = bounds.north - bounds.south;
+    const lonSpan = bounds.east - bounds.west;
+
+    return [
+      {
+        id: 'line-1',
+        name: 'Line 1',
+        labelStart: 'A',
+        labelEnd: "A'",
+        color: '#f59e0b',
+        start: { lat: midLat, lon: bounds.west + lonSpan * 0.1 },
+        end: { lat: midLat, lon: bounds.east - lonSpan * 0.1 },
+      },
+      {
+        id: 'line-2',
+        name: 'Line 2',
+        labelStart: 'B',
+        labelEnd: "B'",
+        color: '#10b981',
+        start: { lat: bounds.north - latSpan * 0.25, lon: bounds.west + lonSpan * 0.15 },
+        end: { lat: bounds.north - latSpan * 0.25, lon: bounds.east - lonSpan * 0.15 },
+      },
+      {
+        id: 'line-3',
+        name: 'Line 3',
+        labelStart: 'C',
+        labelEnd: "C'",
+        color: '#0284c7',
+        start: { lat: bounds.north - latSpan * 0.1, lon: midLon },
+        end: { lat: bounds.south + latSpan * 0.1, lon: midLon },
+      },
+    ];
   });
+
+  const [activeLineId, setActiveLineId] = useState<string>('line-1');
+
+  // Active line
+  const activeLine = useMemo(() => {
+    return lines.find((l) => l.id === activeLineId) || lines[0];
+  }, [lines, activeLineId]);
 
   const canvasTopoRef = useRef<HTMLCanvasElement | null>(null);
   const canvasFaaRef = useRef<HTMLCanvasElement | null>(null);
@@ -60,47 +106,93 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
     [records, bounds]
   );
 
-  // Extract Profile Points along line
+  // Extract Profile Points for active line
   const profilePoints = useMemo(() => {
-    return extractProfilePoints(profileLine, gridTopo, gridFaa, gridBg, bounds, interpolationMethod, 120);
-  }, [profileLine, gridTopo, gridFaa, gridBg, bounds, interpolationMethod]);
+    return extractProfilePoints(
+      { start: activeLine.start, end: activeLine.end },
+      gridTopo,
+      gridFaa,
+      gridBg,
+      bounds,
+      interpolationMethod,
+      120
+    );
+  }, [activeLine, gridTopo, gridFaa, gridBg, bounds, interpolationMethod]);
 
-  // Set Profile Line Presets
+  // Add new Profile Line
+  const handleAddLine = () => {
+    const nextIdx = lines.length;
+    const letterPair = LINE_LETTERS[nextIdx % LINE_LETTERS.length];
+    const color = LINE_COLORS[nextIdx % LINE_COLORS.length];
+    const latSpan = bounds.north - bounds.south;
+    const lonSpan = bounds.east - bounds.west;
+    const offsetFactor = 0.1 + (nextIdx * 0.15) % 0.6;
+
+    const newLine: NamedProfileLine = {
+      id: `line-${Date.now()}`,
+      name: `Line ${nextIdx + 1}`,
+      labelStart: letterPair[0],
+      labelEnd: letterPair[1],
+      color,
+      start: {
+        lat: bounds.south + latSpan * offsetFactor,
+        lon: bounds.west + lonSpan * 0.1,
+      },
+      end: {
+        lat: bounds.south + latSpan * offsetFactor,
+        lon: bounds.east - lonSpan * 0.1,
+      },
+    };
+
+    setLines([...lines, newLine]);
+    setActiveLineId(newLine.id);
+  };
+
+  // Delete Profile Line
+  const handleDeleteLine = (id: string) => {
+    if (lines.length <= 1) return;
+    const remaining = lines.filter((l) => l.id !== id);
+    setLines(remaining);
+    if (activeLineId === id) {
+      setActiveLineId(remaining[0].id);
+    }
+  };
+
+  // Set Profile Line Presets on Active Line
   const handleSetPresetLine = (preset: 'we' | 'ns' | 'diag1' | 'diag2') => {
     const midLat = (bounds.north + bounds.south) / 2;
     const midLon = (bounds.west + bounds.east) / 2;
     const padLat = (bounds.north - bounds.south) * 0.1;
     const padLon = (bounds.east - bounds.west) * 0.1;
 
+    let newStart = { lat: midLat, lon: bounds.west + padLon };
+    let newEnd = { lat: midLat, lon: bounds.east - padLon };
+
     switch (preset) {
-      case 'we': // West to East
-        setProfileLine({
-          start: { lat: midLat, lon: bounds.west + padLon },
-          end: { lat: midLat, lon: bounds.east - padLon },
-        });
+      case 'we':
+        newStart = { lat: midLat, lon: bounds.west + padLon };
+        newEnd = { lat: midLat, lon: bounds.east - padLon };
         break;
-      case 'ns': // North to South
-        setProfileLine({
-          start: { lat: bounds.north - padLat, lon: midLon },
-          end: { lat: bounds.south + padLat, lon: midLon },
-        });
+      case 'ns':
+        newStart = { lat: bounds.north - padLat, lon: midLon };
+        newEnd = { lat: bounds.south + padLat, lon: midLon };
         break;
-      case 'diag1': // SW to NE
-        setProfileLine({
-          start: { lat: bounds.south + padLat, lon: bounds.west + padLon },
-          end: { lat: bounds.north - padLat, lon: bounds.east - padLon },
-        });
+      case 'diag1':
+        newStart = { lat: bounds.south + padLat, lon: bounds.west + padLon };
+        newEnd = { lat: bounds.north - padLat, lon: bounds.east - padLon };
         break;
-      case 'diag2': // NW to SE
-        setProfileLine({
-          start: { lat: bounds.north - padLat, lon: bounds.west + padLon },
-          end: { lat: bounds.south + padLat, lon: bounds.east - padLon },
-        });
+      case 'diag2':
+        newStart = { lat: bounds.north - padLat, lon: bounds.west + padLon };
+        newEnd = { lat: bounds.south + padLat, lon: bounds.east - padLon };
         break;
     }
+
+    setLines(
+      lines.map((l) => (l.id === activeLineId ? { ...l, start: newStart, end: newEnd } : l))
+    );
   };
 
-  // Draw Crosshair Marker and Transect Line on Canvas
+  // Draw Crosshair Marker and All Profile Lines on Canvas
   const drawOverlayElements = (canvas: HTMLCanvasElement | null) => {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -112,55 +204,82 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
     const lonRange = bounds.east - bounds.west || 1;
     const latRange = bounds.north - bounds.south || 1;
 
-    // 1. Draw Transect Line A -> A'
-    const xA = ((profileLine.start.lon - bounds.west) / lonRange) * w;
-    const yA = ((bounds.north - profileLine.start.lat) / latRange) * h;
-    const xB = ((profileLine.end.lon - bounds.west) / lonRange) * w;
-    const yB = ((bounds.north - profileLine.end.lat) / latRange) * h;
-
     ctx.save();
-    // Glowing underlay
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo(xA, yA);
-    ctx.lineTo(xB, yB);
-    ctx.stroke();
 
-    // Main transect line
-    ctx.strokeStyle = '#facc15';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([6, 4]);
-    ctx.beginPath();
-    ctx.moveTo(xA, yA);
-    ctx.lineTo(xB, yB);
-    ctx.stroke();
-    ctx.setLineDash([]);
+    // 1. Draw ALL Profile Lines (Inactive lines subtle, active line prominent)
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const isLineActive = line.id === activeLineId;
 
-    // Endpoint A badge
-    ctx.fillStyle = '#facc15';
-    ctx.beginPath();
-    ctx.arc(xA, yA, 6, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#0f172a';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
+      const xA = ((line.start.lon - bounds.west) / lonRange) * w;
+      const yA = ((bounds.north - line.start.lat) / latRange) * h;
+      const xB = ((line.end.lon - bounds.west) / lonRange) * w;
+      const yB = ((bounds.north - line.end.lat) / latRange) * h;
 
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 10px Inter, sans-serif';
-    ctx.fillText('A', xA - 12, yA - 4);
+      if (isLineActive) {
+        // Glowing underlay
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(xA, yA);
+        ctx.lineTo(xB, yB);
+        ctx.stroke();
 
-    // Endpoint A' badge
-    ctx.fillStyle = '#facc15';
-    ctx.beginPath();
-    ctx.arc(xB, yB, 6, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#0f172a';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
+        // Main active line
+        ctx.strokeStyle = line.color;
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([6, 3]);
+        ctx.beginPath();
+        ctx.moveTo(xA, yA);
+        ctx.lineTo(xB, yB);
+        ctx.stroke();
+        ctx.setLineDash([]);
 
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText("A'", xB + 6, yB - 4);
+        // Endpoint A badge
+        ctx.fillStyle = line.color;
+        ctx.beginPath();
+        ctx.arc(xA, yA, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 10px Inter, sans-serif';
+        ctx.fillText(line.labelStart, xA - 12, yA - 4);
+
+        // Endpoint A' badge
+        ctx.fillStyle = line.color;
+        ctx.beginPath();
+        ctx.arc(xB, yB, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(line.labelEnd, xB + 6, yB - 4);
+      } else {
+        // Inactive line (thinner, subtle)
+        ctx.strokeStyle = line.color;
+        ctx.globalAlpha = 0.55;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(xA, yA);
+        ctx.lineTo(xB, yB);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 1.0;
+
+        // Inactive endpoints
+        ctx.fillStyle = line.color;
+        ctx.beginPath();
+        ctx.arc(xA, yA, 3.5, 0, Math.PI * 2);
+        ctx.arc(xB, yB, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
 
     // 2. If hovering over Profile Graph, highlight tracking point on map
     if (hoveredProfilePoint) {
@@ -172,8 +291,8 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
       ctx.arc(xTrack, yTrack, 7, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.strokeStyle = '#38bdf8';
-      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = activeLine.color;
+      ctx.lineWidth = 3;
       ctx.stroke();
     }
 
@@ -228,7 +347,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
       renderInterpolatedRasterToCanvas(canvasBgRef.current, gridBg, 'viridis', interpolationMethod);
       drawOverlayElements(canvasBgRef.current);
     }
-  }, [gridTopo, gridFaa, gridBg, interpolationMethod, activeRecord, profileLine, hoveredProfilePoint]);
+  }, [gridTopo, gridFaa, gridBg, interpolationMethod, activeRecord, lines, activeLineId, hoveredProfilePoint]);
 
   useEffect(() => {
     renderAllCanvases();
@@ -327,7 +446,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
             <span className="badge-live-geophysics">Live Geophysics</span>
           </div>
           <p className="studio-desc">
-            Multi-field comparative analysis of Topography, Free-Air, and Complete Bouguer anomalies with real-time spatial interpolation and 2D cross-section profiling.
+            Multi-field comparative analysis of Topography, Free-Air, and Complete Bouguer anomalies with real-time spatial interpolation and multi-line 2D cross-section profiling.
           </p>
         </div>
 
@@ -414,7 +533,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
             </div>
             <div className="probe-val-item">
               <span className="probe-key">Slab Correction:</span>
-              <span style={{ color: '#94a3b8' }}>{activeRecord.slabCorrection?.toFixed(1) ?? 'N/A'} mGal</span>
+              <span style={{ color: '#64748b' }}>{activeRecord.slabCorrection?.toFixed(1) ?? 'N/A'} mGal</span>
             </div>
 
             {pinnedRecord && (
@@ -547,10 +666,15 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({ records, b
         </div>
       </div>
 
-      {/* 2D Geophysical Cross-Section Profile Graph */}
+      {/* 2D Multi-Line Geophysical Cross-Section Profile Graph */}
       <ProfileGraph
+        lines={lines}
+        activeLineId={activeLineId}
+        onSelectLine={setActiveLineId}
+        onAddLine={handleAddLine}
+        onDeleteLine={handleDeleteLine}
         points={profilePoints}
-        line={profileLine}
+        activeLine={activeLine}
         hoveredPoint={hoveredProfilePoint}
         onHoverPoint={setHoveredProfilePoint}
         onSetPresetLine={handleSetPresetLine}

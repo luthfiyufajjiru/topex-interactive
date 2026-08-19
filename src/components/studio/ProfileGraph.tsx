@@ -1,19 +1,29 @@
 import React, { useState, useRef } from 'react';
-import type { ProfilePoint, ProfileLine } from '@/types';
+import type { ProfilePoint, NamedProfileLine } from '@/types';
 import { exportProfileToCsv } from '@/utils/geophysics/profile';
-import { Download, TrendingUp, Compass } from 'lucide-react';
+import { Download, TrendingUp, Compass, Plus, Trash2 } from 'lucide-react';
 
 interface ProfileGraphProps {
+  lines: NamedProfileLine[];
+  activeLineId: string;
+  onSelectLine: (id: string) => void;
+  onAddLine: () => void;
+  onDeleteLine: (id: string) => void;
   points: ProfilePoint[];
-  line: ProfileLine;
+  activeLine: NamedProfileLine;
   onHoverPoint: (point: ProfilePoint | null) => void;
   hoveredPoint: ProfilePoint | null;
   onSetPresetLine: (preset: 'we' | 'ns' | 'diag1' | 'diag2') => void;
 }
 
 export const ProfileGraph: React.FC<ProfileGraphProps> = ({
+  lines,
+  activeLineId,
+  onSelectLine,
+  onAddLine,
+  onDeleteLine,
   points,
-  line,
+  activeLine,
   onHoverPoint,
   hoveredPoint,
   onSetPresetLine,
@@ -102,7 +112,7 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
     topoLinePath += (i === 0 ? `M ${x} ${yTopo}` : ` L ${x} ${yTopo}`);
   }
 
-  // Topography Area Polygon (filled to bottom of chart)
+  // Topography Area Polygon
   const bottomY = splitY + 20 + topoHeight;
   topoAreaPath = `${topoLinePath} L ${scaleX(totalDist)} ${bottomY} L ${scaleX(0)} ${bottomY} Z`;
 
@@ -135,6 +145,52 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
 
   return (
     <div className="profile-graph-card">
+      {/* Multi-Line Navigation Tabs */}
+      <div className="profile-multiline-bar">
+        <div className="multiline-tabs-group">
+          {lines.map((line) => {
+            const isLineActive = line.id === activeLineId;
+            return (
+              <div key={line.id} className="multiline-tab-wrapper">
+                <button
+                  type="button"
+                  className={`btn-multiline-tab ${isLineActive ? 'active' : ''}`}
+                  onClick={() => onSelectLine(line.id)}
+                  style={{ borderLeftColor: line.color }}
+                >
+                  <span className="line-color-dot" style={{ backgroundColor: line.color }} />
+                  <span className="line-tab-name">{line.name}</span>
+                  <span className="line-tab-labels">({line.labelStart}&rarr;{line.labelEnd})</span>
+                </button>
+                {lines.length > 1 && (
+                  <button
+                    type="button"
+                    className="btn-delete-line"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteLine(line.id);
+                    }}
+                    title={`Delete ${line.name}`}
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+
+          <button
+            type="button"
+            className="btn-add-profile-line"
+            onClick={onAddLine}
+            title="Add a new survey profile line"
+          >
+            <Plus size={14} />
+            <span>Add Line</span>
+          </button>
+        </div>
+      </div>
+
       <div className="profile-header-row">
         <div className="profile-title-group">
           <div className="icon-badge-sky">
@@ -142,10 +198,10 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
           </div>
           <div>
             <h3 className="profile-title">
-              2D Geophysical Cross-Section Profile (Transect A &rarr; A&prime;)
+              2D Geophysical Cross-Section: {activeLine.name} ({activeLine.labelStart} &rarr; {activeLine.labelEnd})
             </h3>
             <p className="profile-desc">
-              Total Length: <strong>{totalDist.toFixed(1)} km</strong> &bull; Start: ({line.start.lat.toFixed(3)}&deg;, {line.start.lon.toFixed(3)}&deg;) &bull; End: ({line.end.lat.toFixed(3)}&deg;, {line.end.lon.toFixed(3)}&deg;)
+              Total Length: <strong>{totalDist.toFixed(1)} km</strong> &bull; Start: ({activeLine.start.lat.toFixed(3)}&deg;, {activeLine.start.lon.toFixed(3)}&deg;) &bull; End: ({activeLine.end.lat.toFixed(3)}&deg;, {activeLine.end.lon.toFixed(3)}&deg;)
             </p>
           </div>
         </div>
@@ -157,7 +213,7 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
               type="button"
               className="btn-preset-transect"
               onClick={() => onSetPresetLine('we')}
-              title="West to East horizontal transect"
+              title="Align active line: West to East"
             >
               <Compass size={13} />
               <span>W &rarr; E</span>
@@ -166,7 +222,7 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
               type="button"
               className="btn-preset-transect"
               onClick={() => onSetPresetLine('ns')}
-              title="North to South vertical transect"
+              title="Align active line: North to South"
             >
               <Compass size={13} />
               <span>N &rarr; S</span>
@@ -175,7 +231,7 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
               type="button"
               className="btn-preset-transect"
               onClick={() => onSetPresetLine('diag1')}
-              title="South-West to North-East diagonal transect"
+              title="Align active line: SW to NE diagonal"
             >
               <Compass size={13} />
               <span>SW &rarr; NE</span>
@@ -184,7 +240,7 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
               type="button"
               className="btn-preset-transect"
               onClick={() => onSetPresetLine('diag2')}
-              title="North-West to South-East diagonal transect"
+              title="Align active line: NW to SE diagonal"
             >
               <Compass size={13} />
               <span>NW &rarr; SE</span>
@@ -194,8 +250,8 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
           <button
             type="button"
             className="btn-export-profile-csv"
-            onClick={() => exportProfileToCsv(points)}
-            title="Download Profile Data as CSV for GM-SYS / Oasis Montaj"
+            onClick={() => exportProfileToCsv(points, `${activeLine.name.toLowerCase().replace(/\s+/g, '_')}_profile.csv`)}
+            title="Download Active Profile Data as CSV"
           >
             <Download size={14} />
             <span>Export Profile (.CSV)</span>
@@ -203,7 +259,7 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
         </div>
       </div>
 
-      {/* SVG Interactive Profile Canvas */}
+      {/* SVG Interactive Profile Canvas (Clean Light Scientific Theme) */}
       <div className="svg-profile-wrapper" ref={containerRef}>
         <svg
           viewBox={`0 0 ${svgWidth} ${svgHeight}`}
@@ -212,30 +268,24 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
           onMouseLeave={handleMouseLeave}
         >
           <defs>
-            {/* Topography Crust Gradient */}
-            <linearGradient id="crustGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#334155" stopOpacity="0.85" />
-              <stop offset="100%" stopColor="#0f172a" stopOpacity="0.95" />
-            </linearGradient>
-            {/* Water Gradient */}
-            <linearGradient id="waterGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#0284c7" stopOpacity="0.35" />
-              <stop offset="100%" stopColor="#0369a1" stopOpacity="0.15" />
+            {/* Topography Crust Gradient (Light Earth Sandstone) */}
+            <linearGradient id="crustGradLight" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#e2e8f0" stopOpacity="0.9" />
+              <stop offset="100%" stopColor="#f1f5f9" stopOpacity="0.95" />
             </linearGradient>
           </defs>
 
-          {/* Background */}
-          <rect x={0} y={0} width={svgWidth} height={svgHeight} fill="#0b1329" rx={8} />
+          {/* Clean Light Background */}
+          <rect x={0} y={0} width={svgWidth} height={svgHeight} fill="#ffffff" rx={8} />
 
-          {/* Grid lines & Boundaries */}
           {/* Gravity Box */}
           <rect
             x={margin.left}
             y={margin.top}
             width={graphWidth}
             height={gravHeight}
-            fill="#060b19"
-            stroke="#1e293b"
+            fill="#f8fafc"
+            stroke="#e2e8f0"
             strokeWidth={1}
           />
 
@@ -246,7 +296,7 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
               y1={zeroGravY}
               x2={margin.left + graphWidth}
               y2={zeroGravY}
-              stroke="#475569"
+              stroke="#94a3b8"
               strokeWidth={1}
               strokeDasharray="4 4"
             />
@@ -258,8 +308,8 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
             y={splitY + 20}
             width={graphWidth}
             height={topoHeight}
-            fill="#060b19"
-            stroke="#1e293b"
+            fill="#f8fafc"
+            stroke="#e2e8f0"
             strokeWidth={1}
           />
 
@@ -269,15 +319,16 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
             y1={zeroElevY}
             x2={margin.left + graphWidth}
             y2={zeroElevY}
-            stroke="#38bdf8"
-            strokeWidth={1}
-            strokeDasharray="4 3"
+            stroke="#0284c7"
+            strokeWidth={1.2}
+            strokeDasharray="5 3"
           />
           <text
-            x={margin.left + graphWidth - 6}
+            x={margin.left + graphWidth - 8}
             y={zeroElevY - 4}
-            fill="#38bdf8"
+            fill="#0284c7"
             fontSize="10"
+            fontWeight="bold"
             textAnchor="end"
             fontFamily="monospace"
           >
@@ -285,16 +336,16 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
           </text>
 
           {/* Topography Crust Fill & Outline */}
-          <path d={topoAreaPath} fill="url(#crustGrad)" />
-          <path d={topoLinePath} fill="none" stroke="#10b981" strokeWidth={2.5} />
+          <path d={topoAreaPath} fill="url(#crustGradLight)" />
+          <path d={topoLinePath} fill="none" stroke="#059669" strokeWidth={2.5} />
 
           {/* Gravity Anomaly Curves */}
           {hasGravity && (
             <>
-              {/* Free Air Curve (Sky Blue) */}
-              <path d={faaPath} fill="none" stroke="#38bdf8" strokeWidth={2.2} />
-              {/* Bouguer Curve (Amber) */}
-              <path d={bgPath} fill="none" stroke="#f59e0b" strokeWidth={2.5} />
+              {/* Free Air Curve (Royal Sky Blue) */}
+              <path d={faaPath} fill="none" stroke="#0284c7" strokeWidth={2.2} />
+              {/* Bouguer Curve (Rich Amber Orange) */}
+              <path d={bgPath} fill="none" stroke="#d97706" strokeWidth={2.5} />
             </>
           )}
 
@@ -302,7 +353,7 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
           <text
             x={margin.left - 10}
             y={margin.top + 12}
-            fill="#94a3b8"
+            fill="#475569"
             fontSize="11"
             textAnchor="end"
             fontFamily="monospace"
@@ -312,7 +363,7 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
           <text
             x={margin.left - 10}
             y={margin.top + gravHeight}
-            fill="#94a3b8"
+            fill="#475569"
             fontSize="11"
             textAnchor="end"
             fontFamily="monospace"
@@ -322,7 +373,7 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
           <text
             x={margin.left - 36}
             y={margin.top + gravHeight / 2}
-            fill="#e2e8f0"
+            fill="#0f172a"
             fontSize="11"
             fontWeight="bold"
             textAnchor="middle"
@@ -335,7 +386,7 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
           <text
             x={margin.left - 10}
             y={splitY + 32}
-            fill="#94a3b8"
+            fill="#475569"
             fontSize="11"
             textAnchor="end"
             fontFamily="monospace"
@@ -345,7 +396,7 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
           <text
             x={margin.left - 10}
             y={splitY + 20 + topoHeight}
-            fill="#94a3b8"
+            fill="#475569"
             fontSize="11"
             textAnchor="end"
             fontFamily="monospace"
@@ -355,7 +406,7 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
           <text
             x={margin.left - 36}
             y={splitY + 20 + topoHeight / 2}
-            fill="#e2e8f0"
+            fill="#0f172a"
             fontSize="11"
             fontWeight="bold"
             textAnchor="middle"
@@ -370,23 +421,23 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
             y1={bottomY}
             x2={margin.left + graphWidth}
             y2={bottomY}
-            stroke="#475569"
-            strokeWidth={1}
+            stroke="#cbd5e1"
+            strokeWidth={1.5}
           />
           <text
             x={margin.left}
             y={bottomY + 18}
-            fill="#94a3b8"
+            fill="#475569"
             fontSize="11"
             textAnchor="start"
             fontFamily="monospace"
           >
-            0 km (A)
+            0 km ({activeLine.labelStart})
           </text>
           <text
             x={margin.left + graphWidth / 2}
             y={bottomY + 18}
-            fill="#94a3b8"
+            fill="#475569"
             fontSize="11"
             textAnchor="middle"
             fontFamily="monospace"
@@ -396,17 +447,17 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
           <text
             x={margin.left + graphWidth}
             y={bottomY + 18}
-            fill="#94a3b8"
+            fill="#475569"
             fontSize="11"
             textAnchor="end"
             fontFamily="monospace"
           >
-            {totalDist.toFixed(1)} km (A&prime;)
+            {totalDist.toFixed(1)} km ({activeLine.labelEnd})
           </text>
           <text
             x={margin.left + graphWidth / 2}
             y={bottomY + 36}
-            fill="#e2e8f0"
+            fill="#0f172a"
             fontSize="12"
             fontWeight="bold"
             textAnchor="middle"
@@ -422,7 +473,7 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
                 y1={margin.top}
                 x2={scaleX(activePoint.distanceKm)}
                 y2={bottomY}
-                stroke="#ffffff"
+                stroke="#0f172a"
                 strokeWidth={1.5}
                 strokeDasharray="3 3"
               />
@@ -433,7 +484,7 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
                   cx={scaleX(activePoint.distanceKm)}
                   cy={scaleYGrav(activePoint.bouguer)}
                   r={5}
-                  fill="#f59e0b"
+                  fill="#d97706"
                   stroke="#ffffff"
                   strokeWidth={2}
                 />
@@ -443,7 +494,7 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
                   cx={scaleX(activePoint.distanceKm)}
                   cy={scaleYGrav(activePoint.freeAir)}
                   r={4.5}
-                  fill="#38bdf8"
+                  fill="#0284c7"
                   stroke="#ffffff"
                   strokeWidth={1.5}
                 />
@@ -454,7 +505,7 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
                 cx={scaleX(activePoint.distanceKm)}
                 cy={scaleYTopo(activePoint.elevation)}
                 r={5}
-                fill="#10b981"
+                fill="#059669"
                 stroke="#ffffff"
                 strokeWidth={2}
               />
@@ -463,19 +514,19 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
         </svg>
       </div>
 
-      {/* Legend & Hover Data Bar */}
+      {/* Legend & Hover Data Bar (Clean Light Theme) */}
       <div className="profile-footer-bar">
         <div className="profile-legends">
           <div className="legend-item">
-            <span className="legend-dot" style={{ background: '#f59e0b' }} />
+            <span className="legend-dot" style={{ background: '#d97706' }} />
             <span className="legend-label">Complete Bouguer Anomaly (CBA)</span>
           </div>
           <div className="legend-item">
-            <span className="legend-dot" style={{ background: '#38bdf8' }} />
+            <span className="legend-dot" style={{ background: '#0284c7' }} />
             <span className="legend-label">Free-Air Gravity Anomaly (FAA)</span>
           </div>
           <div className="legend-item">
-            <span className="legend-dot" style={{ background: '#10b981' }} />
+            <span className="legend-dot" style={{ background: '#059669' }} />
             <span className="legend-label">Seafloor Bathymetry / Topography</span>
           </div>
         </div>
@@ -500,7 +551,7 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
           </div>
         ) : (
           <div className="profile-probe-hint">
-            Hover over the cross-section graph to probe continuous values along transect A &rarr; A&prime;
+            Hover over the cross-section graph to probe continuous values along transect {activeLine.labelStart} &rarr; {activeLine.labelEnd}
           </div>
         )}
       </div>
