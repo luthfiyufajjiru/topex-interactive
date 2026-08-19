@@ -1,16 +1,21 @@
 import React from 'react';
 import type { BoundingBox } from '@/types';
 import { generateChunkTiles } from '@/utils/chunking';
+import { CoordinateToolbar } from './CoordinateToolbar';
 
 interface CoordinateInputsProps {
   bounds: BoundingBox | null;
+  includeGravity: boolean;
   onChange: (newBounds: BoundingBox) => void;
+  onShowToast: (type: 'success' | 'error', message: string) => void;
   disabled?: boolean;
 }
 
 export const CoordinateInputs: React.FC<CoordinateInputsProps> = ({
   bounds,
+  includeGravity,
   onChange,
+  onShowToast,
   disabled = false,
 }) => {
   const currentBounds = bounds || { north: 0, south: 0, west: 0, east: 0 };
@@ -30,6 +35,14 @@ export const CoordinateInputs: React.FC<CoordinateInputsProps> = ({
 
   return (
     <div className="coordinates-form">
+      {/* Share / Copy / Paste Quick Toolbar */}
+      <CoordinateToolbar
+        bounds={bounds}
+        includeGravity={includeGravity}
+        onApplyBounds={onChange}
+        onShowToast={onShowToast}
+      />
+
       {/* North */}
       <div className="coord-row-center">
         <div className="coord-box">
@@ -130,7 +143,7 @@ export const CoordinateInputs: React.FC<CoordinateInputsProps> = ({
             Area: <strong>{latSpan.toFixed(2)}°</strong> Lat &times; <strong>{lonSpan.toFixed(2)}°</strong> Lon
           </span>
           <span className="tile-badge">
-            {tiles.length === 1 ? '1 Tile (Single Query)' : `${tiles.length} Parallel Tiles (Auto-Chunked)`}
+            {tiles.length === 1 ? '1 Discrete Tile' : `${tiles.length} Discrete Tiles (Universal Grid)`}
           </span>
         </div>
       )}

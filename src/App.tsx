@@ -1,6 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { BoundingBox, TopexRecord } from '@/types';
 import { fetchLargeGridInChunks, ChunkProgress } from '@/api/parallelFetcher';
+import { parseUrlParams } from '@/utils/coordinateParser';
 import { Header } from '@/components/ui/Header';
 import { Disclaimer } from '@/components/ui/Disclaimer';
 import { Toast } from '@/components/ui/Toast';
@@ -22,9 +23,42 @@ export const App: React.FC = () => {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // Initialize from URL deep-link if query params exist (?north=...&south=...&west=...&east=...)
+  useEffect(() => {
+    const urlState = parseUrlParams();
+    if (urlState) {
+      setBounds(urlState.bounds);
+      setBoundsSource('input');
+      setIncludeGravity(urlState.includeGravity);
+    }
+  }, []);
+
+  // Synchronize browser address bar URL with active coordinates & switches
+  useEffect(() => {
+    if (bounds) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('north', bounds.north.toFixed(4));
+      url.searchParams.set('south', bounds.south.toFixed(4));
+      url.searchParams.set('west', bounds.west.toFixed(4));
+      url.searchParams.set('east', bounds.east.toFixed(4));
+      url.searchParams.set('gravity', includeGravity ? 'true' : 'false');
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, [bounds, includeGravity]);
+
   const handleBoundsChange = (newBounds: BoundingBox | null, source: 'map' | 'input' = 'map') => {
     setBounds(newBounds);
     setBoundsSource(source);
+  };
+
+  const handleToast = (type: 'success' | 'error', message: string) => {
+    if (type === 'success') {
+      setSuccessMsg(message);
+      setErrorMsg(null);
+    } else {
+      setErrorMsg(message);
+      setSuccessMsg(null);
+    }
   };
 
   const handleCancel = () => {
@@ -43,7 +77,6 @@ export const App: React.FC = () => {
       return;
     }
 
-    // Cancel any ongoing fetch
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
@@ -53,7 +86,7 @@ export const App: React.FC = () => {
     setErrorMsg(null);
     setSuccessMsg(null);
     setProgress(null);
-    setRecords([]); // Reset for fresh live stream
+    setRecords([]); // Reset for fresh stream
     setIsLoading(true);
 
     try {
@@ -63,7 +96,6 @@ export const App: React.FC = () => {
         concurrency: 6,
         abortSignal: abortController.signal,
         onChunkReceived: (newChunkRecords, p) => {
-          // Stream directly into table state without blocking
           setRecords((prev) => [...prev, ...newChunkRecords]);
           setProgress(p);
         },
@@ -118,10 +150,12 @@ export const App: React.FC = () => {
             onToggleGravity={setIncludeGravity}
           />
 
-          {/* 3-Row Compass Coordinates */}
+          {/* 3-Row Compass Coordinates with Share / Copy / Paste Toolbar */}
           <CoordinateInputs
             bounds={bounds}
+            includeGravity={includeGravity}
             onChange={(newBounds) => handleBoundsChange(newBounds, 'input')}
+            onShowToast={handleToast}
             disabled={isLoading}
           />
 
