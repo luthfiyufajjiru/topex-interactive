@@ -107,3 +107,131 @@ export function computeGeophysicsStats(records: ProcessedRecord[]): GeophysicsSu
     bouguer: bgValues.length > 0 ? calculateVarStats(bgValues) : undefined,
   };
 }
+
+export interface DensityRegressionResult {
+  slope: number; // mGal / m (dFAA / dh)
+  intercept: number; // mGal
+  rSquared: number; // Correlation coefficient R^2
+  empiricalDensity: number; // Derived rho_c (g/cm^3)
+  effectiveContrast: number; // Derived Delta_rho (g/cm^3)
+  pointCount: number;
+  samplePoints: { x: number; y: number }[]; // x = h (m), y = FAA (mGal)
+  xMin: number;
+  xMax: number;
+  yMin: number;
+  yMax: number;
+  meanX: number;
+  meanY: number;
+}
+
+/**
+ * Calculates Parasnis (1952, 1962) / Nettleton (1939) Linear Regression between
+ * Topography (h in meters) and Free-Air Gravity Anomaly (FAA in mGal) to determine optimal
+ * empirical in-situ crustal density.
+ *
+ * Mathematical formulation:
+ *   FAA = m * h + c
+ *   m = 2 * pi * G * rho
+ *   rho = m / (2 * pi * G) = m / 0.04193
+ *
+ * References:
+ *   1. Parasnis, D. S. (1962). Principles of Applied Geophysics. Chapman and Hall.
+ *   2. Nettleton, L. L. (1939). Determination of density for reduction of gravimeter observations. Geophysics, 4(3), 176-183.
+ *   3. Telford, W. M., et al. (1990). Applied Geophysics (2nd ed.). Cambridge University Press, pp. 12-25.
+ */
+export function computeDensityLinearRegression(
+  records: TopexRecord[] | ProcessedRecord[],
+  waterDensity: number = 1.03,
+  maxSamplePoints: number = 800
+): DensityRegressionResult | null {
+  const validPoints: { x: number; y: number }[] = [];
+  let xMin = Infinity, xMax = -Infinity;
+  let yMin = Infinity, yMax = -Infinity;
+
+  for (let i = 0; i < records.length; i++) {
+    const r = records[i];
+    const h = r.elevation;
+    const faa = r.gravity;
+    if (h !== undefined && faa !== undefined && !isNaN(h) && !isNaN(faa)) {
+      validPoints.push({ x: h, y: faa });
+      if (h < xMin) xMin = h;
+      if (h > xMax) xMax = h;
+      if (faa < yMin) yMin = faa;
+      if (faa > yMax) yMax = faa;
+    }
+  }
+
+  const n = validPoints.length;
+  if (n < 3) return null;
+
+  let sumX = 0;
+  let sumY = 0;
+  let sumXY = 0;
+  let sumX2 = 0;
+  let sumY2 = 0;
+
+  for (let i = 0; i < n; i++) {
+    const { x, y } = validPoints[i];
+    sumX += x;
+    sumY += y;
+    sumXY += x * y;
+    sumX2 += x * x;
+    sumY2 += y * y;
+  }
+
+  const denominator = n * sumX2 - sumX * sumX;
+  if (Math.abs(denominator) < 1e-12) return null;
+
+  const slope = (n * sumXY - sumX * sumY) / denominator;
+  const intercept = (sumY - slope * sumX) / n;
+  const meanX = sumX / n;
+  const meanY = sumY / n;
+
+  // Correlation R^2
+  const numR = n * sumXY - sumX * sumY;
+  const denR = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+  const r = denR !== 0 ? numR / denR : 0;
+  const rSquared = r * r;
+
+  // Calculate empirical density:
+  // If mostly marine (meanX < 0), slope = 2*pi*G * (rho_c - rho_w) => rho_c = rho_w + slope / 0.04193
+  // If continental (meanX >= 0), slope = 2*pi*G * rho_c => rho_c = slope / 0.04193
+  let empiricalDensity = 2.67;
+  const rawDensity = slope / BOUGUER_GRAV_FACTOR;
+
+  if (meanX < 0) {
+    empiricalDensity = waterDensity + rawDensity;
+  } else {
+    empiricalDensity = rawDensity;
+  }
+
+  // Clamped for reasonable geological stability display [1.80, 3.30]
+  const clampedDensity = Math.max(1.8, Math.min(3.3, empiricalDensity));
+
+  // Subsample points for scatter plot rendering
+  let samplePoints: { x: number; y: number }[] = validPoints;
+  if (n > maxSamplePoints) {
+    const step = Math.ceil(n / maxSamplePoints);
+    samplePoints = [];
+    for (let i = 0; i < n; i += step) {
+      samplePoints.push(validPoints[i]);
+    }
+  }
+
+  return {
+    slope: Number(slope.toFixed(5)),
+    intercept: Number(intercept.toFixed(2)),
+    rSquared: Number(rSquared.toFixed(4)),
+    empiricalDensity: Number(clampedDensity.toFixed(2)),
+    effectiveContrast: Number(rawDensity.toFixed(2)),
+    pointCount: n,
+    samplePoints,
+    xMin,
+    xMax,
+    yMin,
+    yMax,
+    meanX,
+    meanY,
+  };
+}
+

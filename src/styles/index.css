@@ -1581,16 +1581,40 @@ footer {
 
 /* Multi-Line Profiles Tab Bar */
 .profile-multiline-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 16px;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--border-color);
+  flex-wrap: wrap;
+}
+
+.multiline-tabs-scroll-area {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  padding: 4px 0 6px;
+}
+
+.multiline-tabs-scroll-area::-webkit-scrollbar {
+  height: 4px;
+}
+
+.multiline-tabs-scroll-area::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 2px;
 }
 
 .multiline-tabs-group {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  min-width: max-content;
 }
 
 .multiline-tab-wrapper {
@@ -1600,6 +1624,8 @@ footer {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   overflow: hidden;
+  flex-shrink: 0;
+  white-space: nowrap;
   transition: all 0.15s ease;
 }
 
@@ -1615,6 +1641,8 @@ footer {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition: all 0.15s ease;
 }
 
@@ -1635,16 +1663,19 @@ footer {
   height: 8px;
   border-radius: 50%;
   display: inline-block;
+  flex-shrink: 0;
 }
 
 .line-tab-name {
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .line-tab-labels {
   font-size: 0.72rem;
   color: var(--text-muted);
   font-family: var(--font-mono);
+  white-space: nowrap;
 }
 
 .btn-delete-line {
@@ -1656,6 +1687,7 @@ footer {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   transition: all 0.15s ease;
 }
 
@@ -1676,6 +1708,8 @@ footer {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition: all 0.15s ease;
 }
 
@@ -1683,6 +1717,369 @@ footer {
   background: #ffffff;
   border-color: var(--primary-blue);
   color: var(--primary-blue);
+}
+
+.line-quick-dropdown-wrapper {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 4px 0;
+}
+
+.quick-select-label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.line-quick-select {
+  padding: 5px 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-main);
+  background: #f8fafc;
+  border: 1.5px solid #cbd5e1;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.line-quick-select:focus {
+  border-color: var(--primary-blue);
+  background: #ffffff;
+}
+
+/* ==========================================================================
+   Parasnis / Nettleton Linear Regression Component
+   ========================================================================== */
+.regression-card {
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  margin-top: 24px;
+  box-shadow: var(--shadow-sm);
+}
+
+.regression-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.regression-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.icon-badge-teal {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background: #ecfdf5;
+  color: #059669;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.regression-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.regression-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.btn-apply-regression {
+  background: #ecfdf5;
+  border: 1.5px solid #a7f3d0;
+  color: #047857;
+  padding: 7px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.btn-apply-regression:hover {
+  background: #d1fae5;
+  border-color: #059669;
+  color: #065f46;
+}
+
+.btn-apply-regression.is-active {
+  background: #059669;
+  border-color: #059669;
+  color: #ffffff;
+}
+
+.regression-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 900px) {
+  .regression-metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 500px) {
+  .regression-metrics-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.reg-metric-box {
+  background: #f8fafc;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+}
+
+.reg-metric-label {
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+
+.reg-metric-value {
+  font-size: 1.25rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+}
+
+.reg-metric-unit {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.reg-metric-sub {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+.text-emerald {
+  color: #059669;
+}
+
+.text-slate {
+  color: #334155;
+}
+
+.regression-svg-container {
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.regression-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.regression-hover-tooltip {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  background: rgba(15, 23, 42, 0.9);
+  color: #ffffff;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.76rem;
+  font-family: var(--font-mono);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  pointer-events: none;
+}
+
+.regression-legend-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border-radius: var(--radius-sm);
+  border: 1px solid #e2e8f0;
+  margin-bottom: 16px;
+}
+
+.reg-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.legend-dot-teal {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #0284c7;
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 0 0 1px #0284c7;
+}
+
+.legend-line-dashed-green {
+  width: 24px;
+  height: 0;
+  border-top: 3px dashed #10b981;
+}
+
+.legend-line-solid-blue {
+  width: 24px;
+  height: 0;
+  border-top: 3px solid #0284c7;
+}
+
+/* Citations Card */
+.citations-card {
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-md);
+  background: #f8fafc;
+  overflow: hidden;
+  margin-top: 16px;
+}
+
+.citations-header {
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  user-select: none;
+  background: #f1f5f9;
+  transition: background 0.15s ease;
+}
+
+.citations-header:hover {
+  background: #e2e8f0;
+}
+
+.citations-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-main);
+  flex: 1;
+  min-width: 0;
+}
+
+.citations-toggle-hint {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #0284c7;
+  background: #e0f2fe;
+  padding: 4px 10px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.citations-header:hover .citations-toggle-hint {
+  background: #bae6fd;
+}
+
+.citations-body {
+  padding: 16px;
+  background: #ffffff;
+  border-top: 1px solid #e2e8f0;
+}
+
+.formula-explanation-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: var(--radius-sm);
+}
+
+.formula-item {
+  font-size: 0.82rem;
+  color: #0369a1;
+}
+
+.formula-tag {
+  font-weight: 700;
+  margin-right: 8px;
+}
+
+.formula-item code {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: #0c4a6e;
+}
+
+.citations-list-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.academic-references {
+  list-style-type: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0;
+}
+
+.academic-references li {
+  font-size: 0.78rem;
+  color: #475569;
+  line-height: 1.45;
+  padding-left: 14px;
+  border-left: 2.5px solid #cbd5e1;
+}
+
+.academic-references strong {
+  color: #1e293b;
 }
 
 .profile-header-row {

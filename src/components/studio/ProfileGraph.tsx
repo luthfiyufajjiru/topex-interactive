@@ -168,48 +168,69 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
     <div className="profile-graph-card">
       {/* Multi-Line Navigation Tabs */}
       <div className="profile-multiline-bar">
-        <div className="multiline-tabs-group">
-          {lines.map((line) => {
-            const isLineActive = line.id === activeLineId;
-            return (
-              <div key={line.id} className="multiline-tab-wrapper">
-                <button
-                  type="button"
-                  className={`btn-multiline-tab ${isLineActive ? 'active' : ''}`}
-                  onClick={() => onSelectLine(line.id)}
-                  style={{ borderLeftColor: line.color }}
-                >
-                  <span className="line-color-dot" style={{ backgroundColor: line.color }} />
-                  <span className="line-tab-name">{line.name}</span>
-                  <span className="line-tab-labels">({line.labelStart}&rarr;{line.labelEnd})</span>
-                </button>
-                {lines.length > 1 && (
+        <div className="multiline-tabs-scroll-area">
+          <div className="multiline-tabs-group">
+            {lines.map((line) => {
+              const isLineActive = line.id === activeLineId;
+              return (
+                <div key={line.id} className="multiline-tab-wrapper">
                   <button
                     type="button"
-                    className="btn-delete-line"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteLine(line.id);
-                    }}
-                    title={`Delete ${line.name}`}
+                    className={`btn-multiline-tab ${isLineActive ? 'active' : ''}`}
+                    onClick={() => onSelectLine(line.id)}
+                    style={{ borderLeftColor: line.color }}
                   >
-                    <Trash2 size={12} />
+                    <span className="line-color-dot" style={{ backgroundColor: line.color }} />
+                    <span className="line-tab-name">{line.name}</span>
+                    <span className="line-tab-labels">({line.labelStart}&rarr;{line.labelEnd})</span>
                   </button>
-                )}
-              </div>
-            );
-          })}
+                  {lines.length > 1 && (
+                    <button
+                      type="button"
+                      className="btn-delete-line"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteLine(line.id);
+                      }}
+                      title={`Delete ${line.name}`}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
 
-          <button
-            type="button"
-            className="btn-add-profile-line"
-            onClick={onAddLine}
-            title="Add a new survey profile line"
-          >
-            <Plus size={14} />
-            <span>Add Line</span>
-          </button>
+            <button
+              type="button"
+              className="btn-add-profile-line"
+              onClick={onAddLine}
+              title="Add a new survey profile line"
+            >
+              <Plus size={14} />
+              <span>Add Line</span>
+            </button>
+          </div>
         </div>
+
+        {/* Quick Transect Jump Selector for Multi-Line Surveys */}
+        {lines.length >= 4 && (
+          <div className="line-quick-dropdown-wrapper">
+            <span className="quick-select-label">Jump to:</span>
+            <select
+              className="line-quick-select"
+              value={activeLineId}
+              onChange={(e) => onSelectLine(e.target.value)}
+              title="Jump to survey transect line"
+            >
+              {lines.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name} ({l.labelStart} → {l.labelEnd})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       <div className="profile-header-row">

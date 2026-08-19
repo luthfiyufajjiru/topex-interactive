@@ -1,6 +1,7 @@
 import React from 'react';
 import type { BouguerParams, ProcessedRecord, GeophysicsSummaryStats } from '@/types';
 import { ArrowRight, RotateCcw, Info, Sliders } from 'lucide-react';
+import { NettletonRegressionPlot } from '@/components/processing/NettletonRegressionPlot';
 
 interface BouguerControlPanelProps {
   params: BouguerParams;
@@ -196,15 +197,22 @@ export const BouguerControlPanel: React.FC<BouguerControlPanelProps> = ({
               In ocean basins (h &lt; 0), replacing low-density seawater (&rho;<sub>w</sub>) with standard crustal rock (&rho;<sub>c</sub>) yields a positive Bouguer correction, revealing deep crust-mantle Moho structure.
             </span>
           </div>
-
-          {/* Action Button */}
-          <div className="processing-action-bar">
-            <button type="button" className="btn-proceed-studio" onClick={onProceedToStudio}>
-              <span>Launch Satellite Gravity Studio</span>
-              <ArrowRight size={18} />
-            </button>
-          </div>
         </div>
+      </div>
+
+      {/* Parasnis / Nettleton Regression Scatter Plot */}
+      <NettletonRegressionPlot
+        records={records}
+        params={params}
+        onParamsChange={onParamsChange}
+      />
+
+      {/* Proceed to Studio Action Bar */}
+      <div className="processing-action-bar">
+        <button type="button" className="btn-proceed-studio" onClick={onProceedToStudio}>
+          <span>Launch Satellite Gravity Studio</span>
+          <ArrowRight size={18} />
+        </button>
       </div>
     </div>
   );
