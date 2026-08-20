@@ -1,0 +1,2831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>topex-interactive — Complete Call Flow &amp; Architecture Documentation</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+:root {
+  --bg: #0f172a; --surface: #1e293b; --border: #334155;
+  --text: #e2e8f0; --muted: #94a3b8; --accent: #38bdf8;
+  --warn: #fbbf24; --err: #f87171; --ok: #34d399;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+.container { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+h1 { font-size: 2.4rem; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent), #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+h2 { font-size: 1.7rem; margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--accent); }
+h3 { font-size: 1.25rem; margin: 32px 0 12px; color: var(--accent); }
+h4 { font-size: 1.05rem; margin: 20px 0 8px; color: var(--warn); }
+p { margin: 8px 0; color: var(--muted); }
+.subtitle { color: var(--muted); font-size: 1.1rem; margin-bottom: 32px; }
+.mermaid { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 20px 0; overflow-x: auto; position: relative; }
+.mermaid.is-enhanced { padding: 0; overflow: hidden; min-height: 260px; }
+.mermaid-viewport { padding: 54px 24px 24px; overflow: hidden; cursor: grab; touch-action: none; min-height: 260px; }
+.mermaid-viewport.is-dragging { cursor: grabbing; }
+.mermaid-viewport svg { max-width: none !important; height: auto; transform-origin: 0 0; transition: transform 120ms ease; }
+.mermaid-toolbar { position: absolute; top: 10px; right: 10px; z-index: 3; display: flex; align-items: center; gap: 6px; padding: 6px; background: rgba(15,23,42,0.92); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.28); }
+.mermaid-toolbar button, .mermaid-toolbar .zoom-level { height: 28px; min-width: 32px; border: 1px solid var(--border); border-radius: 6px; background: #1e293b; color: var(--text); font: 600 0.78rem system-ui, sans-serif; display: inline-flex; align-items: center; justify-content: center; }
+.mermaid-toolbar button { cursor: pointer; }
+.mermaid-toolbar button:hover { border-color: var(--accent); color: var(--accent); }
+.mermaid-toolbar .zoom-level { min-width: 52px; color: var(--muted); background: transparent; }
+.call-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.92rem; }
+.call-table th { background: #1a2744; color: var(--accent); text-align: left; padding: 10px 14px; border: 1px solid var(--border); }
+.call-table td { padding: 8px 14px; border: 1px solid var(--border); vertical-align: top; }
+.call-table tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 600; }
+.tag-async { background: #7c3aed33; color: #a78bfa; }
+.tag-class { background: #05966933; color: var(--ok); }
+.tag-func { background: #2563eb33; color: var(--accent); }
+.tag-cmd { background: #d9770633; color: var(--warn); }
+.tag-endpoint { background: #dc262633; color: var(--err); }
+.tag-hook { background: #db277733; color: #f472b6; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin: 16px 0; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; margin: 16px 0; }
+.arrow-chain { font-family: 'Fira Code', monospace; font-size: 0.85rem; color: var(--accent); padding: 10px; background: rgba(56,189,248,0.06); border-radius: 6px; }
+code { font-family: 'Fira Code', 'Cascadia Code', monospace; background: rgba(255,255,255,0.06); padding: 1px 6px; border-radius: 3px; font-size: 0.88em; }
+ul, ol { margin: 8px 0 8px 24px; color: var(--muted); }
+li { margin: 4px 0; }
+a { color: var(--accent); }
+hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+.nav { position: sticky; top: 0; background: var(--bg); z-index: 10; padding: 12px 0; border-bottom: 1px solid var(--border); display: flex; gap: 20px; flex-wrap: wrap; font-size: 0.9rem; }
+.nav a { text-decoration: none; }
+.nav a:hover { text-decoration: underline; }
+@media (max-width: 768px) { .container { padding: 16px; } h1 { font-size: 1.8rem; } }
+
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>topex-interactive — Complete Call Flow &amp; Architecture Documentation</h1>
+<p class="subtitle">Generated from graphify knowledge graph: 335 nodes, 815 edges, 14 communities. Commit: 86158a5</p>
+
+<div class="nav">
+    <a href="#overview">Architecture Overview</a>
+    <a href="#extract-pipeline">Extraction Pipeline</a>
+    <a href="#build-graph">Graph Build</a>
+    <a href="#cli-skills">CLI &amp; Skill Installers</a>
+    <a href="#serve-api">Serving API</a>
+    <a href="#utils-geophysics-components">Utils Geophysics Components</a>
+    <a href="#components-types-indexts">Components Types Indexts</a>
+    <a href="#exporters-indexts-utils">Exporters Indexts Utils</a>
+    <a href="#basemaptilests-utils-exporters">Basemaptilests Utils Exporters</a>
+    <a href="#components-pwainstallmodaltsx-usepwainstallts">Components Pwainstallmodaltsx Usepwainstallts</a>
+    <a href="#utils-geophysics-regionalresidualts">Utils Geophysics Regionalresidualts</a>
+    <a href="#viteconfigts-configureserver">Viteconfigts Configureserver</a>
+</div>
+
+<!-- ====== Architecture Overview ====== -->
+<h2 id="overview">1. Architecture Overview</h2>
+
+<div class="mermaid">
+
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    EXTRACT_PIPELINE_5F350230("Extraction Pipeline<br/><small>5 nodes</small>")
+    class EXTRACT_PIPELINE_5F350230 module;
+    BUILD_GRAPH_321CBB04("Graph Build<br/><small>113 nodes</small>")
+    class BUILD_GRAPH_321CBB04 module;
+    CLI_SKILLS_9964CBB8("CLI &amp; Skill Installers<br/><small>52 nodes</small>")
+    class CLI_SKILLS_9964CBB8 module;
+    SERVE_API_35EC8E86("Serving API<br/><small>36 nodes</small>")
+    class SERVE_API_35EC8E86 module;
+    UTILS_GEOPHYSICS_COMPONENTS_9668A602("Utils Geophysics Components<br/><small>67 nodes</small>")
+    class UTILS_GEOPHYSICS_COMPONENTS_9668A602 module;
+    COMPONENTS_TYPES_INDEXTS_43AEFD35("Components Types Indexts<br/><small>22 nodes</small>")
+    class COMPONENTS_TYPES_INDEXTS_43AEFD35 module;
+    EXPORTERS_INDEXTS_UTILS_B0815C0E("Exporters Indexts Utils<br/><small>15 nodes</small>")
+    class EXPORTERS_INDEXTS_UTILS_B0815C0E module;
+    BASEMAPTILESTS_UTILS_EXPORTERS_C96211F3("Basemaptilests Utils Exporters<br/><small>8 nodes</small>")
+    class BASEMAPTILESTS_UTILS_EXPORTERS_C96211F3 module;
+    COMPONENTS_PWAINSTALLMODALTSX_USEPWAINSTALLTS_7EF65A34("Components Pwainstallmodaltsx Usepwainstallts<br/><small>8 nodes</small>")
+    class COMPONENTS_PWAINSTALLMODALTSX_USEPWAINSTALLTS_7EF65A34 module;
+    UTILS_GEOPHYSICS_REGIONALRESIDUALTS_C73C23F2("Utils Geophysics Regionalresidualts<br/><small>7 nodes</small>")
+    class UTILS_GEOPHYSICS_REGIONALRESIDUALTS_C73C23F2 module;
+    VITECONFIGTS_CONFIGURESERVER_E556A159("Viteconfigts Configureserver<br/><small>2 nodes</small>")
+    class VITECONFIGTS_CONFIGURESERVER_E556A159 module;
+    CLI_SKILLS_9964CBB8 -->|imports x18| SERVE_API_35EC8E86
+    CLI_SKILLS_9964CBB8 -->|imports x17| UTILS_GEOPHYSICS_COMPONENTS_9668A602
+    UTILS_GEOPHYSICS_COMPONENTS_9668A602 -->|imports x17| CLI_SKILLS_9964CBB8
+    COMPONENTS_TYPES_INDEXTS_43AEFD35 -->|imports x14| UTILS_GEOPHYSICS_COMPONENTS_9668A602
+    CLI_SKILLS_9964CBB8 -->|imports x10| COMPONENTS_TYPES_INDEXTS_43AEFD35
+    COMPONENTS_TYPES_INDEXTS_43AEFD35 -->|contains x9| CLI_SKILLS_9964CBB8
+    SERVE_API_35EC8E86 -->|imports x9| UTILS_GEOPHYSICS_COMPONENTS_9668A602
+    CLI_SKILLS_9964CBB8 -->|imports x7| EXPORTERS_INDEXTS_UTILS_B0815C0E
+    SERVE_API_35EC8E86 -->|imports x7| CLI_SKILLS_9964CBB8
+    BASEMAPTILESTS_UTILS_EXPORTERS_C96211F3 -->|imports x7| UTILS_GEOPHYSICS_COMPONENTS_9668A602
+    SERVE_API_35EC8E86 -->|imports x5| COMPONENTS_TYPES_INDEXTS_43AEFD35
+    COMPONENTS_TYPES_INDEXTS_43AEFD35 -->|imports x5| SERVE_API_35EC8E86
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<div class="grid">
+  <div class="card">
+    <h4>Architecture Layers</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>Layer</th><th>Nodes</th><th>Communities</th></tr>
+      <tr><td>Extraction Pipeline</td><td>5</td><td><code>12</code></td></tr><tr><td>Graph Build</td><td>113</td><td><code>3, 4, 5, 6</code></td></tr><tr><td>CLI &amp; Skill Installers</td><td>52</td><td><code>1</code></td></tr><tr><td>Serving API</td><td>36</td><td><code>2</code></td></tr><tr><td>Utils Geophysics Components</td><td>67</td><td><code>0</code></td></tr><tr><td>Components Types Indexts</td><td>22</td><td><code>7</code></td></tr><tr><td>Exporters Indexts Utils</td><td>15</td><td><code>8</code></td></tr><tr><td>Basemaptilests Utils Exporters</td><td>8</td><td><code>10</code></td></tr><tr><td>Components Pwainstallmodaltsx Usepwainstallts</td><td>8</td><td><code>9</code></td></tr><tr><td>Utils Geophysics Regionalresidualts</td><td>7</td><td><code>11</code></td></tr><tr><td>Viteconfigts Configureserver</td><td>2</td><td><code>13</code></td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Core Flow</h4>
+    <div class="arrow-chain">Extraction Pipeline -&gt; Graph Build -&gt; Components Types Indexts -&gt; Utils Geophysics Components -&gt; CLI &amp; Skill Installers -&gt; Serving API -&gt; Exporters Indexts Utils</div>
+  </div>
+</div>
+<hr>
+<!-- ====== 2. Extraction Pipeline ====== -->
+<h2 id="extract-pipeline">2. Extraction Pipeline</h2>
+<p>Extraction Pipeline groups implementation around extract, icocjs, scripts, path, mostly in scripts/extract-ico.cjs. This section covers 5 nodes and 5 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Extraction Pipeline (5 nodes, 5 edges)
+    scripts_extract_ico_sharp_58f82fe7("sharp<br/><small>scripts/extract-ico.cjs</small>")
+    scripts_extract_ico_extract_94b033b9("extract()<br/><small>scripts/extract-ico.cjs</small>")
+    scripts_extract_ico_3ad0dacf("extract-ico.cjs")
+    scripts_extract_ico_fs_b0e6409d("fs<br/><small>scripts/extract-ico.cjs</small>")
+    scripts_extract_ico_path_bca32b7b("path<br/><small>scripts/extract-ico.cjs</small>")
+    scripts_extract_ico_sharp_58f82fe7 -->|calls| scripts_extract_ico_extract_94b033b9
+    class scripts_extract_ico_sharp_58f82fe7 function;
+    class scripts_extract_ico_extract_94b033b9 function;
+    class scripts_extract_ico_3ad0dacf function;
+    class scripts_extract_ico_fs_b0e6409d function;
+    class scripts_extract_ico_path_bca32b7b function;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>extract-ico.cjs</code><br><small style="color:var(--muted)">scripts/extract-ico.cjs</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>extract-ico.cjs node in scripts/extract-ico.cjs.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>fs</code><br><small style="color:var(--muted)">scripts/extract-ico.cjs</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>fs node in scripts/extract-ico.cjs.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>path</code><br><small style="color:var(--muted)">scripts/extract-ico.cjs</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>path node in scripts/extract-ico.cjs.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>sharp</code><br><small style="color:var(--muted)">scripts/extract-ico.cjs</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>extract()</code><br><small style="color:var(--muted)">scripts/extract-ico.cjs</small></td>
+  <td>sharp node in scripts/extract-ico.cjs.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>extract()</code><br><small style="color:var(--muted)">scripts/extract-ico.cjs</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>sharp</code><br><small style="color:var(--muted)">scripts/extract-ico.cjs</small></td>
+  <td>No direct outbound edge</td>
+  <td>extract() node in scripts/extract-ico.cjs.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>scripts/extract-ico.cjs</code></td><td>5 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: contains x4, calls x1. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 3. Graph Build ====== -->
+<h2 id="build-graph">3. Graph Build</h2>
+<p>Graph Build groups implementation around packagejson, tsconfigjson, server, react, mostly in package.json, tsconfig.json, server/middleware/rateLimiter.ts. This section covers 113 nodes and 129 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Graph Build (113 nodes, 129 edges)
+    subgraph build_graph_package_json_4e40bfbd["package.json"]
+        package_dependencies_hono_b7bf2362("hono<br/><small>package.json</small>")
+        package_dependencies_hono_zod_validator_0ab8496a("@hono/zod-validator<br/><small>package.json</small>")
+        hono_zod_validator_3cdf0c32("@hono/zod-validator<br/><small>package.json</small>")
+        hono_28c7e86f("hono<br/><small>package.json</small>")
+        package_dependencies_jszip_18427ff7("jszip<br/><small>package.json</small>")
+        jszip_5d7acb89("jszip<br/><small>package.json</small>")
+        package_dependencies_leaflet_e1b9b00b("leaflet<br/><small>package.json</small>")
+        leaflet_5f5555f4("leaflet<br/><small>package.json</small>")
+        package_dependencies_leaflet_draw_c7cbaf6c("leaflet-draw<br/><small>package.json</small>")
+        leaflet_draw_848561f9("leaflet-draw<br/><small>package.json</small>")
+        package_dependencies_lucide_react_17f0074f("lucide-react<br/><small>package.json</small>")
+    end
+    subgraph build_graph_server_middleware_rateLimiter_ts_f96b2139["server/middleware/rateLimiter.ts"]
+        server_middleware_ratelimiter_cleanupstalerecord_43c26568("cleanupStaleRecords()<br/><small>server/middleware/rateLimiter.ts</small>")
+        server_middleware_ratelimiter_createratelimiter_9b3e68e2("createRateLimiter()<br/><small>server/middleware/rateLimiter.ts</small>")
+    end
+    server_index_c89add23("index.ts")
+    server_routes_topex_32e43e32("topex.ts")
+    server_services_asciiparser_parsetopexascii_4d39e2f5("parseTopexAscii()<br/><small>server/services/asciiParser.ts</small>")
+    server_services_cacheservice_4b585d13("cacheService.ts")
+    server_services_ucsdclient_fetchucsdgrid_41597334("fetchUcsdGrid()<br/><small>server/services/ucsdClient.ts</small>")
+    server_middleware_ratelimiter_cleanupstalerecord_43c26568 -->|calls| server_middleware_ratelimiter_createratelimiter_9b3e68e2
+    server_services_asciiparser_parsetopexascii_4d39e2f5 -->|calls| server_services_ucsdclient_fetchucsdgrid_41597334
+    package_dependencies_hono_zod_validator_0ab8496a -->|imports| hono_zod_validator_3cdf0c32
+    package_dependencies_hono_b7bf2362 -->|imports| hono_28c7e86f
+    package_dependencies_jszip_18427ff7 -->|imports| jszip_5d7acb89
+    package_dependencies_leaflet_e1b9b00b -->|imports| leaflet_5f5555f4
+    package_dependencies_leaflet_draw_c7cbaf6c -->|imports| leaflet_draw_848561f9
+    server_index_c89add23 -->|imports| server_routes_topex_32e43e32
+    server_middleware_ratelimiter_createratelimiter_9b3e68e2 -->|imports| server_routes_topex_32e43e32
+    server_routes_topex_32e43e32 -->|imports| server_services_cacheservice_4b585d13
+    server_routes_topex_32e43e32 -->|imports| server_services_ucsdclient_fetchucsdgrid_41597334
+    %% Omitted for readability: 95 nodes, 0 edges
+    class package_dependencies_hono_b7bf2362 function;
+    class package_dependencies_hono_zod_validator_0ab8496a function;
+    class hono_zod_validator_3cdf0c32 function;
+    class hono_28c7e86f function;
+    class package_dependencies_jszip_18427ff7 function;
+    class jszip_5d7acb89 function;
+    class package_dependencies_leaflet_e1b9b00b function;
+    class leaflet_5f5555f4 function;
+    class package_dependencies_leaflet_draw_c7cbaf6c function;
+    class leaflet_draw_848561f9 function;
+    class package_dependencies_lucide_react_17f0074f function;
+    class server_middleware_ratelimiter_cleanupstalerecord_43c26568 function;
+    class server_middleware_ratelimiter_createratelimiter_9b3e68e2 function;
+    class server_index_c89add23 module;
+    class server_routes_topex_32e43e32 module;
+    class server_services_asciiparser_parsetopexascii_4d39e2f5 function;
+    class server_services_cacheservice_4b585d13 module;
+    class server_services_ucsdclient_fetchucsdgrid_41597334 function;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>package.json</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>package.json node in package.json.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>name</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>name node in package.json.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>private</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>private node in package.json.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>version</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>version node in package.json.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>type</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>type node in package.json.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>scripts</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>scripts node in package.json.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>dev</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>dev node in package.json.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>build</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>build node in package.json.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>preview</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>preview node in package.json.</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>typecheck</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>typecheck node in package.json.</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td><code>deploy</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>deploy node in package.json.</td>
+</tr>
+<tr>
+  <td>12</td>
+  <td><code>dependencies</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>dependencies node in package.json.</td>
+</tr>
+<tr>
+  <td>13</td>
+  <td><code>@hono/zod-validator</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>@hono/zod-validator</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>@hono/zod-validator node in package.json.</td>
+</tr>
+<tr>
+  <td>14</td>
+  <td><code>@hono/zod-validator</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>@hono/zod-validator</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>No direct outbound edge</td>
+  <td>@hono/zod-validator node in package.json.</td>
+</tr>
+<tr>
+  <td>15</td>
+  <td><code>hono</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>hono</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>hono node in package.json.</td>
+</tr>
+<tr>
+  <td>16</td>
+  <td><code>hono</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>hono</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>No direct outbound edge</td>
+  <td>hono node in package.json.</td>
+</tr>
+<tr>
+  <td>17</td>
+  <td><code>jszip</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>jszip</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>jszip node in package.json.</td>
+</tr>
+<tr>
+  <td>18</td>
+  <td><code>jszip</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>jszip</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>No direct outbound edge</td>
+  <td>jszip node in package.json.</td>
+</tr>
+<tr>
+  <td>19</td>
+  <td><code>leaflet</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>leaflet</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>leaflet node in package.json.</td>
+</tr>
+<tr>
+  <td>20</td>
+  <td><code>leaflet</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>leaflet</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>No direct outbound edge</td>
+  <td>leaflet node in package.json.</td>
+</tr>
+<tr>
+  <td>21</td>
+  <td><code>leaflet-draw</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>leaflet-draw</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>leaflet-draw node in package.json.</td>
+</tr>
+<tr>
+  <td>22</td>
+  <td><code>leaflet-draw</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>leaflet-draw</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>No direct outbound edge</td>
+  <td>leaflet-draw node in package.json.</td>
+</tr>
+<tr>
+  <td>23</td>
+  <td><code>lucide-react</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>lucide-react</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>lucide-react node in package.json.</td>
+</tr>
+<tr>
+  <td>24</td>
+  <td><code>lucide-react</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>lucide-react</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>No direct outbound edge</td>
+  <td>lucide-react node in package.json.</td>
+</tr>
+<tr>
+  <td>25</td>
+  <td><code>react</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>react</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>react node in package.json.</td>
+</tr>
+<tr>
+  <td>26</td>
+  <td><code>react</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>react</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>No direct outbound edge</td>
+  <td>react node in package.json.</td>
+</tr>
+<tr>
+  <td>27</td>
+  <td><code>react-dom</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>react-dom</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>react-dom node in package.json.</td>
+</tr>
+<tr>
+  <td>28</td>
+  <td><code>react-dom</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>react-dom</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>No direct outbound edge</td>
+  <td>react-dom node in package.json.</td>
+</tr>
+<tr>
+  <td>29</td>
+  <td><code>react-router-dom</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-endpoint">API</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>react-router-dom</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>react-router-dom node in package.json.</td>
+</tr>
+<tr>
+  <td>30</td>
+  <td><code>react-router-dom</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-endpoint">API</span></td>
+  <td><code>react-router-dom</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>No direct outbound edge</td>
+  <td>react-router-dom node in package.json.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>package.json</code></td><td>55 nodes</td></tr>
+<tr><td><code>tsconfig.json</code></td><td>28 nodes</td></tr>
+<tr><td><code>server/middleware/rateLimiter.ts</code></td><td>6 nodes</td></tr>
+<tr><td><code>server/services/cacheService.ts</code></td><td>5 nodes</td></tr>
+<tr><td><code>server/index.ts</code></td><td>4 nodes</td></tr>
+<tr><td><code>shared/schema.ts</code></td><td>4 nodes</td></tr>
+<tr><td><code>server/routes/topex.ts</code></td><td>3 nodes</td></tr>
+<tr><td><code>server/services/asciiParser.ts</code></td><td>3 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: contains x76, imports x35, imports x8, extends x8. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 4. CLI & Skill Installers ====== -->
+<h2 id="cli-skills">4. CLI &amp; Skill Installers</h2>
+<p>CLI &amp; Skill Installers groups implementation around components, geophysicsworkerservicets, services, utils, mostly in src/services/geophysicsWorkerService.ts, utils/geophysics/bouguer.ts, src/types/index.ts. This section covers 52 nodes and 142 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: CLI &amp; Skill Installers (52 nodes, 142 edges)
+    subgraph cli_skills_src_services_geophysicsWorkerService_2a32ceda["src/services/geophysicsWorkerService.ts"]
+        src_services_geophysicsworkerservice_882c5d3f("geophysicsWorkerService.ts")
+        src_services_geophysicsworkerservice_geophysicsw_b6a224fc("GeophysicsWorkerService<br/><small>src/services/geophysicsWorkerService.ts</small>")
+        src_services_geophysicsworkerservice_geophysicsw_f09569ce("postTask()<br/><small>src/services/geophysicsWorkerService.ts</small>")
+        src_services_geophysicsworkerservice_geophysicsw_cc4b63d0("buildGrids()<br/><small>src/services/geophysicsWorkerService.ts</small>")
+        src_services_geophysicsworkerservice_geophysicsw_ad9884ce("constructor()<br/><small>src/services/geophysicsWorkerService.ts</small>")
+        src_services_geophysicsworkerservice_geophysicsw_3cca2930("fullPipeline()<br/><small>src/services/geophysicsWorkerService.ts</small>")
+        src_services_geophysicsworkerservice_geophysicsw_99ceff0e("initWorker()<br/><small>src/services/geophysicsWorkerService.ts</small>")
+        src_services_geophysicsworkerservice_geophysicsw_b61d5429("processBouguer()<br/><small>src/services/geophysicsWorkerService.ts</small>")
+        src_services_geophysicsworkerservice_geophysicsw_63064f85("runFallback()<br/><small>src/services/geophysicsWorkerService.ts</small>")
+    end
+    subgraph cli_skills_utils_geophysics_bouguer_ts_1a0965c5["utils/geophysics/bouguer.ts"]
+        src_utils_geophysics_bouguer_calculatebouguerano_f0ee6e1a("calculateBouguerAnomaly()<br/><small>utils/geophysics/bouguer.ts</small>")
+        src_utils_geophysics_bouguer_computegeophysicsst_a63346ea("computeGeophysicsStats()<br/><small>utils/geophysics/bouguer.ts</small>")
+        src_utils_geophysics_bouguer_computedensitylinea_4fcb62cf("computeDensityLinearRegression()<br/><small>utils/geophysics/bouguer.ts</small>")
+    end
+    subgraph cli_skills_src_App_tsx_6e733dc5["src/App.tsx"]
+        src_app_46efd68e("App.tsx")
+        src_app_app_f316b20d("App()<br/><small>src/App.tsx</small>")
+    end
+    src_components_processing_bouguercontrolpanel_ca0ce9ed("BouguerControlPanel.tsx")
+    src_components_processing_nettletonregressionplo_67def144("NettletonRegressionPlot()<br/><small>components/processing/NettletonRegressionPlot.tsx</small>")
+    shared_schema_topexrecord_c5d840ef("TopexRecord<br/><small>shared/schema.ts</small>")
+    src_utils_coordinateparser_parseurlparams_8cf8df14("parseUrlParams()<br/><small>src/utils/coordinateParser.ts</small>")
+    src_app_app_f316b20d -->|calls| src_utils_coordinateparser_parseurlparams_8cf8df14
+    src_app_app_f316b20d -->|calls| src_utils_geophysics_bouguer_calculatebouguerano_f0ee6e1a
+    src_app_app_f316b20d -->|calls| src_utils_geophysics_bouguer_computegeophysicsst_a63346ea
+    src_components_processing_nettletonregressionplo_67def144 -->|calls| src_utils_geophysics_bouguer_computedensitylinea_4fcb62cf
+    src_services_geophysicsworkerservice_geophysicsw_b6a224fc -->|method| src_services_geophysicsworkerservice_geophysicsw_cc4b63d0
+    src_services_geophysicsworkerservice_geophysicsw_b6a224fc -->|method| src_services_geophysicsworkerservice_geophysicsw_ad9884ce
+    src_services_geophysicsworkerservice_geophysicsw_b6a224fc -->|method| src_services_geophysicsworkerservice_geophysicsw_3cca2930
+    src_services_geophysicsworkerservice_geophysicsw_b6a224fc -->|method| src_services_geophysicsworkerservice_geophysicsw_99ceff0e
+    src_services_geophysicsworkerservice_geophysicsw_b6a224fc -->|method| src_services_geophysicsworkerservice_geophysicsw_f09569ce
+    src_services_geophysicsworkerservice_geophysicsw_b6a224fc -->|method| src_services_geophysicsworkerservice_geophysicsw_b61d5429
+    src_services_geophysicsworkerservice_geophysicsw_b6a224fc -->|method| src_services_geophysicsworkerservice_geophysicsw_63064f85
+    src_services_geophysicsworkerservice_geophysicsw_ad9884ce -->|calls| src_services_geophysicsworkerservice_geophysicsw_99ceff0e
+    src_services_geophysicsworkerservice_geophysicsw_f09569ce -->|calls| src_services_geophysicsworkerservice_geophysicsw_cc4b63d0
+    src_services_geophysicsworkerservice_geophysicsw_f09569ce -->|calls| src_services_geophysicsworkerservice_geophysicsw_3cca2930
+    src_services_geophysicsworkerservice_geophysicsw_f09569ce -->|calls| src_services_geophysicsworkerservice_geophysicsw_63064f85
+    src_services_geophysicsworkerservice_geophysicsw_f09569ce -->|calls| src_services_geophysicsworkerservice_geophysicsw_b61d5429
+    src_services_geophysicsworkerservice_geophysicsw_63064f85 -->|calls| src_utils_geophysics_bouguer_calculatebouguerano_f0ee6e1a
+    src_services_geophysicsworkerservice_geophysicsw_63064f85 -->|calls| src_utils_geophysics_bouguer_computegeophysicsst_a63346ea
+    shared_schema_topexrecord_c5d840ef -->|imports| src_app_46efd68e
+    shared_schema_topexrecord_c5d840ef -->|imports| src_services_geophysicsworkerservice_882c5d3f
+    src_app_46efd68e -->|imports| src_components_processing_bouguercontrolpanel_ca0ce9ed
+    src_app_46efd68e -->|imports| src_utils_coordinateparser_parseurlparams_8cf8df14
+    src_app_46efd68e -->|imports| src_utils_geophysics_bouguer_calculatebouguerano_f0ee6e1a
+    src_app_46efd68e -->|imports| src_utils_geophysics_bouguer_computegeophysicsst_a63346ea
+    %% Omitted for readability: 34 nodes, 3 edges
+    class src_services_geophysicsworkerservice_882c5d3f module;
+    class src_services_geophysicsworkerservice_geophysicsw_b6a224fc klass;
+    class src_services_geophysicsworkerservice_geophysicsw_f09569ce function;
+    class src_services_geophysicsworkerservice_geophysicsw_cc4b63d0 function;
+    class src_services_geophysicsworkerservice_geophysicsw_ad9884ce function;
+    class src_services_geophysicsworkerservice_geophysicsw_3cca2930 function;
+    class src_services_geophysicsworkerservice_geophysicsw_99ceff0e function;
+    class src_services_geophysicsworkerservice_geophysicsw_b61d5429 function;
+    class src_services_geophysicsworkerservice_geophysicsw_63064f85 function;
+    class src_utils_geophysics_bouguer_calculatebouguerano_f0ee6e1a function;
+    class src_utils_geophysics_bouguer_computegeophysicsst_a63346ea function;
+    class src_utils_geophysics_bouguer_computedensitylinea_4fcb62cf function;
+    class src_app_46efd68e ui;
+    class src_app_app_f316b20d ui;
+    class src_components_processing_bouguercontrolpanel_ca0ce9ed ui;
+    class src_components_processing_nettletonregressionplo_67def144 ui;
+    class shared_schema_topexrecord_c5d840ef klass;
+    class src_utils_coordinateparser_parseurlparams_8cf8df14 function;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>TopexRecord</code><br><small style="color:var(--muted)">shared/schema.ts</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>App.tsx</code><br><small style="color:var(--muted)">src/App.tsx</small><br><code>bouguer.ts</code><br><small style="color:var(--muted)">utils/geophysics/bouguer.ts</small><br><code>geophysics.worker.ts</code><br><small style="color:var(--muted)">src/workers/geophysics.worker.ts</small><br>+2 more</td>
+  <td>TopexRecord node in shared/schema.ts.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>App.tsx</code><br><small style="color:var(--muted)">src/App.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>TopexRecord</code><br><small style="color:var(--muted)">shared/schema.ts</small></td>
+  <td><code>bouguer.ts</code><br><small style="color:var(--muted)">utils/geophysics/bouguer.ts</small><br><code>BouguerControlPanel()</code><br><small style="color:var(--muted)">components/processing/BouguerControlPanel.tsx</small><br><code>BouguerControlPanel.tsx</code><br><small style="color:var(--muted)">components/processing/BouguerControlPanel.tsx</small><br>+12 more</td>
+  <td>Module file in src/App.tsx.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>App()</code><br><small style="color:var(--muted)">src/App.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>calculateBouguerAnomaly()</code><br><small style="color:var(--muted)">utils/geophysics/bouguer.ts</small><br><code>computeGeophysicsStats()</code><br><small style="color:var(--muted)">utils/geophysics/bouguer.ts</small><br><code>main.tsx</code><br><small style="color:var(--muted)">src/main.tsx</small><br>+1 more</td>
+  <td>App() node in src/App.tsx.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>DatasetToggles.tsx</code><br><small style="color:var(--muted)">components/hud/DatasetToggles.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>App.tsx</code><br><small style="color:var(--muted)">src/App.tsx</small></td>
+  <td>No direct outbound edge</td>
+  <td>Module file in components/hud/DatasetToggles.tsx.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>DatasetTogglesProps</code><br><small style="color:var(--muted)">components/hud/DatasetToggles.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>DatasetTogglesProps node in components/hud/DatasetToggles.tsx.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>DatasetToggles()</code><br><small style="color:var(--muted)">components/hud/DatasetToggles.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>App.tsx</code><br><small style="color:var(--muted)">src/App.tsx</small></td>
+  <td>No direct outbound edge</td>
+  <td>DatasetToggles() node in components/hud/DatasetToggles.tsx.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>CitationsModal.tsx</code><br><small style="color:var(--muted)">components/modals/CitationsModal.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>Disclaimer.tsx</code><br><small style="color:var(--muted)">components/ui/Disclaimer.tsx</small><br><code>NettletonRegressionPlot.tsx</code><br><small style="color:var(--muted)">components/processing/NettletonRegressionPlot.tsx</small></td>
+  <td>Module file in components/modals/CitationsModal.tsx.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>CitationsModalProps</code><br><small style="color:var(--muted)">components/modals/CitationsModal.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>CitationsModalProps node in components/modals/CitationsModal.tsx.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>CitationsModal()</code><br><small style="color:var(--muted)">components/modals/CitationsModal.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>Disclaimer.tsx</code><br><small style="color:var(--muted)">components/ui/Disclaimer.tsx</small><br><code>NettletonRegressionPlot.tsx</code><br><small style="color:var(--muted)">components/processing/NettletonRegressionPlot.tsx</small></td>
+  <td>CitationsModal() node in components/modals/CitationsModal.tsx.</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>BouguerControlPanel.tsx</code><br><small style="color:var(--muted)">components/processing/BouguerControlPanel.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>App.tsx</code><br><small style="color:var(--muted)">src/App.tsx</small></td>
+  <td><code>BouguerParams</code><br><small style="color:var(--muted)">src/types/index.ts</small><br><code>GeophysicsSummaryStats</code><br><small style="color:var(--muted)">src/types/index.ts</small><br><code>NettletonRegressionPlot()</code><br><small style="color:var(--muted)">components/processing/NettletonRegressionPlot.tsx</small><br>+2 more</td>
+  <td>Module file in components/processing/BouguerControlPanel.tsx.</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td><code>BouguerControlPanelProps</code><br><small style="color:var(--muted)">components/processing/BouguerControlPanel.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>BouguerControlPanelProps node in components/processing/BouguerControlPanel.tsx.</td>
+</tr>
+<tr>
+  <td>12</td>
+  <td><code>BouguerControlPanel()</code><br><small style="color:var(--muted)">components/processing/BouguerControlPanel.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>App.tsx</code><br><small style="color:var(--muted)">src/App.tsx</small></td>
+  <td>No direct outbound edge</td>
+  <td>BouguerControlPanel() node in components/processing/BouguerControlPanel.tsx.</td>
+</tr>
+<tr>
+  <td>13</td>
+  <td><code>NettletonRegressionPlot.tsx</code><br><small style="color:var(--muted)">components/processing/NettletonRegressionPlot.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>BouguerControlPanel.tsx</code><br><small style="color:var(--muted)">components/processing/BouguerControlPanel.tsx</small><br><code>CitationsModal()</code><br><small style="color:var(--muted)">components/modals/CitationsModal.tsx</small><br><code>CitationsModal.tsx</code><br><small style="color:var(--muted)">components/modals/CitationsModal.tsx</small></td>
+  <td><code>bouguer.ts</code><br><small style="color:var(--muted)">utils/geophysics/bouguer.ts</small><br><code>BouguerParams</code><br><small style="color:var(--muted)">src/types/index.ts</small><br><code>computeDensityLinearRegression()</code><br><small style="color:var(--muted)">utils/geophysics/bouguer.ts</small><br>+1 more</td>
+  <td>Module file in components/processing/NettletonRegressionPlot.tsx.</td>
+</tr>
+<tr>
+  <td>14</td>
+  <td><code>NettletonRegressionPlotProps</code><br><small style="color:var(--muted)">components/processing/NettletonRegressionPlot.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>NettletonRegressionPlotProps node in components/processing/NettletonRegressionPlot.tsx.</td>
+</tr>
+<tr>
+  <td>15</td>
+  <td><code>NettletonRegressionPlot()</code><br><small style="color:var(--muted)">components/processing/NettletonRegressionPlot.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>BouguerControlPanel.tsx</code><br><small style="color:var(--muted)">components/processing/BouguerControlPanel.tsx</small></td>
+  <td><code>computeDensityLinearRegression()</code><br><small style="color:var(--muted)">utils/geophysics/bouguer.ts</small></td>
+  <td>NettletonRegressionPlot() node in components/processing/NettletonRegressionPlot.tsx.</td>
+</tr>
+<tr>
+  <td>16</td>
+  <td><code>SatelliteGravityStudioProps</code><br><small style="color:var(--muted)">components/studio/TriMapViewer.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>SatelliteGravityStudioProps node in components/studio/TriMapViewer.tsx.</td>
+</tr>
+<tr>
+  <td>17</td>
+  <td><code>Disclaimer.tsx</code><br><small style="color:var(--muted)">components/ui/Disclaimer.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>App.tsx</code><br><small style="color:var(--muted)">src/App.tsx</small><br><code>CitationsModal()</code><br><small style="color:var(--muted)">components/modals/CitationsModal.tsx</small><br><code>CitationsModal.tsx</code><br><small style="color:var(--muted)">components/modals/CitationsModal.tsx</small></td>
+  <td>No direct outbound edge</td>
+  <td>Module file in components/ui/Disclaimer.tsx.</td>
+</tr>
+<tr>
+  <td>18</td>
+  <td><code>Disclaimer()</code><br><small style="color:var(--muted)">components/ui/Disclaimer.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>App.tsx</code><br><small style="color:var(--muted)">src/App.tsx</small></td>
+  <td>No direct outbound edge</td>
+  <td>Disclaimer() node in components/ui/Disclaimer.tsx.</td>
+</tr>
+<tr>
+  <td>19</td>
+  <td><code>Toast.tsx</code><br><small style="color:var(--muted)">components/ui/Toast.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>App.tsx</code><br><small style="color:var(--muted)">src/App.tsx</small></td>
+  <td>No direct outbound edge</td>
+  <td>Module file in components/ui/Toast.tsx.</td>
+</tr>
+<tr>
+  <td>20</td>
+  <td><code>ToastProps</code><br><small style="color:var(--muted)">components/ui/Toast.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>ToastProps node in components/ui/Toast.tsx.</td>
+</tr>
+<tr>
+  <td>21</td>
+  <td><code>Toast()</code><br><small style="color:var(--muted)">components/ui/Toast.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>App.tsx</code><br><small style="color:var(--muted)">src/App.tsx</small></td>
+  <td>No direct outbound edge</td>
+  <td>Toast() node in components/ui/Toast.tsx.</td>
+</tr>
+<tr>
+  <td>22</td>
+  <td><code>main.tsx</code><br><small style="color:var(--muted)">src/main.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>App()</code><br><small style="color:var(--muted)">src/App.tsx</small><br><code>App.tsx</code><br><small style="color:var(--muted)">src/App.tsx</small></td>
+  <td>No direct outbound edge</td>
+  <td>Module file in src/main.tsx.</td>
+</tr>
+<tr>
+  <td>23</td>
+  <td><code>geophysicsWorkerService.ts</code><br><small style="color:var(--muted)">src/services/geophysicsWorkerService.ts</small></td>
+  <td><span class="tag tag-class">Module</span></td>
+  <td><code>TopexRecord</code><br><small style="color:var(--muted)">shared/schema.ts</small></td>
+  <td><code>AllGridsResult</code><br><small style="color:var(--muted)">utils/geophysics/interpolation.ts</small><br><code>bouguer.ts</code><br><small style="color:var(--muted)">utils/geophysics/bouguer.ts</small><br><code>BouguerParams</code><br><small style="color:var(--muted)">src/types/index.ts</small><br>+9 more</td>
+  <td>Module file in src/services/geophysicsWorkerService.ts.</td>
+</tr>
+<tr>
+  <td>24</td>
+  <td><code>GeophysicsWorkerService</code><br><small style="color:var(--muted)">src/services/geophysicsWorkerService.ts</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>buildGrids()</code><br><small style="color:var(--muted)">src/services/geophysicsWorkerService.ts</small><br><code>constructor()</code><br><small style="color:var(--muted)">src/services/geophysicsWorkerService.ts</small><br><code>fullPipeline()</code><br><small style="color:var(--muted)">src/services/geophysicsWorkerService.ts</small><br>+5 more</td>
+  <td>GeophysicsWorkerService node in src/services/geophysicsWorkerService.ts.</td>
+</tr>
+<tr>
+  <td>25</td>
+  <td><code>.constructor()</code><br><small style="color:var(--muted)">src/services/geophysicsWorkerService.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>GeophysicsWorkerService</code><br><small style="color:var(--muted)">src/services/geophysicsWorkerService.ts</small></td>
+  <td><code>initWorker()</code><br><small style="color:var(--muted)">src/services/geophysicsWorkerService.ts</small></td>
+  <td>.constructor() node in src/services/geophysicsWorkerService.ts.</td>
+</tr>
+<tr>
+  <td>26</td>
+  <td><code>.initWorker()</code><br><small style="color:var(--muted)">src/services/geophysicsWorkerService.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>constructor()</code><br><small style="color:var(--muted)">src/services/geophysicsWorkerService.ts</small><br><code>GeophysicsWorkerService</code><br><small style="color:var(--muted)">src/services/geophysicsWorkerService.ts</small></td>
+  <td>No direct outbound edge</td>
+  <td>.initWorker() node in src/services/geophysicsWorkerService.ts.</td>
+</tr>
+<tr>
+  <td>27</td>
+  <td><code>.postTask()</code><br><small style="color:var(--muted)">src/services/geophysicsWorkerService.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>GeophysicsWorkerService</code><br><small style="color:var(--muted)">src/services/geophysicsWorkerService.ts</small></td>
+  <td><code>buildGrids()</code><br><small style="color:var(--muted)">src/services/geophysicsWorkerService.ts</small><br><code>fullPipeline()</code><br><small style="color:var(--muted)">src/services/geophysicsWorkerService.ts</small><br><code>processBouguer()</code><br><small style="color:var(--muted)">src/services/geophysicsWorkerService.ts</small><br>+2 more</td>
+  <td>.postTask() node in src/services/geophysicsWorkerService.ts.</td>
+</tr>
+<tr>
+  <td>28</td>
+  <td><code>.runFallback()</code><br><small style="color:var(--muted)">src/services/geophysicsWorkerService.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>GeophysicsWorkerService</code><br><small style="color:var(--muted)">src/services/geophysicsWorkerService.ts</small><br><code>postTask()</code><br><small style="color:var(--muted)">src/services/geophysicsWorkerService.ts</small></td>
+  <td><code>buildAllRegularGrids()</code><br><small style="color:var(--muted)">utils/geophysics/interpolation.ts</small><br><code>calculateBouguerAnomaly()</code><br><small style="color:var(--muted)">utils/geophysics/bouguer.ts</small><br><code>computeGeophysicsStats()</code><br><small style="color:var(--muted)">utils/geophysics/bouguer.ts</small></td>
+  <td>.runFallback() node in src/services/geophysicsWorkerService.ts.</td>
+</tr>
+<tr>
+  <td>29</td>
+  <td><code>.processBouguer()</code><br><small style="color:var(--muted)">src/services/geophysicsWorkerService.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>GeophysicsWorkerService</code><br><small style="color:var(--muted)">src/services/geophysicsWorkerService.ts</small><br><code>postTask()</code><br><small style="color:var(--muted)">src/services/geophysicsWorkerService.ts</small></td>
+  <td>No direct outbound edge</td>
+  <td>.processBouguer() node in src/services/geophysicsWorkerService.ts.</td>
+</tr>
+<tr>
+  <td>30</td>
+  <td><code>.separateRegional()</code><br><small style="color:var(--muted)">src/services/geophysicsWorkerService.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>GeophysicsWorkerService</code><br><small style="color:var(--muted)">src/services/geophysicsWorkerService.ts</small><br><code>postTask()</code><br><small style="color:var(--muted)">src/services/geophysicsWorkerService.ts</small></td>
+  <td>No direct outbound edge</td>
+  <td>.separateRegional() node in src/services/geophysicsWorkerService.ts.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>src/services/geophysicsWorkerService.ts</code></td><td>11 nodes</td></tr>
+<tr><td><code>utils/geophysics/bouguer.ts</code></td><td>6 nodes</td></tr>
+<tr><td><code>src/types/index.ts</code></td><td>4 nodes</td></tr>
+<tr><td><code>src/workers/geophysics.worker.ts</code></td><td>4 nodes</td></tr>
+<tr><td><code>components/hud/DatasetToggles.tsx</code></td><td>3 nodes</td></tr>
+<tr><td><code>components/modals/CitationsModal.tsx</code></td><td>3 nodes</td></tr>
+<tr><td><code>components/processing/BouguerControlPanel.tsx</code></td><td>3 nodes</td></tr>
+<tr><td><code>components/processing/NettletonRegressionPlot.tsx</code></td><td>3 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: imports x47, references x34, contains x23, calls x15. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 5. Serving API ====== -->
+<h2 id="serve-api">5. Serving API</h2>
+<p>Serving API groups implementation around api, utils, clientcachets, components, mostly in src/api/clientCache.ts, src/utils/chunking.ts, src/utils/coordinateParser.ts. This section covers 36 nodes and 76 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Serving API (36 nodes, 76 edges)
+    subgraph serve_api_src_api_clientCache_ts_37342e11["src/api/clientCache.ts"]
+        src_api_clientcache_getidb_cb96a383("getIDB()<br/><small>src/api/clientCache.ts</small>")
+        src_api_clientcache_makeclienttilekey_a2ed4d8f("makeClientTileKey()<br/><small>src/api/clientCache.ts</small>")
+        src_api_clientcache_clearclientcache_a1598a15("clearClientCache()<br/><small>src/api/clientCache.ts</small>")
+        src_api_clientcache_getclientcachedtileasync_d3eb9be1("getClientCachedTileAsync()<br/><small>src/api/clientCache.ts</small>")
+        src_api_clientcache_setclientcachedtile_1e6f0ee3("setClientCachedTile()<br/><small>src/api/clientCache.ts</small>")
+        src_api_clientcache_getclientcachedtile_a73ff626("getClientCachedTile()<br/><small>src/api/clientCache.ts</small>")
+    end
+    subgraph serve_api_src_utils_chunking_ts_77431f09["src/utils/chunking.ts"]
+        src_utils_chunking_cliprecordstobounds_e19d1113("clipRecordsToBounds()<br/><small>src/utils/chunking.ts</small>")
+        src_utils_chunking_generatechunktiles_4b22396d("generateChunkTiles()<br/><small>src/utils/chunking.ts</small>")
+        src_utils_chunking_validatetileintegrity_b869d09c("validateTileIntegrity()<br/><small>src/utils/chunking.ts</small>")
+    end
+    subgraph serve_api_components_hud_CoordinateInputs_tsx_c22a7df2["components/hud/CoordinateInputs.tsx"]
+        src_components_hud_coordinateinputs_e3b96fde("CoordinateInputs.tsx")
+        src_components_hud_coordinateinputs_coordinatein_1914e306("CoordinateInputs()<br/><small>components/hud/CoordinateInputs.tsx</small>")
+    end
+    subgraph serve_api_components_hud_CoordinateToolbar_tsx_b01085de["components/hud/CoordinateToolbar.tsx"]
+        src_components_hud_coordinatetoolbar_7e3a24f6("CoordinateToolbar.tsx")
+        src_components_hud_coordinatetoolbar_coordinatet_2cdb72f4("CoordinateToolbar()<br/><small>components/hud/CoordinateToolbar.tsx</small>")
+    end
+    subgraph serve_api_src_api_parallelFetcher_ts_558758a8["src/api/parallelFetcher.ts"]
+        src_api_parallelfetcher_2af8ce2a("parallelFetcher.ts")
+        src_api_parallelfetcher_fetchlargegridinchunks_d2e1f3ee("fetchLargeGridInChunks()<br/><small>src/api/parallelFetcher.ts</small>")
+    end
+    subgraph serve_api_src_utils_coordinateParser_ts_56a7ddd6["src/utils/coordinateParser.ts"]
+        src_utils_coordinateparser_formatcoordinatetext_7a13f4bf("formatCoordinateText()<br/><small>src/utils/coordinateParser.ts</small>")
+        src_utils_coordinateparser_getshareableurl_b30aeae8("getShareableUrl()<br/><small>src/utils/coordinateParser.ts</small>")
+    end
+    src_api_client_extracttopexdata_e33f6416("extractTopexData()<br/><small>src/api/client.ts</small>")
+    src_api_client_extracttopexdata_e33f6416 -->|calls| src_api_parallelfetcher_fetchlargegridinchunks_d2e1f3ee
+    src_api_clientcache_getidb_cb96a383 -->|calls| src_api_clientcache_clearclientcache_a1598a15
+    src_api_clientcache_getidb_cb96a383 -->|calls| src_api_clientcache_getclientcachedtileasync_d3eb9be1
+    src_api_clientcache_getidb_cb96a383 -->|calls| src_api_clientcache_setclientcachedtile_1e6f0ee3
+    src_api_clientcache_makeclienttilekey_a2ed4d8f -->|calls| src_api_clientcache_getclientcachedtile_a73ff626
+    src_api_clientcache_makeclienttilekey_a2ed4d8f -->|calls| src_api_clientcache_getclientcachedtileasync_d3eb9be1
+    src_api_clientcache_makeclienttilekey_a2ed4d8f -->|calls| src_api_clientcache_setclientcachedtile_1e6f0ee3
+    src_api_clientcache_getclientcachedtileasync_d3eb9be1 -->|calls| src_api_parallelfetcher_fetchlargegridinchunks_d2e1f3ee
+    src_api_clientcache_setclientcachedtile_1e6f0ee3 -->|calls| src_api_parallelfetcher_fetchlargegridinchunks_d2e1f3ee
+    src_api_parallelfetcher_fetchlargegridinchunks_d2e1f3ee -->|calls| src_utils_chunking_cliprecordstobounds_e19d1113
+    src_api_parallelfetcher_fetchlargegridinchunks_d2e1f3ee -->|calls| src_utils_chunking_generatechunktiles_4b22396d
+    src_api_parallelfetcher_fetchlargegridinchunks_d2e1f3ee -->|calls| src_utils_chunking_validatetileintegrity_b869d09c
+    src_components_hud_coordinateinputs_coordinatein_1914e306 -->|calls| src_utils_chunking_generatechunktiles_4b22396d
+    src_components_hud_coordinatetoolbar_coordinatet_2cdb72f4 -->|calls| src_utils_coordinateparser_formatcoordinatetext_7a13f4bf
+    src_components_hud_coordinatetoolbar_coordinatet_2cdb72f4 -->|calls| src_utils_coordinateparser_getshareableurl_b30aeae8
+    src_api_client_extracttopexdata_e33f6416 -->|imports| src_api_parallelfetcher_2af8ce2a
+    src_api_clientcache_getclientcachedtileasync_d3eb9be1 -->|imports| src_api_parallelfetcher_2af8ce2a
+    src_api_clientcache_setclientcachedtile_1e6f0ee3 -->|imports| src_api_parallelfetcher_2af8ce2a
+    src_api_parallelfetcher_2af8ce2a -->|imports| src_utils_chunking_cliprecordstobounds_e19d1113
+    src_api_parallelfetcher_2af8ce2a -->|imports| src_utils_chunking_generatechunktiles_4b22396d
+    src_api_parallelfetcher_2af8ce2a -->|imports| src_utils_chunking_validatetileintegrity_b869d09c
+    src_components_hud_coordinateinputs_e3b96fde -->|imports| src_components_hud_coordinatetoolbar_7e3a24f6
+    src_components_hud_coordinateinputs_e3b96fde -->|imports| src_components_hud_coordinatetoolbar_coordinatet_2cdb72f4
+    src_components_hud_coordinateinputs_e3b96fde -->|imports| src_utils_chunking_generatechunktiles_4b22396d
+    %% Omitted for readability: 18 nodes, 2 edges
+    class src_api_clientcache_getidb_cb96a383 function;
+    class src_api_clientcache_makeclienttilekey_a2ed4d8f entry;
+    class src_api_clientcache_clearclientcache_a1598a15 entry;
+    class src_api_clientcache_getclientcachedtileasync_d3eb9be1 entry;
+    class src_api_clientcache_setclientcachedtile_1e6f0ee3 entry;
+    class src_api_clientcache_getclientcachedtile_a73ff626 entry;
+    class src_utils_chunking_cliprecordstobounds_e19d1113 entry;
+    class src_utils_chunking_generatechunktiles_4b22396d function;
+    class src_utils_chunking_validatetileintegrity_b869d09c function;
+    class src_components_hud_coordinateinputs_e3b96fde ui;
+    class src_components_hud_coordinateinputs_coordinatein_1914e306 ui;
+    class src_components_hud_coordinatetoolbar_7e3a24f6 ui;
+    class src_components_hud_coordinatetoolbar_coordinatet_2cdb72f4 ui;
+    class src_api_parallelfetcher_2af8ce2a module;
+    class src_api_parallelfetcher_fetchlargegridinchunks_d2e1f3ee function;
+    class src_utils_coordinateparser_formatcoordinatetext_7a13f4bf function;
+    class src_utils_coordinateparser_getshareableurl_b30aeae8 function;
+    class src_api_client_extracttopexdata_e33f6416 function;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>extractTopexData()</code><br><small style="color:var(--muted)">src/api/client.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>fetchLargeGridInChunks()</code><br><small style="color:var(--muted)">src/api/parallelFetcher.ts</small><br><code>parallelFetcher.ts</code><br><small style="color:var(--muted)">src/api/parallelFetcher.ts</small></td>
+  <td>extractTopexData() node in src/api/client.ts.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>clientCache.ts</code><br><small style="color:var(--muted)">src/api/clientCache.ts</small></td>
+  <td><span class="tag tag-cmd">Entry</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>BoundingBox</code><br><small style="color:var(--muted)">src/types/index.ts</small><br><code>parallelFetcher.ts</code><br><small style="color:var(--muted)">src/api/parallelFetcher.ts</small></td>
+  <td>Module file in src/api/clientCache.ts.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>CacheEntry</code><br><small style="color:var(--muted)">src/api/clientCache.ts</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Caches analysis results or computes cache keys.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>memoryStore</code><br><small style="color:var(--muted)">src/api/clientCache.ts</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>memoryStore node in src/api/clientCache.ts.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>getIDB()</code><br><small style="color:var(--muted)">src/api/clientCache.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>clearClientCache()</code><br><small style="color:var(--muted)">src/api/clientCache.ts</small><br><code>getClientCachedTileAsync()</code><br><small style="color:var(--muted)">src/api/clientCache.ts</small><br><code>setClientCachedTile()</code><br><small style="color:var(--muted)">src/api/clientCache.ts</small></td>
+  <td>getIDB() node in src/api/clientCache.ts.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>makeClientTileKey()</code><br><small style="color:var(--muted)">src/api/clientCache.ts</small></td>
+  <td><span class="tag tag-cmd">Entry</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>getClientCachedTile()</code><br><small style="color:var(--muted)">src/api/clientCache.ts</small><br><code>getClientCachedTileAsync()</code><br><small style="color:var(--muted)">src/api/clientCache.ts</small><br><code>setClientCachedTile()</code><br><small style="color:var(--muted)">src/api/clientCache.ts</small></td>
+  <td>makeClientTileKey() node in src/api/clientCache.ts.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>getClientCachedTile()</code><br><small style="color:var(--muted)">src/api/clientCache.ts</small></td>
+  <td><span class="tag tag-cmd">Entry</span></td>
+  <td><code>makeClientTileKey()</code><br><small style="color:var(--muted)">src/api/clientCache.ts</small></td>
+  <td>No direct outbound edge</td>
+  <td>Caches analysis results or computes cache keys.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>getClientCachedTileAsync()</code><br><small style="color:var(--muted)">src/api/clientCache.ts</small></td>
+  <td><span class="tag tag-cmd">Entry</span></td>
+  <td><code>getIDB()</code><br><small style="color:var(--muted)">src/api/clientCache.ts</small><br><code>makeClientTileKey()</code><br><small style="color:var(--muted)">src/api/clientCache.ts</small></td>
+  <td><code>fetchLargeGridInChunks()</code><br><small style="color:var(--muted)">src/api/parallelFetcher.ts</small><br><code>parallelFetcher.ts</code><br><small style="color:var(--muted)">src/api/parallelFetcher.ts</small></td>
+  <td>Caches analysis results or computes cache keys.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>setClientCachedTile()</code><br><small style="color:var(--muted)">src/api/clientCache.ts</small></td>
+  <td><span class="tag tag-cmd">Entry</span></td>
+  <td><code>getIDB()</code><br><small style="color:var(--muted)">src/api/clientCache.ts</small><br><code>makeClientTileKey()</code><br><small style="color:var(--muted)">src/api/clientCache.ts</small></td>
+  <td><code>fetchLargeGridInChunks()</code><br><small style="color:var(--muted)">src/api/parallelFetcher.ts</small><br><code>parallelFetcher.ts</code><br><small style="color:var(--muted)">src/api/parallelFetcher.ts</small></td>
+  <td>Caches analysis results or computes cache keys.</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>clearClientCache()</code><br><small style="color:var(--muted)">src/api/clientCache.ts</small></td>
+  <td><span class="tag tag-cmd">Entry</span></td>
+  <td><code>getIDB()</code><br><small style="color:var(--muted)">src/api/clientCache.ts</small></td>
+  <td>No direct outbound edge</td>
+  <td>Caches analysis results or computes cache keys.</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td><code>parallelFetcher.ts</code><br><small style="color:var(--muted)">src/api/parallelFetcher.ts</small></td>
+  <td><span class="tag tag-class">Module</span></td>
+  <td><code>clientCache.ts</code><br><small style="color:var(--muted)">src/api/clientCache.ts</small><br><code>extractTopexData()</code><br><small style="color:var(--muted)">src/api/client.ts</small><br><code>getClientCachedTileAsync()</code><br><small style="color:var(--muted)">src/api/clientCache.ts</small><br>+1 more</td>
+  <td><code>BoundingBox</code><br><small style="color:var(--muted)">src/types/index.ts</small><br><code>chunking.ts</code><br><small style="color:var(--muted)">src/utils/chunking.ts</small><br><code>ChunkTile</code><br><small style="color:var(--muted)">src/utils/chunking.ts</small><br>+4 more</td>
+  <td>Module file in src/api/parallelFetcher.ts.</td>
+</tr>
+<tr>
+  <td>12</td>
+  <td><code>ChunkProgress</code><br><small style="color:var(--muted)">src/api/parallelFetcher.ts</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>StreamingProgressBar.tsx</code><br><small style="color:var(--muted)">components/ui/StreamingProgressBar.tsx</small></td>
+  <td>ChunkProgress node in src/api/parallelFetcher.ts.</td>
+</tr>
+<tr>
+  <td>13</td>
+  <td><code>ParallelFetchOptions</code><br><small style="color:var(--muted)">src/api/parallelFetcher.ts</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>ParallelFetchOptions node in src/api/parallelFetcher.ts.</td>
+</tr>
+<tr>
+  <td>14</td>
+  <td><code>fetchLargeGridInChunks()</code><br><small style="color:var(--muted)">src/api/parallelFetcher.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>extractTopexData()</code><br><small style="color:var(--muted)">src/api/client.ts</small><br><code>getClientCachedTileAsync()</code><br><small style="color:var(--muted)">src/api/clientCache.ts</small><br><code>setClientCachedTile()</code><br><small style="color:var(--muted)">src/api/clientCache.ts</small></td>
+  <td><code>clipRecordsToBounds()</code><br><small style="color:var(--muted)">src/utils/chunking.ts</small><br><code>generateChunkTiles()</code><br><small style="color:var(--muted)">src/utils/chunking.ts</small><br><code>validateTileIntegrity()</code><br><small style="color:var(--muted)">src/utils/chunking.ts</small></td>
+  <td>fetchLargeGridInChunks() node in src/api/parallelFetcher.ts.</td>
+</tr>
+<tr>
+  <td>15</td>
+  <td><code>CoordinateInputs.tsx</code><br><small style="color:var(--muted)">components/hud/CoordinateInputs.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>BoundingBox</code><br><small style="color:var(--muted)">src/types/index.ts</small><br><code>chunking.ts</code><br><small style="color:var(--muted)">src/utils/chunking.ts</small><br><code>CoordinateToolbar()</code><br><small style="color:var(--muted)">components/hud/CoordinateToolbar.tsx</small><br>+2 more</td>
+  <td>Module file in components/hud/CoordinateInputs.tsx.</td>
+</tr>
+<tr>
+  <td>16</td>
+  <td><code>CoordinateInputsProps</code><br><small style="color:var(--muted)">components/hud/CoordinateInputs.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>CoordinateInputsProps node in components/hud/CoordinateInputs.tsx.</td>
+</tr>
+<tr>
+  <td>17</td>
+  <td><code>CoordinateInputs()</code><br><small style="color:var(--muted)">components/hud/CoordinateInputs.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>generateChunkTiles()</code><br><small style="color:var(--muted)">src/utils/chunking.ts</small></td>
+  <td>CoordinateInputs() node in components/hud/CoordinateInputs.tsx.</td>
+</tr>
+<tr>
+  <td>18</td>
+  <td><code>CoordinateToolbar.tsx</code><br><small style="color:var(--muted)">components/hud/CoordinateToolbar.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>CoordinateInputs.tsx</code><br><small style="color:var(--muted)">components/hud/CoordinateInputs.tsx</small></td>
+  <td><code>BoundingBox</code><br><small style="color:var(--muted)">src/types/index.ts</small><br><code>coordinateParser.ts</code><br><small style="color:var(--muted)">src/utils/coordinateParser.ts</small><br><code>formatCoordinateText()</code><br><small style="color:var(--muted)">src/utils/coordinateParser.ts</small><br>+2 more</td>
+  <td>Module file in components/hud/CoordinateToolbar.tsx.</td>
+</tr>
+<tr>
+  <td>19</td>
+  <td><code>CoordinateToolbarProps</code><br><small style="color:var(--muted)">components/hud/CoordinateToolbar.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>CoordinateToolbarProps node in components/hud/CoordinateToolbar.tsx.</td>
+</tr>
+<tr>
+  <td>20</td>
+  <td><code>CoordinateToolbar()</code><br><small style="color:var(--muted)">components/hud/CoordinateToolbar.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>CoordinateInputs.tsx</code><br><small style="color:var(--muted)">components/hud/CoordinateInputs.tsx</small></td>
+  <td><code>formatCoordinateText()</code><br><small style="color:var(--muted)">src/utils/coordinateParser.ts</small><br><code>getShareableUrl()</code><br><small style="color:var(--muted)">src/utils/coordinateParser.ts</small><br><code>parseCoordinateText()</code><br><small style="color:var(--muted)">src/utils/coordinateParser.ts</small></td>
+  <td>CoordinateToolbar() node in components/hud/CoordinateToolbar.tsx.</td>
+</tr>
+<tr>
+  <td>21</td>
+  <td><code>WebGLFallbackViewProps</code><br><small style="color:var(--muted)">components/studio/WebGLFallbackView.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>WebGLFallbackViewProps node in components/studio/WebGLFallbackView.tsx.</td>
+</tr>
+<tr>
+  <td>22</td>
+  <td><code>StreamingProgressBar.tsx</code><br><small style="color:var(--muted)">components/ui/StreamingProgressBar.tsx</small></td>
+  <td><span class="tag tag-async">Async</span></td>
+  <td><code>ChunkProgress</code><br><small style="color:var(--muted)">src/api/parallelFetcher.ts</small><br><code>parallelFetcher.ts</code><br><small style="color:var(--muted)">src/api/parallelFetcher.ts</small></td>
+  <td>No direct outbound edge</td>
+  <td>Module file in components/ui/StreamingProgressBar.tsx.</td>
+</tr>
+<tr>
+  <td>23</td>
+  <td><code>StreamingProgressBarProps</code><br><small style="color:var(--muted)">components/ui/StreamingProgressBar.tsx</small></td>
+  <td><span class="tag tag-async">Async</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>StreamingProgressBarProps node in components/ui/StreamingProgressBar.tsx.</td>
+</tr>
+<tr>
+  <td>24</td>
+  <td><code>StreamingProgressBar()</code><br><small style="color:var(--muted)">components/ui/StreamingProgressBar.tsx</small></td>
+  <td><span class="tag tag-async">Async</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>StreamingProgressBar() node in components/ui/StreamingProgressBar.tsx.</td>
+</tr>
+<tr>
+  <td>25</td>
+  <td><code>BoundingBox</code><br><small style="color:var(--muted)">src/types/index.ts</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td><code>clientCache.ts</code><br><small style="color:var(--muted)">src/api/clientCache.ts</small><br><code>CoordinateInputs.tsx</code><br><small style="color:var(--muted)">components/hud/CoordinateInputs.tsx</small><br><code>CoordinateToolbar.tsx</code><br><small style="color:var(--muted)">components/hud/CoordinateToolbar.tsx</small><br>+1 more</td>
+  <td><code>chunking.ts</code><br><small style="color:var(--muted)">src/utils/chunking.ts</small><br><code>coordinateParser.ts</code><br><small style="color:var(--muted)">src/utils/coordinateParser.ts</small></td>
+  <td>BoundingBox node in src/types/index.ts.</td>
+</tr>
+<tr>
+  <td>26</td>
+  <td><code>chunking.ts</code><br><small style="color:var(--muted)">src/utils/chunking.ts</small></td>
+  <td><span class="tag tag-class">Module</span></td>
+  <td><code>BoundingBox</code><br><small style="color:var(--muted)">src/types/index.ts</small><br><code>CoordinateInputs.tsx</code><br><small style="color:var(--muted)">components/hud/CoordinateInputs.tsx</small><br><code>parallelFetcher.ts</code><br><small style="color:var(--muted)">src/api/parallelFetcher.ts</small></td>
+  <td>No direct outbound edge</td>
+  <td>Module file in src/utils/chunking.ts.</td>
+</tr>
+<tr>
+  <td>27</td>
+  <td><code>ChunkTile</code><br><small style="color:var(--muted)">src/utils/chunking.ts</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td><code>parallelFetcher.ts</code><br><small style="color:var(--muted)">src/api/parallelFetcher.ts</small></td>
+  <td>No direct outbound edge</td>
+  <td>ChunkTile node in src/utils/chunking.ts.</td>
+</tr>
+<tr>
+  <td>28</td>
+  <td><code>generateChunkTiles()</code><br><small style="color:var(--muted)">src/utils/chunking.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>CoordinateInputs()</code><br><small style="color:var(--muted)">components/hud/CoordinateInputs.tsx</small><br><code>CoordinateInputs.tsx</code><br><small style="color:var(--muted)">components/hud/CoordinateInputs.tsx</small><br><code>fetchLargeGridInChunks()</code><br><small style="color:var(--muted)">src/api/parallelFetcher.ts</small><br>+1 more</td>
+  <td>No direct outbound edge</td>
+  <td>generateChunkTiles() node in src/utils/chunking.ts.</td>
+</tr>
+<tr>
+  <td>29</td>
+  <td><code>clipRecordsToBounds()</code><br><small style="color:var(--muted)">src/utils/chunking.ts</small></td>
+  <td><span class="tag tag-cmd">Entry</span></td>
+  <td><code>fetchLargeGridInChunks()</code><br><small style="color:var(--muted)">src/api/parallelFetcher.ts</small><br><code>parallelFetcher.ts</code><br><small style="color:var(--muted)">src/api/parallelFetcher.ts</small></td>
+  <td>No direct outbound edge</td>
+  <td>clipRecordsToBounds() node in src/utils/chunking.ts.</td>
+</tr>
+<tr>
+  <td>30</td>
+  <td><code>TileValidationResult</code><br><small style="color:var(--muted)">src/utils/chunking.ts</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>TileValidationResult node in src/utils/chunking.ts.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>src/api/clientCache.ts</code></td><td>9 nodes</td></tr>
+<tr><td><code>src/utils/chunking.ts</code></td><td>6 nodes</td></tr>
+<tr><td><code>src/utils/coordinateParser.ts</code></td><td>5 nodes</td></tr>
+<tr><td><code>src/api/parallelFetcher.ts</code></td><td>4 nodes</td></tr>
+<tr><td><code>components/hud/CoordinateInputs.tsx</code></td><td>3 nodes</td></tr>
+<tr><td><code>components/hud/CoordinateToolbar.tsx</code></td><td>3 nodes</td></tr>
+<tr><td><code>components/ui/StreamingProgressBar.tsx</code></td><td>3 nodes</td></tr>
+<tr><td><code>src/api/client.ts</code></td><td>1 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: contains x26, imports x19, calls x17, references x8. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 6. Utils Geophysics Components ====== -->
+<h2 id="utils-geophysics-components">6. Utils Geophysics Components</h2>
+<p>Utils Geophysics Components groups implementation around utils, geophysics, components, studio, mostly in utils/geophysics/interpolation.ts, utils/geophysics/colormaps.ts, utils/webgl/webglRenderer.ts. This section covers 67 nodes and 195 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Utils Geophysics Components (67 nodes, 195 edges)
+    subgraph utils_geophysics_components_components_studio_Ex_cfc5c3d9["components/studio/ExportSuiteModal.tsx"]
+        src_components_studio_exportsuitemodal_588a8d82("ExportSuiteModal.tsx")
+        src_components_studio_exportsuitemodal_exportsui_68e3dcb5("ExportSuiteModal()<br/><small>components/studio/ExportSuiteModal.tsx</small>")
+    end
+    subgraph utils_geophysics_components_components_studio_Ma_35138549["components/studio/MapColorbar.tsx"]
+        src_components_studio_mapcolorbar_fc023aea("MapColorbar.tsx")
+        src_components_studio_mapcolorbar_mapcolorbar_45d08663("MapColorbar()<br/><small>components/studio/MapColorbar.tsx</small>")
+    end
+    subgraph utils_geophysics_components_components_studio_Pr_a586be9d["components/studio/ProfileGraph.tsx"]
+        src_components_studio_profilegraph_8ff8176c("ProfileGraph.tsx")
+        src_components_studio_profilegraph_profilegraph_411132e4("ProfileGraph()<br/><small>components/studio/ProfileGraph.tsx</small>")
+    end
+    subgraph utils_geophysics_components_components_studio_Tr_e8e8f5f5["components/studio/TriMapViewer.tsx"]
+        src_components_studio_trimapviewer_a1a7c498("TriMapViewer.tsx")
+        src_components_studio_trimapviewer_trimapviewer_975eece8("TriMapViewer()<br/><small>components/studio/TriMapViewer.tsx</small>")
+    end
+    subgraph utils_geophysics_components_utils_exporters_geos_2f9c0a13["utils/exporters/geosoft.ts"]
+        src_utils_exporters_geosoft_exporttogeosoftgxf_40071276("exportToGeosoftGXF()<br/><small>utils/exporters/geosoft.ts</small>")
+        src_utils_exporters_geosoft_exporttooasismontajx_e0f3e5e4("exportToOasisMontajXYZ()<br/><small>utils/exporters/geosoft.ts</small>")
+    end
+    src_types_index_interpolationmethod_be862b11("InterpolationMethod<br/><small>src/types/index.ts</small>")
+    src_utils_exporters_compositereport_exportcompos_4190eec2("exportCompositeReportImage()<br/><small>utils/exporters/compositeReport.ts</small>")
+    src_utils_exporters_fullsuiteexport_generatecomp_9812db61("generateCompositeReportCanvas()<br/><small>utils/exporters/fullSuiteExport.ts</small>")
+    src_utils_exporters_mapimage_exportmaptopng_507d4dc9("exportMapToPng()<br/><small>utils/exporters/mapImage.ts</small>")
+    src_utils_exporters_profileimage_exportprofilegr_107fe685("exportProfileGraphToPng()<br/><small>utils/exporters/profileImage.ts</small>")
+    src_utils_geophysics_colormaps_getcolormapgradie_232c9cd9("getColormapGradient()<br/><small>utils/geophysics/colormaps.ts</small>")
+    src_utils_geophysics_interpolation_buildresidual_e26a3754("buildResidualAndRegionalGrids()<br/><small>utils/geophysics/interpolation.ts</small>")
+    src_utils_geophysics_profile_exportprofiletocsv_483544ea("exportProfileToCsv()<br/><small>utils/geophysics/profile.ts</small>")
+    src_components_studio_exportsuitemodal_exportsui_68e3dcb5 -->|calls| src_utils_exporters_fullsuiteexport_generatecomp_9812db61
+    src_components_studio_mapcolorbar_mapcolorbar_45d08663 -->|calls| src_utils_geophysics_colormaps_getcolormapgradie_232c9cd9
+    src_components_studio_profilegraph_profilegraph_411132e4 -->|calls| src_utils_exporters_profileimage_exportprofilegr_107fe685
+    src_components_studio_profilegraph_profilegraph_411132e4 -->|calls| src_utils_geophysics_profile_exportprofiletocsv_483544ea
+    src_components_studio_trimapviewer_trimapviewer_975eece8 -->|calls| src_utils_exporters_compositereport_exportcompos_4190eec2
+    src_components_studio_trimapviewer_trimapviewer_975eece8 -->|calls| src_utils_exporters_geosoft_exporttogeosoftgxf_40071276
+    src_components_studio_trimapviewer_trimapviewer_975eece8 -->|calls| src_utils_exporters_geosoft_exporttooasismontajx_e0f3e5e4
+    src_components_studio_trimapviewer_trimapviewer_975eece8 -->|calls| src_utils_exporters_mapimage_exportmaptopng_507d4dc9
+    src_components_studio_trimapviewer_trimapviewer_975eece8 -->|calls| src_utils_geophysics_interpolation_buildresidual_e26a3754
+    src_components_studio_exportsuitemodal_588a8d82 -->|imports| src_types_index_interpolationmethod_be862b11
+    src_components_studio_exportsuitemodal_588a8d82 -->|imports| src_utils_exporters_fullsuiteexport_generatecomp_9812db61
+    src_components_studio_exportsuitemodal_588a8d82 -->|imports| src_components_studio_trimapviewer_a1a7c498
+    src_components_studio_exportsuitemodal_exportsui_68e3dcb5 -->|imports| src_components_studio_trimapviewer_a1a7c498
+    src_components_studio_mapcolorbar_fc023aea -->|imports| src_utils_geophysics_colormaps_getcolormapgradie_232c9cd9
+    src_components_studio_mapcolorbar_fc023aea -->|imports| src_components_studio_trimapviewer_a1a7c498
+    src_components_studio_mapcolorbar_mapcolorbar_45d08663 -->|imports| src_components_studio_trimapviewer_a1a7c498
+    src_components_studio_profilegraph_8ff8176c -->|imports| src_utils_exporters_profileimage_exportprofilegr_107fe685
+    src_components_studio_profilegraph_8ff8176c -->|imports| src_utils_geophysics_profile_exportprofiletocsv_483544ea
+    src_components_studio_profilegraph_8ff8176c -->|imports| src_components_studio_trimapviewer_a1a7c498
+    src_components_studio_profilegraph_profilegraph_411132e4 -->|imports| src_components_studio_trimapviewer_a1a7c498
+    src_components_studio_trimapviewer_a1a7c498 -->|imports| src_types_index_interpolationmethod_be862b11
+    src_components_studio_trimapviewer_a1a7c498 -->|imports| src_utils_exporters_compositereport_exportcompos_4190eec2
+    src_components_studio_trimapviewer_a1a7c498 -->|imports| src_utils_exporters_geosoft_exporttogeosoftgxf_40071276
+    src_components_studio_trimapviewer_a1a7c498 -->|imports| src_utils_exporters_geosoft_exporttooasismontajx_e0f3e5e4
+    %% Omitted for readability: 49 nodes, 2 edges
+    class src_components_studio_exportsuitemodal_588a8d82 ui;
+    class src_components_studio_exportsuitemodal_exportsui_68e3dcb5 ui;
+    class src_components_studio_mapcolorbar_fc023aea ui;
+    class src_components_studio_mapcolorbar_mapcolorbar_45d08663 ui;
+    class src_components_studio_profilegraph_8ff8176c ui;
+    class src_components_studio_profilegraph_profilegraph_411132e4 ui;
+    class src_components_studio_trimapviewer_a1a7c498 ui;
+    class src_components_studio_trimapviewer_trimapviewer_975eece8 ui;
+    class src_utils_exporters_geosoft_exporttogeosoftgxf_40071276 function;
+    class src_utils_exporters_geosoft_exporttooasismontajx_e0f3e5e4 function;
+    class src_types_index_interpolationmethod_be862b11 klass;
+    class src_utils_exporters_compositereport_exportcompos_4190eec2 function;
+    class src_utils_exporters_fullsuiteexport_generatecomp_9812db61 function;
+    class src_utils_exporters_mapimage_exportmaptopng_507d4dc9 function;
+    class src_utils_exporters_profileimage_exportprofilegr_107fe685 function;
+    class src_utils_geophysics_colormaps_getcolormapgradie_232c9cd9 function;
+    class src_utils_geophysics_interpolation_buildresidual_e26a3754 function;
+    class src_utils_geophysics_profile_exportprofiletocsv_483544ea function;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>ExportSuiteModal.tsx</code><br><small style="color:var(--muted)">components/studio/ExportSuiteModal.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>fullSuiteExport.ts</code><br><small style="color:var(--muted)">utils/exporters/fullSuiteExport.ts</small><br><code>generateCompositeReportCanvas()</code><br><small style="color:var(--muted)">utils/exporters/fullSuiteExport.ts</small><br><code>InterpolationMethod</code><br><small style="color:var(--muted)">src/types/index.ts</small><br>+3 more</td>
+  <td>Module file in components/studio/ExportSuiteModal.tsx.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>ExportSuiteModalProps</code><br><small style="color:var(--muted)">components/studio/ExportSuiteModal.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Exports documentation data to a target format.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>ExportItemConfig</code><br><small style="color:var(--muted)">components/studio/ExportSuiteModal.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Reads, resolves, or persists project configuration.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>EXPORT_ITEMS</code><br><small style="color:var(--muted)">components/studio/ExportSuiteModal.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Exports documentation data to a target format.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>ExportSuiteModal()</code><br><small style="color:var(--muted)">components/studio/ExportSuiteModal.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>generateCompositeReportCanvas()</code><br><small style="color:var(--muted)">utils/exporters/fullSuiteExport.ts</small><br><code>TriMapViewer.tsx</code><br><small style="color:var(--muted)">components/studio/TriMapViewer.tsx</small></td>
+  <td>Exports documentation data to a target format.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>MapColorbar.tsx</code><br><small style="color:var(--muted)">components/studio/MapColorbar.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>ColormapName</code><br><small style="color:var(--muted)">utils/geophysics/colormaps.ts</small><br><code>colormaps.ts</code><br><small style="color:var(--muted)">utils/geophysics/colormaps.ts</small><br><code>getColormapGradient()</code><br><small style="color:var(--muted)">utils/geophysics/colormaps.ts</small><br>+1 more</td>
+  <td>Module file in components/studio/MapColorbar.tsx.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>MapColorbarProps</code><br><small style="color:var(--muted)">components/studio/MapColorbar.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>MapColorbarProps node in components/studio/MapColorbar.tsx.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>MapColorbar()</code><br><small style="color:var(--muted)">components/studio/MapColorbar.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>getColormapGradient()</code><br><small style="color:var(--muted)">utils/geophysics/colormaps.ts</small><br><code>TriMapViewer.tsx</code><br><small style="color:var(--muted)">components/studio/TriMapViewer.tsx</small></td>
+  <td>MapColorbar() node in components/studio/MapColorbar.tsx.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>ProfileGraph.tsx</code><br><small style="color:var(--muted)">components/studio/ProfileGraph.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>exportProfileGraphToPng()</code><br><small style="color:var(--muted)">utils/exporters/profileImage.ts</small><br><code>exportProfileToCsv()</code><br><small style="color:var(--muted)">utils/geophysics/profile.ts</small><br><code>NamedProfileLine</code><br><small style="color:var(--muted)">src/types/index.ts</small><br>+4 more</td>
+  <td>Module file in components/studio/ProfileGraph.tsx.</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>ProfileGraphProps</code><br><small style="color:var(--muted)">components/studio/ProfileGraph.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Builds dependency relationships and graph data.</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td><code>ProfileGraph()</code><br><small style="color:var(--muted)">components/studio/ProfileGraph.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>exportProfileGraphToPng()</code><br><small style="color:var(--muted)">utils/exporters/profileImage.ts</small><br><code>exportProfileToCsv()</code><br><small style="color:var(--muted)">utils/geophysics/profile.ts</small><br><code>TriMapViewer.tsx</code><br><small style="color:var(--muted)">components/studio/TriMapViewer.tsx</small></td>
+  <td>Builds dependency relationships and graph data.</td>
+</tr>
+<tr>
+  <td>12</td>
+  <td><code>TriMapViewer.tsx</code><br><small style="color:var(--muted)">components/studio/TriMapViewer.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>ExportSuiteModal()</code><br><small style="color:var(--muted)">components/studio/ExportSuiteModal.tsx</small><br><code>ExportSuiteModal.tsx</code><br><small style="color:var(--muted)">components/studio/ExportSuiteModal.tsx</small><br><code>MapColorbar()</code><br><small style="color:var(--muted)">components/studio/MapColorbar.tsx</small><br>+3 more</td>
+  <td><code>buildResidualAndRegionalGrids()</code><br><small style="color:var(--muted)">utils/geophysics/interpolation.ts</small><br><code>checkWebGLSupport()</code><br><small style="color:var(--muted)">utils/webgl/webglDetector.ts</small><br><code>ColormapName</code><br><small style="color:var(--muted)">utils/geophysics/colormaps.ts</small><br>+20 more</td>
+  <td>Module file in components/studio/TriMapViewer.tsx.</td>
+</tr>
+<tr>
+  <td>13</td>
+  <td><code>MapConfig</code><br><small style="color:var(--muted)">components/studio/TriMapViewer.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Reads, resolves, or persists project configuration.</td>
+</tr>
+<tr>
+  <td>14</td>
+  <td><code>LINE_COLORS</code><br><small style="color:var(--muted)">components/studio/TriMapViewer.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>LINE_COLORS node in components/studio/TriMapViewer.tsx.</td>
+</tr>
+<tr>
+  <td>15</td>
+  <td><code>LINE_LETTERS</code><br><small style="color:var(--muted)">components/studio/TriMapViewer.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>LINE_LETTERS node in components/studio/TriMapViewer.tsx.</td>
+</tr>
+<tr>
+  <td>16</td>
+  <td><code>TriMapViewer()</code><br><small style="color:var(--muted)">components/studio/TriMapViewer.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>buildResidualAndRegionalGrids()</code><br><small style="color:var(--muted)">utils/geophysics/interpolation.ts</small><br><code>checkWebGLSupport()</code><br><small style="color:var(--muted)">utils/webgl/webglDetector.ts</small><br><code>exportCompositeReportImage()</code><br><small style="color:var(--muted)">utils/exporters/compositeReport.ts</small><br>+6 more</td>
+  <td>TriMapViewer() node in components/studio/TriMapViewer.tsx.</td>
+</tr>
+<tr>
+  <td>17</td>
+  <td><code>WebGLFallbackView.tsx</code><br><small style="color:var(--muted)">components/studio/WebGLFallbackView.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>TriMapViewer.tsx</code><br><small style="color:var(--muted)">components/studio/TriMapViewer.tsx</small></td>
+  <td><code>exportToGeosoftGXF()</code><br><small style="color:var(--muted)">utils/exporters/geosoft.ts</small><br><code>exportToOasisMontajXYZ()</code><br><small style="color:var(--muted)">utils/exporters/geosoft.ts</small><br><code>geosoft.ts</code><br><small style="color:var(--muted)">utils/exporters/geosoft.ts</small></td>
+  <td>Module file in components/studio/WebGLFallbackView.tsx.</td>
+</tr>
+<tr>
+  <td>18</td>
+  <td><code>WebGLFallbackView()</code><br><small style="color:var(--muted)">components/studio/WebGLFallbackView.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>TriMapViewer.tsx</code><br><small style="color:var(--muted)">components/studio/TriMapViewer.tsx</small></td>
+  <td><code>exportToGeosoftGXF()</code><br><small style="color:var(--muted)">utils/exporters/geosoft.ts</small><br><code>exportToOasisMontajXYZ()</code><br><small style="color:var(--muted)">utils/exporters/geosoft.ts</small></td>
+  <td>WebGLFallbackView() node in components/studio/WebGLFallbackView.tsx.</td>
+</tr>
+<tr>
+  <td>19</td>
+  <td><code>InterpolationMethod</code><br><small style="color:var(--muted)">src/types/index.ts</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td><code>ExportSuiteModal.tsx</code><br><small style="color:var(--muted)">components/studio/ExportSuiteModal.tsx</small><br><code>TriMapViewer.tsx</code><br><small style="color:var(--muted)">components/studio/TriMapViewer.tsx</small></td>
+  <td><code>compositeReport.ts</code><br><small style="color:var(--muted)">utils/exporters/compositeReport.ts</small><br><code>fullSuiteExport.ts</code><br><small style="color:var(--muted)">utils/exporters/fullSuiteExport.ts</small><br><code>interpolation.ts</code><br><small style="color:var(--muted)">utils/geophysics/interpolation.ts</small><br>+3 more</td>
+  <td>InterpolationMethod node in src/types/index.ts.</td>
+</tr>
+<tr>
+  <td>20</td>
+  <td><code>ProfilePoint</code><br><small style="color:var(--muted)">src/types/index.ts</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td><code>ExportSuiteModal.tsx</code><br><small style="color:var(--muted)">components/studio/ExportSuiteModal.tsx</small><br><code>ProfileGraph.tsx</code><br><small style="color:var(--muted)">components/studio/ProfileGraph.tsx</small><br><code>TriMapViewer.tsx</code><br><small style="color:var(--muted)">components/studio/TriMapViewer.tsx</small></td>
+  <td><code>compositeReport.ts</code><br><small style="color:var(--muted)">utils/exporters/compositeReport.ts</small><br><code>fullSuiteExport.ts</code><br><small style="color:var(--muted)">utils/exporters/fullSuiteExport.ts</small><br><code>mapImage.ts</code><br><small style="color:var(--muted)">utils/exporters/mapImage.ts</small><br>+2 more</td>
+  <td>ProfilePoint node in src/types/index.ts.</td>
+</tr>
+<tr>
+  <td>21</td>
+  <td><code>NamedProfileLine</code><br><small style="color:var(--muted)">src/types/index.ts</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td><code>ExportSuiteModal.tsx</code><br><small style="color:var(--muted)">components/studio/ExportSuiteModal.tsx</small><br><code>ProfileGraph.tsx</code><br><small style="color:var(--muted)">components/studio/ProfileGraph.tsx</small><br><code>TriMapViewer.tsx</code><br><small style="color:var(--muted)">components/studio/TriMapViewer.tsx</small></td>
+  <td><code>compositeReport.ts</code><br><small style="color:var(--muted)">utils/exporters/compositeReport.ts</small><br><code>fullSuiteExport.ts</code><br><small style="color:var(--muted)">utils/exporters/fullSuiteExport.ts</small><br><code>mapImage.ts</code><br><small style="color:var(--muted)">utils/exporters/mapImage.ts</small><br>+1 more</td>
+  <td>NamedProfileLine node in src/types/index.ts.</td>
+</tr>
+<tr>
+  <td>22</td>
+  <td><code>BasemapType</code><br><small style="color:var(--muted)">utils/exporters/basemapTiles.ts</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>compositeReport.ts</code><br><small style="color:var(--muted)">utils/exporters/compositeReport.ts</small><br><code>mapImage.ts</code><br><small style="color:var(--muted)">utils/exporters/mapImage.ts</small></td>
+  <td>BasemapType node in utils/exporters/basemapTiles.ts.</td>
+</tr>
+<tr>
+  <td>23</td>
+  <td><code>compositeReport.ts</code><br><small style="color:var(--muted)">utils/exporters/compositeReport.ts</small></td>
+  <td><span class="tag tag-class">Module</span></td>
+  <td><code>BasemapType</code><br><small style="color:var(--muted)">utils/exporters/basemapTiles.ts</small><br><code>InterpolationMethod</code><br><small style="color:var(--muted)">src/types/index.ts</small><br><code>NamedProfileLine</code><br><small style="color:var(--muted)">src/types/index.ts</small><br>+2 more</td>
+  <td><code>buildRegularGrid()</code><br><small style="color:var(--muted)">utils/geophysics/interpolation.ts</small><br><code>colormaps.ts</code><br><small style="color:var(--muted)">utils/geophysics/colormaps.ts</small><br><code>getInterpolatedColor()</code><br><small style="color:var(--muted)">utils/geophysics/colormaps.ts</small><br>+2 more</td>
+  <td>Module file in utils/exporters/compositeReport.ts.</td>
+</tr>
+<tr>
+  <td>24</td>
+  <td><code>CompositeReportOptions</code><br><small style="color:var(--muted)">utils/exporters/compositeReport.ts</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>CompositeReportOptions node in utils/exporters/compositeReport.ts.</td>
+</tr>
+<tr>
+  <td>25</td>
+  <td><code>exportCompositeReportImage()</code><br><small style="color:var(--muted)">utils/exporters/compositeReport.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>TriMapViewer()</code><br><small style="color:var(--muted)">components/studio/TriMapViewer.tsx</small><br><code>TriMapViewer.tsx</code><br><small style="color:var(--muted)">components/studio/TriMapViewer.tsx</small></td>
+  <td><code>buildRegularGrid()</code><br><small style="color:var(--muted)">utils/geophysics/interpolation.ts</small><br><code>getInterpolatedColor()</code><br><small style="color:var(--muted)">utils/geophysics/colormaps.ts</small><br><code>sampleInterpolatedValue()</code><br><small style="color:var(--muted)">utils/geophysics/interpolation.ts</small></td>
+  <td>Exports documentation data to a target format.</td>
+</tr>
+<tr>
+  <td>26</td>
+  <td><code>fullSuiteExport.ts</code><br><small style="color:var(--muted)">utils/exporters/fullSuiteExport.ts</small></td>
+  <td><span class="tag tag-class">Module</span></td>
+  <td><code>ExportSuiteModal.tsx</code><br><small style="color:var(--muted)">components/studio/ExportSuiteModal.tsx</small><br><code>InterpolationMethod</code><br><small style="color:var(--muted)">src/types/index.ts</small><br><code>NamedProfileLine</code><br><small style="color:var(--muted)">src/types/index.ts</small><br>+1 more</td>
+  <td><code>buildRegularGrid()</code><br><small style="color:var(--muted)">utils/geophysics/interpolation.ts</small><br><code>colormaps.ts</code><br><small style="color:var(--muted)">utils/geophysics/colormaps.ts</small><br><code>getInterpolatedColor()</code><br><small style="color:var(--muted)">utils/geophysics/colormaps.ts</small><br>+2 more</td>
+  <td>Module file in utils/exporters/fullSuiteExport.ts.</td>
+</tr>
+<tr>
+  <td>27</td>
+  <td><code>FullSuiteOptions</code><br><small style="color:var(--muted)">utils/exporters/fullSuiteExport.ts</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>FullSuiteOptions node in utils/exporters/fullSuiteExport.ts.</td>
+</tr>
+<tr>
+  <td>28</td>
+  <td><code>generateCompositeReportCanvas()</code><br><small style="color:var(--muted)">utils/exporters/fullSuiteExport.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>ExportSuiteModal()</code><br><small style="color:var(--muted)">components/studio/ExportSuiteModal.tsx</small><br><code>ExportSuiteModal.tsx</code><br><small style="color:var(--muted)">components/studio/ExportSuiteModal.tsx</small></td>
+  <td><code>buildRegularGrid()</code><br><small style="color:var(--muted)">utils/geophysics/interpolation.ts</small><br><code>exportFullSuiteZip()</code><br><small style="color:var(--muted)">utils/exporters/fullSuiteExport.ts</small><br><code>getInterpolatedColor()</code><br><small style="color:var(--muted)">utils/geophysics/colormaps.ts</small><br>+1 more</td>
+  <td>generateCompositeReportCanvas() node in utils/exporters/fullSuiteExport.ts.</td>
+</tr>
+<tr>
+  <td>29</td>
+  <td><code>exportFullSuiteZip()</code><br><small style="color:var(--muted)">utils/exporters/fullSuiteExport.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>generateCompositeReportCanvas()</code><br><small style="color:var(--muted)">utils/exporters/fullSuiteExport.ts</small></td>
+  <td>No direct outbound edge</td>
+  <td>Exports documentation data to a target format.</td>
+</tr>
+<tr>
+  <td>30</td>
+  <td><code>geosoft.ts</code><br><small style="color:var(--muted)">utils/exporters/geosoft.ts</small></td>
+  <td><span class="tag tag-class">Module</span></td>
+  <td><code>TriMapViewer.tsx</code><br><small style="color:var(--muted)">components/studio/TriMapViewer.tsx</small><br><code>WebGLFallbackView.tsx</code><br><small style="color:var(--muted)">components/studio/WebGLFallbackView.tsx</small></td>
+  <td>No direct outbound edge</td>
+  <td>Module file in utils/exporters/geosoft.ts.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>utils/geophysics/interpolation.ts</code></td><td>9 nodes</td></tr>
+<tr><td><code>utils/geophysics/colormaps.ts</code></td><td>7 nodes</td></tr>
+<tr><td><code>utils/webgl/webglRenderer.ts</code></td><td>6 nodes</td></tr>
+<tr><td><code>components/studio/ExportSuiteModal.tsx</code></td><td>5 nodes</td></tr>
+<tr><td><code>components/studio/TriMapViewer.tsx</code></td><td>5 nodes</td></tr>
+<tr><td><code>utils/exporters/fullSuiteExport.ts</code></td><td>4 nodes</td></tr>
+<tr><td><code>utils/exporters/geosoft.ts</code></td><td>4 nodes</td></tr>
+<tr><td><code>components/studio/MapColorbar.tsx</code></td><td>3 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: imports x62, contains x48, calls x36, imports x27. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 7. Components Types Indexts ====== -->
+<h2 id="components-types-indexts">7. Components Types Indexts</h2>
+<p>Components Types Indexts groups implementation around components, types, indexts, map, mostly in src/types/index.ts, components/map/MapSearchBar.tsx, components/map/MapContainer.tsx. This section covers 22 nodes and 27 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Components Types Indexts (22 nodes, 27 edges)
+    subgraph components_types_indexts_src_types_index_ts_d2859bfd["src/types/index.ts"]
+        src_types_index_regulargrid2d_dee6b17e("RegularGrid2D<br/><small>src/types/index.ts</small>")
+        src_types_index_37516af1("index.ts")
+        src_types_index_workflowstep_1b5785fb("WorkflowStep<br/><small>src/types/index.ts</small>")
+        src_types_index_datasettype_cf484e9a("DatasetType<br/><small>src/types/index.ts</small>")
+        src_types_index_profileline_18df0dbe("ProfileLine<br/><small>src/types/index.ts</small>")
+        src_types_index_regionalresidualmethod_07840a3e("RegionalResidualMethod<br/><small>src/types/index.ts</small>")
+    end
+    subgraph components_types_indexts_components_map_MapSearc_32d78249["components/map/MapSearchBar.tsx"]
+        src_components_map_mapsearchbar_6e066a0b("MapSearchBar.tsx")
+        src_components_map_mapsearchbar_locationresult_6d46e55b("LocationResult<br/><small>components/map/MapSearchBar.tsx</small>")
+        src_components_map_mapsearchbar_mapsearchbar_24691dbf("MapSearchBar()<br/><small>components/map/MapSearchBar.tsx</small>")
+        src_components_map_mapsearchbar_mapsearchbarprop_6718a61b("MapSearchBarProps<br/><small>components/map/MapSearchBar.tsx</small>")
+        src_components_map_mapsearchbar_preset_locations_a902d11b("PRESET_LOCATIONS<br/><small>components/map/MapSearchBar.tsx</small>")
+    end
+    subgraph components_types_indexts_components_map_MapConta_2dccf801["components/map/MapContainer.tsx"]
+        src_components_map_mapcontainer_604ddf93("MapContainer.tsx")
+        src_components_map_mapcontainer_mapcontainer_03d92a0d("MapContainer()<br/><small>components/map/MapContainer.tsx</small>")
+        src_components_map_mapcontainer_mapcontainerprop_20d3a993("MapContainerProps<br/><small>components/map/MapContainer.tsx</small>")
+    end
+    subgraph components_types_indexts_components_stepper_Work_e9e77406["components/stepper/WorkflowStepper.tsx"]
+        src_components_stepper_workflowstepper_152d67d4("WorkflowStepper.tsx")
+        src_components_stepper_workflowstepper_workflows_0d224549("WorkflowStepper()<br/><small>components/stepper/WorkflowStepper.tsx</small>")
+        src_components_stepper_workflowstepper_workflows_83ef528f("WorkflowStepperProps<br/><small>components/stepper/WorkflowStepper.tsx</small>")
+    end
+    src_utils_geophysics_derivatives_06c4dfc1("derivatives.ts")
+    src_components_map_mapcontainer_604ddf93 -->|imports| src_components_map_mapsearchbar_6e066a0b
+    src_components_map_mapcontainer_604ddf93 -->|imports| src_components_map_mapsearchbar_locationresult_6d46e55b
+    src_components_map_mapcontainer_604ddf93 -->|imports| src_components_map_mapsearchbar_mapsearchbar_24691dbf
+    src_components_map_mapcontainer_604ddf93 -->|imports| src_types_index_37516af1
+    src_components_stepper_workflowstepper_152d67d4 -->|imports| src_types_index_37516af1
+    src_components_stepper_workflowstepper_152d67d4 -->|imports| src_types_index_workflowstep_1b5785fb
+    src_types_index_37516af1 -->|imports| src_utils_geophysics_derivatives_06c4dfc1
+    src_types_index_regulargrid2d_dee6b17e -->|imports| src_utils_geophysics_derivatives_06c4dfc1
+    %% Omitted for readability: 4 nodes, 0 edges
+    class src_types_index_regulargrid2d_dee6b17e klass;
+    class src_types_index_37516af1 module;
+    class src_types_index_workflowstep_1b5785fb klass;
+    class src_types_index_datasettype_cf484e9a klass;
+    class src_types_index_profileline_18df0dbe klass;
+    class src_types_index_regionalresidualmethod_07840a3e klass;
+    class src_components_map_mapsearchbar_6e066a0b ui;
+    class src_components_map_mapsearchbar_locationresult_6d46e55b ui;
+    class src_components_map_mapsearchbar_mapsearchbar_24691dbf ui;
+    class src_components_map_mapsearchbar_mapsearchbarprop_6718a61b ui;
+    class src_components_map_mapsearchbar_preset_locations_a902d11b ui;
+    class src_components_map_mapcontainer_604ddf93 ui;
+    class src_components_map_mapcontainer_mapcontainer_03d92a0d ui;
+    class src_components_map_mapcontainer_mapcontainerprop_20d3a993 ui;
+    class src_components_stepper_workflowstepper_152d67d4 ui;
+    class src_components_stepper_workflowstepper_workflows_0d224549 ui;
+    class src_components_stepper_workflowstepper_workflows_83ef528f ui;
+    class src_utils_geophysics_derivatives_06c4dfc1 module;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>MapContainer.tsx</code><br><small style="color:var(--muted)">components/map/MapContainer.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>index.ts</code><br><small style="color:var(--muted)">src/types/index.ts</small><br><code>LocationResult</code><br><small style="color:var(--muted)">components/map/MapSearchBar.tsx</small><br><code>MapSearchBar()</code><br><small style="color:var(--muted)">components/map/MapSearchBar.tsx</small><br>+1 more</td>
+  <td>Module file in components/map/MapContainer.tsx.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>MapContainerProps</code><br><small style="color:var(--muted)">components/map/MapContainer.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>MapContainerProps node in components/map/MapContainer.tsx.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>MapContainer()</code><br><small style="color:var(--muted)">components/map/MapContainer.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>MapContainer() node in components/map/MapContainer.tsx.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>MapSearchBar.tsx</code><br><small style="color:var(--muted)">components/map/MapSearchBar.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>MapContainer.tsx</code><br><small style="color:var(--muted)">components/map/MapContainer.tsx</small></td>
+  <td>No direct outbound edge</td>
+  <td>Module file in components/map/MapSearchBar.tsx.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>LocationResult</code><br><small style="color:var(--muted)">components/map/MapSearchBar.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>MapContainer.tsx</code><br><small style="color:var(--muted)">components/map/MapContainer.tsx</small></td>
+  <td>No direct outbound edge</td>
+  <td>LocationResult node in components/map/MapSearchBar.tsx.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>MapSearchBarProps</code><br><small style="color:var(--muted)">components/map/MapSearchBar.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>MapSearchBarProps node in components/map/MapSearchBar.tsx.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>PRESET_LOCATIONS</code><br><small style="color:var(--muted)">components/map/MapSearchBar.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>PRESET_LOCATIONS node in components/map/MapSearchBar.tsx.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>MapSearchBar()</code><br><small style="color:var(--muted)">components/map/MapSearchBar.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>MapContainer.tsx</code><br><small style="color:var(--muted)">components/map/MapContainer.tsx</small></td>
+  <td>No direct outbound edge</td>
+  <td>MapSearchBar() node in components/map/MapSearchBar.tsx.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>WorkflowStepper.tsx</code><br><small style="color:var(--muted)">components/stepper/WorkflowStepper.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>index.ts</code><br><small style="color:var(--muted)">src/types/index.ts</small><br><code>WorkflowStep</code><br><small style="color:var(--muted)">src/types/index.ts</small></td>
+  <td>Module file in components/stepper/WorkflowStepper.tsx.</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>WorkflowStepperProps</code><br><small style="color:var(--muted)">components/stepper/WorkflowStepper.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>WorkflowStepperProps node in components/stepper/WorkflowStepper.tsx.</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td><code>WorkflowStepper()</code><br><small style="color:var(--muted)">components/stepper/WorkflowStepper.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>WorkflowStepper() node in components/stepper/WorkflowStepper.tsx.</td>
+</tr>
+<tr>
+  <td>12</td>
+  <td><code>types/index.ts</code><br><small style="color:var(--muted)">src/types/index.ts</small></td>
+  <td><span class="tag tag-class">Module</span></td>
+  <td><code>MapContainer.tsx</code><br><small style="color:var(--muted)">components/map/MapContainer.tsx</small><br><code>WorkflowStepper.tsx</code><br><small style="color:var(--muted)">components/stepper/WorkflowStepper.tsx</small></td>
+  <td><code>derivatives.ts</code><br><small style="color:var(--muted)">utils/geophysics/derivatives.ts</small></td>
+  <td>Module file in src/types/index.ts.</td>
+</tr>
+<tr>
+  <td>13</td>
+  <td><code>WorkflowStep</code><br><small style="color:var(--muted)">src/types/index.ts</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td><code>WorkflowStepper.tsx</code><br><small style="color:var(--muted)">components/stepper/WorkflowStepper.tsx</small></td>
+  <td>No direct outbound edge</td>
+  <td>WorkflowStep node in src/types/index.ts.</td>
+</tr>
+<tr>
+  <td>14</td>
+  <td><code>DatasetType</code><br><small style="color:var(--muted)">src/types/index.ts</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>DatasetType node in src/types/index.ts.</td>
+</tr>
+<tr>
+  <td>15</td>
+  <td><code>RegularGrid2D</code><br><small style="color:var(--muted)">src/types/index.ts</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>derivatives.ts</code><br><small style="color:var(--muted)">utils/geophysics/derivatives.ts</small></td>
+  <td>RegularGrid2D node in src/types/index.ts.</td>
+</tr>
+<tr>
+  <td>16</td>
+  <td><code>RegionalResidualMethod</code><br><small style="color:var(--muted)">src/types/index.ts</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>RegionalResidualMethod node in src/types/index.ts.</td>
+</tr>
+<tr>
+  <td>17</td>
+  <td><code>ProfileLine</code><br><small style="color:var(--muted)">src/types/index.ts</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>ProfileLine node in src/types/index.ts.</td>
+</tr>
+<tr>
+  <td>18</td>
+  <td><code>VariableStats</code><br><small style="color:var(--muted)">src/types/index.ts</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>VariableStats node in src/types/index.ts.</td>
+</tr>
+<tr>
+  <td>19</td>
+  <td><code>SummaryStats</code><br><small style="color:var(--muted)">src/types/index.ts</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>SummaryStats node in src/types/index.ts.</td>
+</tr>
+<tr>
+  <td>20</td>
+  <td><code>derivatives.ts</code><br><small style="color:var(--muted)">utils/geophysics/derivatives.ts</small></td>
+  <td><span class="tag tag-class">Module</span></td>
+  <td><code>index.ts</code><br><small style="color:var(--muted)">src/types/index.ts</small><br><code>RegularGrid2D</code><br><small style="color:var(--muted)">src/types/index.ts</small></td>
+  <td>No direct outbound edge</td>
+  <td>Module file in utils/geophysics/derivatives.ts.</td>
+</tr>
+<tr>
+  <td>21</td>
+  <td><code>DerivativeGridsResult</code><br><small style="color:var(--muted)">utils/geophysics/derivatives.ts</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>DerivativeGridsResult node in utils/geophysics/derivatives.ts.</td>
+</tr>
+<tr>
+  <td>22</td>
+  <td><code>computePotentialFieldDerivatives()</code><br><small style="color:var(--muted)">utils/geophysics/derivatives.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>computePotentialFieldDerivatives() node in utils/geophysics/derivatives.ts.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>src/types/index.ts</code></td><td>8 nodes</td></tr>
+<tr><td><code>components/map/MapSearchBar.tsx</code></td><td>5 nodes</td></tr>
+<tr><td><code>components/map/MapContainer.tsx</code></td><td>3 nodes</td></tr>
+<tr><td><code>components/stepper/WorkflowStepper.tsx</code></td><td>3 nodes</td></tr>
+<tr><td><code>utils/geophysics/derivatives.ts</code></td><td>3 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: contains x17, imports x4, imports x4, references x2. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 8. Exporters Indexts Utils ====== -->
+<h2 id="exporters-indexts-utils">8. Exporters Indexts Utils</h2>
+<p>Exporters Indexts Utils groups implementation around exporters, indexts, utils, components, mostly in utils/exporters/index.ts, components/table/DataTable.tsx, components/table/ExportDropdown.tsx. This section covers 15 nodes and 36 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Exporters Indexts Utils (15 nodes, 36 edges)
+    subgraph exporters_indexts_utils_utils_exporters_index_ts_6080e446["utils/exporters/index.ts"]
+        src_utils_exporters_index_triggerdownload_bf457e43("triggerDownload()<br/><small>utils/exporters/index.ts</small>")
+        src_utils_exporters_index_exporttocsv_56062488("exportToCsv()<br/><small>utils/exporters/index.ts</small>")
+        src_utils_exporters_index_exporttogeojson_a57a0c68("exportToGeoJson()<br/><small>utils/exporters/index.ts</small>")
+        src_utils_exporters_index_exporttojson_63653c51("exportToJson()<br/><small>utils/exporters/index.ts</small>")
+        src_utils_exporters_index_exporttokml_08e855b3("exportToKml()<br/><small>utils/exporters/index.ts</small>")
+        src_utils_exporters_index_exporttoxml_7b5830ef("exportToXml()<br/><small>utils/exporters/index.ts</small>")
+        src_utils_exporters_index_exporttoxyz_2e01a7bc("exportToXyz()<br/><small>utils/exporters/index.ts</small>")
+        src_utils_exporters_index_exporttoyaml_5076dbeb("exportToYaml()<br/><small>utils/exporters/index.ts</small>")
+        src_utils_exporters_index_18cafd69("index.ts")
+    end
+    subgraph exporters_indexts_utils_components_table_DataTab_1ceb09b4["components/table/DataTable.tsx"]
+        src_components_table_datatable_27ba07ac("DataTable.tsx")
+        src_components_table_datatable_datatable_a33a51fd("DataTable()<br/><small>components/table/DataTable.tsx</small>")
+        src_components_table_datatable_datatableprops_3ae8d510("DataTableProps<br/><small>components/table/DataTable.tsx</small>")
+    end
+    subgraph exporters_indexts_utils_components_table_ExportD_5b4a5a15["components/table/ExportDropdown.tsx"]
+        src_components_table_exportdropdown_01bbc197("ExportDropdown.tsx")
+        src_components_table_exportdropdown_exportdropdo_c6cd587f("ExportDropdown()<br/><small>components/table/ExportDropdown.tsx</small>")
+        src_components_table_exportdropdown_exportdropdo_12337cc5("ExportDropdownProps<br/><small>components/table/ExportDropdown.tsx</small>")
+    end
+    src_components_table_exportdropdown_exportdropdo_c6cd587f -->|calls| src_utils_exporters_index_exporttocsv_56062488
+    src_components_table_exportdropdown_exportdropdo_c6cd587f -->|calls| src_utils_exporters_index_exporttogeojson_a57a0c68
+    src_components_table_exportdropdown_exportdropdo_c6cd587f -->|calls| src_utils_exporters_index_exporttojson_63653c51
+    src_components_table_exportdropdown_exportdropdo_c6cd587f -->|calls| src_utils_exporters_index_exporttokml_08e855b3
+    src_components_table_exportdropdown_exportdropdo_c6cd587f -->|calls| src_utils_exporters_index_exporttoxml_7b5830ef
+    src_components_table_exportdropdown_exportdropdo_c6cd587f -->|calls| src_utils_exporters_index_exporttoxyz_2e01a7bc
+    src_components_table_exportdropdown_exportdropdo_c6cd587f -->|calls| src_utils_exporters_index_exporttoyaml_5076dbeb
+    src_utils_exporters_index_triggerdownload_bf457e43 -->|calls| src_utils_exporters_index_exporttocsv_56062488
+    src_utils_exporters_index_triggerdownload_bf457e43 -->|calls| src_utils_exporters_index_exporttogeojson_a57a0c68
+    src_utils_exporters_index_triggerdownload_bf457e43 -->|calls| src_utils_exporters_index_exporttojson_63653c51
+    src_utils_exporters_index_triggerdownload_bf457e43 -->|calls| src_utils_exporters_index_exporttokml_08e855b3
+    src_utils_exporters_index_triggerdownload_bf457e43 -->|calls| src_utils_exporters_index_exporttoxml_7b5830ef
+    src_utils_exporters_index_triggerdownload_bf457e43 -->|calls| src_utils_exporters_index_exporttoxyz_2e01a7bc
+    src_utils_exporters_index_triggerdownload_bf457e43 -->|calls| src_utils_exporters_index_exporttoyaml_5076dbeb
+    src_components_table_datatable_27ba07ac -->|imports| src_components_table_exportdropdown_01bbc197
+    src_components_table_datatable_27ba07ac -->|imports| src_components_table_exportdropdown_exportdropdo_c6cd587f
+    src_components_table_exportdropdown_01bbc197 -->|imports| src_utils_exporters_index_18cafd69
+    src_components_table_exportdropdown_01bbc197 -->|imports| src_utils_exporters_index_exporttocsv_56062488
+    src_components_table_exportdropdown_01bbc197 -->|imports| src_utils_exporters_index_exporttogeojson_a57a0c68
+    src_components_table_exportdropdown_01bbc197 -->|imports| src_utils_exporters_index_exporttojson_63653c51
+    src_components_table_exportdropdown_01bbc197 -->|imports| src_utils_exporters_index_exporttokml_08e855b3
+    src_components_table_exportdropdown_01bbc197 -->|imports| src_utils_exporters_index_exporttoxml_7b5830ef
+    src_components_table_exportdropdown_01bbc197 -->|imports| src_utils_exporters_index_exporttoxyz_2e01a7bc
+    src_components_table_exportdropdown_01bbc197 -->|imports| src_utils_exporters_index_exporttoyaml_5076dbeb
+    class src_utils_exporters_index_triggerdownload_bf457e43 function;
+    class src_utils_exporters_index_exporttocsv_56062488 function;
+    class src_utils_exporters_index_exporttogeojson_a57a0c68 function;
+    class src_utils_exporters_index_exporttojson_63653c51 function;
+    class src_utils_exporters_index_exporttokml_08e855b3 function;
+    class src_utils_exporters_index_exporttoxml_7b5830ef function;
+    class src_utils_exporters_index_exporttoxyz_2e01a7bc function;
+    class src_utils_exporters_index_exporttoyaml_5076dbeb function;
+    class src_utils_exporters_index_18cafd69 module;
+    class src_components_table_datatable_27ba07ac ui;
+    class src_components_table_datatable_datatable_a33a51fd ui;
+    class src_components_table_datatable_datatableprops_3ae8d510 ui;
+    class src_components_table_exportdropdown_01bbc197 ui;
+    class src_components_table_exportdropdown_exportdropdo_c6cd587f ui;
+    class src_components_table_exportdropdown_exportdropdo_12337cc5 ui;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>DataTable.tsx</code><br><small style="color:var(--muted)">components/table/DataTable.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>ExportDropdown()</code><br><small style="color:var(--muted)">components/table/ExportDropdown.tsx</small><br><code>ExportDropdown.tsx</code><br><small style="color:var(--muted)">components/table/ExportDropdown.tsx</small></td>
+  <td>Module file in components/table/DataTable.tsx.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>DataTableProps</code><br><small style="color:var(--muted)">components/table/DataTable.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>DataTableProps node in components/table/DataTable.tsx.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>DataTable()</code><br><small style="color:var(--muted)">components/table/DataTable.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>DataTable() node in components/table/DataTable.tsx.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>ExportDropdown.tsx</code><br><small style="color:var(--muted)">components/table/ExportDropdown.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>DataTable.tsx</code><br><small style="color:var(--muted)">components/table/DataTable.tsx</small></td>
+  <td><code>exportToCsv()</code><br><small style="color:var(--muted)">utils/exporters/index.ts</small><br><code>exportToGeoJson()</code><br><small style="color:var(--muted)">utils/exporters/index.ts</small><br><code>exportToJson()</code><br><small style="color:var(--muted)">utils/exporters/index.ts</small><br>+5 more</td>
+  <td>Module file in components/table/ExportDropdown.tsx.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>ExportDropdownProps</code><br><small style="color:var(--muted)">components/table/ExportDropdown.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Exports documentation data to a target format.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>ExportDropdown()</code><br><small style="color:var(--muted)">components/table/ExportDropdown.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>DataTable.tsx</code><br><small style="color:var(--muted)">components/table/DataTable.tsx</small></td>
+  <td><code>exportToCsv()</code><br><small style="color:var(--muted)">utils/exporters/index.ts</small><br><code>exportToGeoJson()</code><br><small style="color:var(--muted)">utils/exporters/index.ts</small><br><code>exportToJson()</code><br><small style="color:var(--muted)">utils/exporters/index.ts</small><br>+4 more</td>
+  <td>Exports documentation data to a target format.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>exporters/index.ts</code><br><small style="color:var(--muted)">utils/exporters/index.ts</small></td>
+  <td><span class="tag tag-class">Module</span></td>
+  <td><code>ExportDropdown.tsx</code><br><small style="color:var(--muted)">components/table/ExportDropdown.tsx</small></td>
+  <td>No direct outbound edge</td>
+  <td>Module file in utils/exporters/index.ts.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>triggerDownload()</code><br><small style="color:var(--muted)">utils/exporters/index.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>exportToCsv()</code><br><small style="color:var(--muted)">utils/exporters/index.ts</small><br><code>exportToGeoJson()</code><br><small style="color:var(--muted)">utils/exporters/index.ts</small><br><code>exportToJson()</code><br><small style="color:var(--muted)">utils/exporters/index.ts</small><br>+4 more</td>
+  <td>triggerDownload() node in utils/exporters/index.ts.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>exportToCsv()</code><br><small style="color:var(--muted)">utils/exporters/index.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>ExportDropdown()</code><br><small style="color:var(--muted)">components/table/ExportDropdown.tsx</small><br><code>ExportDropdown.tsx</code><br><small style="color:var(--muted)">components/table/ExportDropdown.tsx</small><br><code>triggerDownload()</code><br><small style="color:var(--muted)">utils/exporters/index.ts</small></td>
+  <td>No direct outbound edge</td>
+  <td>Exports documentation data to a target format.</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>exportToGeoJson()</code><br><small style="color:var(--muted)">utils/exporters/index.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>ExportDropdown()</code><br><small style="color:var(--muted)">components/table/ExportDropdown.tsx</small><br><code>ExportDropdown.tsx</code><br><small style="color:var(--muted)">components/table/ExportDropdown.tsx</small><br><code>triggerDownload()</code><br><small style="color:var(--muted)">utils/exporters/index.ts</small></td>
+  <td>No direct outbound edge</td>
+  <td>Exports documentation data to a target format.</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td><code>exportToXyz()</code><br><small style="color:var(--muted)">utils/exporters/index.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>ExportDropdown()</code><br><small style="color:var(--muted)">components/table/ExportDropdown.tsx</small><br><code>ExportDropdown.tsx</code><br><small style="color:var(--muted)">components/table/ExportDropdown.tsx</small><br><code>triggerDownload()</code><br><small style="color:var(--muted)">utils/exporters/index.ts</small></td>
+  <td>No direct outbound edge</td>
+  <td>Exports documentation data to a target format.</td>
+</tr>
+<tr>
+  <td>12</td>
+  <td><code>exportToKml()</code><br><small style="color:var(--muted)">utils/exporters/index.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>ExportDropdown()</code><br><small style="color:var(--muted)">components/table/ExportDropdown.tsx</small><br><code>ExportDropdown.tsx</code><br><small style="color:var(--muted)">components/table/ExportDropdown.tsx</small><br><code>triggerDownload()</code><br><small style="color:var(--muted)">utils/exporters/index.ts</small></td>
+  <td>No direct outbound edge</td>
+  <td>Exports documentation data to a target format.</td>
+</tr>
+<tr>
+  <td>13</td>
+  <td><code>exportToJson()</code><br><small style="color:var(--muted)">utils/exporters/index.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>ExportDropdown()</code><br><small style="color:var(--muted)">components/table/ExportDropdown.tsx</small><br><code>ExportDropdown.tsx</code><br><small style="color:var(--muted)">components/table/ExportDropdown.tsx</small><br><code>triggerDownload()</code><br><small style="color:var(--muted)">utils/exporters/index.ts</small></td>
+  <td>No direct outbound edge</td>
+  <td>Exports documentation data to a target format.</td>
+</tr>
+<tr>
+  <td>14</td>
+  <td><code>exportToYaml()</code><br><small style="color:var(--muted)">utils/exporters/index.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>ExportDropdown()</code><br><small style="color:var(--muted)">components/table/ExportDropdown.tsx</small><br><code>ExportDropdown.tsx</code><br><small style="color:var(--muted)">components/table/ExportDropdown.tsx</small><br><code>triggerDownload()</code><br><small style="color:var(--muted)">utils/exporters/index.ts</small></td>
+  <td>No direct outbound edge</td>
+  <td>Exports documentation data to a target format.</td>
+</tr>
+<tr>
+  <td>15</td>
+  <td><code>exportToXml()</code><br><small style="color:var(--muted)">utils/exporters/index.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>ExportDropdown()</code><br><small style="color:var(--muted)">components/table/ExportDropdown.tsx</small><br><code>ExportDropdown.tsx</code><br><small style="color:var(--muted)">components/table/ExportDropdown.tsx</small><br><code>triggerDownload()</code><br><small style="color:var(--muted)">utils/exporters/index.ts</small></td>
+  <td>No direct outbound edge</td>
+  <td>Exports documentation data to a target format.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>utils/exporters/index.ts</code></td><td>9 nodes</td></tr>
+<tr><td><code>components/table/DataTable.tsx</code></td><td>3 nodes</td></tr>
+<tr><td><code>components/table/ExportDropdown.tsx</code></td><td>3 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: calls x14, contains x12, imports x8, imports x2. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 9. Basemaptilests Utils Exporters ====== -->
+<h2 id="basemaptilests-utils-exporters">9. Basemaptilests Utils Exporters</h2>
+<p>Basemaptilests Utils Exporters groups implementation around basemaptilests, utils, exporters, lon2tile, mostly in utils/exporters/basemapTiles.ts. This section covers 8 nodes and 13 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Basemaptilests Utils Exporters (8 nodes, 13 edges)
+    src_utils_exporters_basemaptiles_gettileurl_23a8f156("getTileUrl()<br/><small>utils/exporters/basemapTiles.ts</small>")
+    src_utils_exporters_basemaptiles_lat2tile_f0ef2a7f("lat2tile()<br/><small>utils/exporters/basemapTiles.ts</small>")
+    src_utils_exporters_basemaptiles_loadtileimage_0303e55b("loadTileImage()<br/><small>utils/exporters/basemapTiles.ts</small>")
+    src_utils_exporters_basemaptiles_lon2tile_c808d95d("lon2tile()<br/><small>utils/exporters/basemapTiles.ts</small>")
+    src_utils_exporters_basemaptiles_tile2lat_7334d58d("tile2lat()<br/><small>utils/exporters/basemapTiles.ts</small>")
+    src_utils_exporters_basemaptiles_tile2lon_4c47bfe4("tile2lon()<br/><small>utils/exporters/basemapTiles.ts</small>")
+    src_utils_exporters_basemaptiles_renderbasemapto_c50cb27d("renderBasemapToCanvas()<br/><small>utils/exporters/basemapTiles.ts</small>")
+    src_utils_exporters_basemaptiles_cbb2bc2c("basemapTiles.ts")
+    src_utils_exporters_basemaptiles_lon2tile_c808d95d -->|calls| src_utils_exporters_basemaptiles_renderbasemapto_c50cb27d
+    src_utils_exporters_basemaptiles_lat2tile_f0ef2a7f -->|calls| src_utils_exporters_basemaptiles_renderbasemapto_c50cb27d
+    src_utils_exporters_basemaptiles_tile2lon_4c47bfe4 -->|calls| src_utils_exporters_basemaptiles_renderbasemapto_c50cb27d
+    src_utils_exporters_basemaptiles_tile2lat_7334d58d -->|calls| src_utils_exporters_basemaptiles_renderbasemapto_c50cb27d
+    src_utils_exporters_basemaptiles_gettileurl_23a8f156 -->|calls| src_utils_exporters_basemaptiles_renderbasemapto_c50cb27d
+    src_utils_exporters_basemaptiles_loadtileimage_0303e55b -->|calls| src_utils_exporters_basemaptiles_renderbasemapto_c50cb27d
+    class src_utils_exporters_basemaptiles_gettileurl_23a8f156 function;
+    class src_utils_exporters_basemaptiles_lat2tile_f0ef2a7f function;
+    class src_utils_exporters_basemaptiles_loadtileimage_0303e55b function;
+    class src_utils_exporters_basemaptiles_lon2tile_c808d95d function;
+    class src_utils_exporters_basemaptiles_tile2lat_7334d58d function;
+    class src_utils_exporters_basemaptiles_tile2lon_4c47bfe4 function;
+    class src_utils_exporters_basemaptiles_renderbasemapto_c50cb27d function;
+    class src_utils_exporters_basemaptiles_cbb2bc2c module;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>basemapTiles.ts</code><br><small style="color:var(--muted)">utils/exporters/basemapTiles.ts</small></td>
+  <td><span class="tag tag-class">Module</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Module file in utils/exporters/basemapTiles.ts.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>lon2tile()</code><br><small style="color:var(--muted)">utils/exporters/basemapTiles.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>renderBasemapToCanvas()</code><br><small style="color:var(--muted)">utils/exporters/basemapTiles.ts</small></td>
+  <td>lon2tile() node in utils/exporters/basemapTiles.ts.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>lat2tile()</code><br><small style="color:var(--muted)">utils/exporters/basemapTiles.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>renderBasemapToCanvas()</code><br><small style="color:var(--muted)">utils/exporters/basemapTiles.ts</small></td>
+  <td>lat2tile() node in utils/exporters/basemapTiles.ts.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>tile2lon()</code><br><small style="color:var(--muted)">utils/exporters/basemapTiles.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>renderBasemapToCanvas()</code><br><small style="color:var(--muted)">utils/exporters/basemapTiles.ts</small></td>
+  <td>tile2lon() node in utils/exporters/basemapTiles.ts.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>tile2lat()</code><br><small style="color:var(--muted)">utils/exporters/basemapTiles.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>renderBasemapToCanvas()</code><br><small style="color:var(--muted)">utils/exporters/basemapTiles.ts</small></td>
+  <td>tile2lat() node in utils/exporters/basemapTiles.ts.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>getTileUrl()</code><br><small style="color:var(--muted)">utils/exporters/basemapTiles.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>renderBasemapToCanvas()</code><br><small style="color:var(--muted)">utils/exporters/basemapTiles.ts</small></td>
+  <td>getTileUrl() node in utils/exporters/basemapTiles.ts.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>loadTileImage()</code><br><small style="color:var(--muted)">utils/exporters/basemapTiles.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>renderBasemapToCanvas()</code><br><small style="color:var(--muted)">utils/exporters/basemapTiles.ts</small></td>
+  <td>loadTileImage() node in utils/exporters/basemapTiles.ts.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>renderBasemapToCanvas()</code><br><small style="color:var(--muted)">utils/exporters/basemapTiles.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>getTileUrl()</code><br><small style="color:var(--muted)">utils/exporters/basemapTiles.ts</small><br><code>lat2tile()</code><br><small style="color:var(--muted)">utils/exporters/basemapTiles.ts</small><br><code>loadTileImage()</code><br><small style="color:var(--muted)">utils/exporters/basemapTiles.ts</small><br>+3 more</td>
+  <td>No direct outbound edge</td>
+  <td>renderBasemapToCanvas() node in utils/exporters/basemapTiles.ts.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>utils/exporters/basemapTiles.ts</code></td><td>8 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: contains x7, calls x6. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 10. Components Pwainstallmodaltsx Usepwainstallts ====== -->
+<h2 id="components-pwainstallmodaltsx-usepwainstallts">10. Components Pwainstallmodaltsx Usepwainstallts</h2>
+<p>Components Pwainstallmodaltsx Usepwainstallts groups implementation around components, pwainstallmodaltsx, usepwainstallts, headertsx, mostly in components/ui/PWAInstallModal.tsx, src/hooks/usePWAInstall.ts, components/ui/Header.tsx. This section covers 8 nodes and 10 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Components Pwainstallmodaltsx Usepwainstallts (8 nodes, 10 edges)
+    subgraph components_pwainstallmodaltsx_usepwainstallts_co_6a2d24a6["components/ui/PWAInstallModal.tsx"]
+        src_components_ui_pwainstallmodal_12da235d("PWAInstallModal.tsx")
+        src_components_ui_pwainstallmodal_pwainstallmoda_7e457cd2("PWAInstallModal()<br/><small>components/ui/PWAInstallModal.tsx</small>")
+        src_components_ui_pwainstallmodal_pwainstallmoda_78117a51("PWAInstallModalProps<br/><small>components/ui/PWAInstallModal.tsx</small>")
+    end
+    subgraph components_pwainstallmodaltsx_usepwainstallts_sr_74b3c9a7["src/hooks/usePWAInstall.ts"]
+        src_hooks_usepwainstall_usepwainstall_7566b279("usePWAInstall()<br/><small>src/hooks/usePWAInstall.ts</small>")
+        src_hooks_usepwainstall_6e77911c("usePWAInstall.ts")
+        src_hooks_usepwainstall_beforeinstallpromptevent_46f3cdd3("BeforeInstallPromptEvent<br/><small>src/hooks/usePWAInstall.ts</small>")
+    end
+    subgraph components_pwainstallmodaltsx_usepwainstallts_co_5f98ea43["components/ui/Header.tsx"]
+        src_components_ui_header_c50ef935("Header.tsx")
+        src_components_ui_header_header_2777f9f4("Header()<br/><small>components/ui/Header.tsx</small>")
+    end
+    src_components_ui_header_header_2777f9f4 -->|calls| src_hooks_usepwainstall_usepwainstall_7566b279
+    src_components_ui_header_c50ef935 -->|imports| src_components_ui_pwainstallmodal_12da235d
+    src_components_ui_header_c50ef935 -->|imports| src_components_ui_pwainstallmodal_pwainstallmoda_7e457cd2
+    src_components_ui_header_c50ef935 -->|imports| src_hooks_usepwainstall_6e77911c
+    src_components_ui_header_c50ef935 -->|imports| src_hooks_usepwainstall_usepwainstall_7566b279
+    class src_components_ui_pwainstallmodal_12da235d ui;
+    class src_components_ui_pwainstallmodal_pwainstallmoda_7e457cd2 ui;
+    class src_components_ui_pwainstallmodal_pwainstallmoda_78117a51 ui;
+    class src_hooks_usepwainstall_usepwainstall_7566b279 ui;
+    class src_hooks_usepwainstall_6e77911c ui;
+    class src_hooks_usepwainstall_beforeinstallpromptevent_46f3cdd3 klass;
+    class src_components_ui_header_c50ef935 ui;
+    class src_components_ui_header_header_2777f9f4 ui;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>Header.tsx</code><br><small style="color:var(--muted)">components/ui/Header.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>PWAInstallModal()</code><br><small style="color:var(--muted)">components/ui/PWAInstallModal.tsx</small><br><code>PWAInstallModal.tsx</code><br><small style="color:var(--muted)">components/ui/PWAInstallModal.tsx</small><br><code>usePWAInstall()</code><br><small style="color:var(--muted)">src/hooks/usePWAInstall.ts</small><br>+1 more</td>
+  <td>Module file in components/ui/Header.tsx.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>Header()</code><br><small style="color:var(--muted)">components/ui/Header.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>usePWAInstall()</code><br><small style="color:var(--muted)">src/hooks/usePWAInstall.ts</small></td>
+  <td>Header() node in components/ui/Header.tsx.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>PWAInstallModal.tsx</code><br><small style="color:var(--muted)">components/ui/PWAInstallModal.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>Header.tsx</code><br><small style="color:var(--muted)">components/ui/Header.tsx</small></td>
+  <td>No direct outbound edge</td>
+  <td>Module file in components/ui/PWAInstallModal.tsx.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>PWAInstallModalProps</code><br><small style="color:var(--muted)">components/ui/PWAInstallModal.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>PWAInstallModalProps node in components/ui/PWAInstallModal.tsx.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>PWAInstallModal()</code><br><small style="color:var(--muted)">components/ui/PWAInstallModal.tsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>Header.tsx</code><br><small style="color:var(--muted)">components/ui/Header.tsx</small></td>
+  <td>No direct outbound edge</td>
+  <td>PWAInstallModal() node in components/ui/PWAInstallModal.tsx.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>usePWAInstall.ts</code><br><small style="color:var(--muted)">src/hooks/usePWAInstall.ts</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>Header.tsx</code><br><small style="color:var(--muted)">components/ui/Header.tsx</small></td>
+  <td>No direct outbound edge</td>
+  <td>Module file in src/hooks/usePWAInstall.ts.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>BeforeInstallPromptEvent</code><br><small style="color:var(--muted)">src/hooks/usePWAInstall.ts</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Builds structured prompts for model calls.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>usePWAInstall()</code><br><small style="color:var(--muted)">src/hooks/usePWAInstall.ts</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>Header()</code><br><small style="color:var(--muted)">components/ui/Header.tsx</small><br><code>Header.tsx</code><br><small style="color:var(--muted)">components/ui/Header.tsx</small></td>
+  <td>No direct outbound edge</td>
+  <td>usePWAInstall() node in src/hooks/usePWAInstall.ts.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>components/ui/PWAInstallModal.tsx</code></td><td>3 nodes</td></tr>
+<tr><td><code>src/hooks/usePWAInstall.ts</code></td><td>3 nodes</td></tr>
+<tr><td><code>components/ui/Header.tsx</code></td><td>2 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: contains x5, imports x2, imports x2, calls x1. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 11. Utils Geophysics Regionalresidualts ====== -->
+<h2 id="utils-geophysics-regionalresidualts">11. Utils Geophysics Regionalresidualts</h2>
+<p>Utils Geophysics Regionalresidualts groups implementation around utils, geophysics, regionalresidualts, haversinedistancekm, mostly in utils/geophysics/regionalResidual.ts, utils/geophysics/profile.ts. This section covers 7 nodes and 11 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Utils Geophysics Regionalresidualts (7 nodes, 11 edges)
+    subgraph utils_geophysics_regionalresidualts_utils_geophy_3f4db781["utils/geophysics/regionalResidual.ts"]
+        src_utils_geophysics_regionalresidual_applygridm_fcf86c6f("applyGridMovingAverage()<br/><small>utils/geophysics/regionalResidual.ts</small>")
+        src_utils_geophysics_regionalresidual_solvelinea_4d59a9f1("solveLinearSystem()<br/><small>utils/geophysics/regionalResidual.ts</small>")
+        src_utils_geophysics_regionalresidual_applygauss_b1c8f1e8("applyGaussianFilter()<br/><small>utils/geophysics/regionalResidual.ts</small>")
+        src_utils_geophysics_regionalresidual_applypolyn_d68e1d20("applyPolynomialFilter()<br/><small>utils/geophysics/regionalResidual.ts</small>")
+        src_utils_geophysics_regionalresidual_separatere_093ed733("separateRegionalResidual()<br/><small>utils/geophysics/regionalResidual.ts</small>")
+        src_utils_geophysics_regionalresidual_dbaaa068("regionalResidual.ts")
+    end
+    src_utils_geophysics_profile_haversinedistancekm_747df3e2("haversineDistanceKm()<br/><small>utils/geophysics/profile.ts</small>")
+    src_utils_geophysics_profile_haversinedistancekm_747df3e2 -->|calls| src_utils_geophysics_regionalresidual_applygauss_b1c8f1e8
+    src_utils_geophysics_regionalresidual_solvelinea_4d59a9f1 -->|calls| src_utils_geophysics_regionalresidual_applypolyn_d68e1d20
+    src_utils_geophysics_regionalresidual_applygridm_fcf86c6f -->|calls| src_utils_geophysics_regionalresidual_separatere_093ed733
+    src_utils_geophysics_regionalresidual_applygauss_b1c8f1e8 -->|calls| src_utils_geophysics_regionalresidual_separatere_093ed733
+    src_utils_geophysics_regionalresidual_applypolyn_d68e1d20 -->|calls| src_utils_geophysics_regionalresidual_separatere_093ed733
+    src_utils_geophysics_profile_haversinedistancekm_747df3e2 -->|imports| src_utils_geophysics_regionalresidual_dbaaa068
+    class src_utils_geophysics_regionalresidual_applygridm_fcf86c6f function;
+    class src_utils_geophysics_regionalresidual_solvelinea_4d59a9f1 function;
+    class src_utils_geophysics_regionalresidual_applygauss_b1c8f1e8 function;
+    class src_utils_geophysics_regionalresidual_applypolyn_d68e1d20 function;
+    class src_utils_geophysics_regionalresidual_separatere_093ed733 function;
+    class src_utils_geophysics_regionalresidual_dbaaa068 module;
+    class src_utils_geophysics_profile_haversinedistancekm_747df3e2 function;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>haversineDistanceKm()</code><br><small style="color:var(--muted)">utils/geophysics/profile.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>applyGaussianFilter()</code><br><small style="color:var(--muted)">utils/geophysics/regionalResidual.ts</small><br><code>regionalResidual.ts</code><br><small style="color:var(--muted)">utils/geophysics/regionalResidual.ts</small></td>
+  <td>haversineDistanceKm() node in utils/geophysics/profile.ts.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>regionalResidual.ts</code><br><small style="color:var(--muted)">utils/geophysics/regionalResidual.ts</small></td>
+  <td><span class="tag tag-class">Module</span></td>
+  <td><code>haversineDistanceKm()</code><br><small style="color:var(--muted)">utils/geophysics/profile.ts</small></td>
+  <td>No direct outbound edge</td>
+  <td>Module file in utils/geophysics/regionalResidual.ts.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>solveLinearSystem()</code><br><small style="color:var(--muted)">utils/geophysics/regionalResidual.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>applyPolynomialFilter()</code><br><small style="color:var(--muted)">utils/geophysics/regionalResidual.ts</small></td>
+  <td>solveLinearSystem() node in utils/geophysics/regionalResidual.ts.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>applyGridMovingAverage()</code><br><small style="color:var(--muted)">utils/geophysics/regionalResidual.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>separateRegionalResidual()</code><br><small style="color:var(--muted)">utils/geophysics/regionalResidual.ts</small></td>
+  <td>Supports retrieval-augmented Q&amp;A or streaming chat.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>applyGaussianFilter()</code><br><small style="color:var(--muted)">utils/geophysics/regionalResidual.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>haversineDistanceKm()</code><br><small style="color:var(--muted)">utils/geophysics/profile.ts</small></td>
+  <td><code>separateRegionalResidual()</code><br><small style="color:var(--muted)">utils/geophysics/regionalResidual.ts</small></td>
+  <td>applyGaussianFilter() node in utils/geophysics/regionalResidual.ts.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>applyPolynomialFilter()</code><br><small style="color:var(--muted)">utils/geophysics/regionalResidual.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>solveLinearSystem()</code><br><small style="color:var(--muted)">utils/geophysics/regionalResidual.ts</small></td>
+  <td><code>separateRegionalResidual()</code><br><small style="color:var(--muted)">utils/geophysics/regionalResidual.ts</small></td>
+  <td>applyPolynomialFilter() node in utils/geophysics/regionalResidual.ts.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>separateRegionalResidual()</code><br><small style="color:var(--muted)">utils/geophysics/regionalResidual.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>applyGaussianFilter()</code><br><small style="color:var(--muted)">utils/geophysics/regionalResidual.ts</small><br><code>applyGridMovingAverage()</code><br><small style="color:var(--muted)">utils/geophysics/regionalResidual.ts</small><br><code>applyPolynomialFilter()</code><br><small style="color:var(--muted)">utils/geophysics/regionalResidual.ts</small></td>
+  <td>No direct outbound edge</td>
+  <td>separateRegionalResidual() node in utils/geophysics/regionalResidual.ts.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>utils/geophysics/regionalResidual.ts</code></td><td>6 nodes</td></tr>
+<tr><td><code>utils/geophysics/profile.ts</code></td><td>1 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: calls x5, contains x5, imports x1. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 12. Viteconfigts Configureserver ====== -->
+<h2 id="viteconfigts-configureserver">12. Viteconfigts Configureserver</h2>
+<p>Viteconfigts Configureserver groups implementation around viteconfigts, configureserver, mostly in vite.config.ts. This section covers 2 nodes and 1 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Viteconfigts Configureserver (2 nodes, 1 edges)
+    vite_config_433f92aa("vite.config.ts")
+    vite_config_configureserver_5f517a13("configureServer()<br/><small>vite.config.ts</small>")
+    vite_config_433f92aa -->|contains| vite_config_configureserver_5f517a13
+    class vite_config_433f92aa module;
+    class vite_config_configureserver_5f517a13 function;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>vite.config.ts</code><br><small style="color:var(--muted)">vite.config.ts</small></td>
+  <td><span class="tag tag-class">Module</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Module file in vite.config.ts.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>configureServer()</code><br><small style="color:var(--muted)">vite.config.ts</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Reads, resolves, or persists project configuration.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>vite.config.ts</code></td><td>2 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: contains x1. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<h2 id="stats">Project Statistics</h2>
+
+<div class="grid">
+  <div class="card">
+    <h4>Graph</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><td>Nodes</td><td>335</td></tr>
+      <tr><td>Edges</td><td>815</td></tr>
+      <tr><td>Hyperedges</td><td>0</td></tr>
+      <tr><td>Communities</td><td>14</td></tr>
+      <tr><td>Documented Sections</td><td>11</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Edge Confidence</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><td>EXTRACTED</td><td>815</td></tr>
+      <tr><td>INFERRED</td><td>0</td></tr>
+      <tr><td>AMBIGUOUS</td><td>0</td></tr>
+    </table>
+  </div>
+</div>
+
+<div style="text-align:center; padding:40px 0; color: var(--muted); font-size:0.9rem;">
+  <p>topex-interactive — Architecture Documentation</p>
+  <p>Generated: 2026-08-20 16:43 UTC · graphify callflow-html</p>
+</div>
+
+</div><!-- .container -->
+
+<script>
+(function () {
+  const mermaidConfig = {
+    startOnLoad: false,
+    theme: 'dark',
+    securityLevel: 'loose',
+    flowchart: { htmlLabels: true, useMaxWidth: true },
+    themeVariables: {
+      primaryColor: '#1e293b',
+      primaryTextColor: '#e2e8f0',
+      primaryBorderColor: '#38bdf8',
+      secondaryColor: '#0f172a',
+      tertiaryColor: '#334155',
+      lineColor: '#64748b',
+      textColor: '#e2e8f0',
+    }
+  };
+
+  mermaid.initialize(mermaidConfig);
+
+  function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+  }
+
+  function enhanceMermaidDiagrams() {
+    document.querySelectorAll('.mermaid').forEach((container) => {
+      if (container.dataset.zoomReady === 'true') return;
+      const svg = container.querySelector('svg');
+      if (!svg) return;
+
+      container.dataset.zoomReady = 'true';
+      container.classList.add('is-enhanced');
+
+      const viewport = document.createElement('div');
+      viewport.className = 'mermaid-viewport';
+      svg.parentNode.insertBefore(viewport, svg);
+      viewport.appendChild(svg);
+
+      const toolbar = document.createElement('div');
+      toolbar.className = 'mermaid-toolbar';
+      toolbar.innerHTML = [
+        '<button type="button" data-action="zoom-out" title="Zoom out">-</button>',
+        '<span class="zoom-level" data-role="level">100%</span>',
+        '<button type="button" data-action="zoom-in" title="Zoom in">+</button>',
+        '<button type="button" data-action="fit" title="Fit width">Fit</button>',
+        '<button type="button" data-action="reset" title="Reset view">Reset</button>'
+      ].join('');
+      container.insertBefore(toolbar, viewport);
+
+      const state = { scale: 1, x: 0, y: 0, dragging: false, startX: 0, startY: 0, originX: 0, originY: 0 };
+      const level = toolbar.querySelector('[data-role="level"]');
+
+      function applyTransform() {
+        svg.style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale})`;
+        level.textContent = `${Math.round(state.scale * 100)}%`;
+      }
+
+      function zoomBy(delta) {
+        state.scale = clamp(state.scale + delta, 0.25, 3);
+        applyTransform();
+      }
+
+      function reset() {
+        state.scale = 1;
+        state.x = 0;
+        state.y = 0;
+        applyTransform();
+      }
+
+      function fitWidth() {
+        const rawWidth = svg.viewBox && svg.viewBox.baseVal && svg.viewBox.baseVal.width
+          ? svg.viewBox.baseVal.width
+          : svg.getBoundingClientRect().width / state.scale;
+        if (!rawWidth) {
+          reset();
+          return;
+        }
+        state.scale = clamp((viewport.clientWidth - 48) / rawWidth, 0.25, 1.4);
+        state.x = 0;
+        state.y = 0;
+        applyTransform();
+      }
+
+      toolbar.addEventListener('click', (event) => {
+        const button = event.target.closest('button[data-action]');
+        if (!button) return;
+        const action = button.dataset.action;
+        if (action === 'zoom-in') zoomBy(0.15);
+        if (action === 'zoom-out') zoomBy(-0.15);
+        if (action === 'fit') fitWidth();
+        if (action === 'reset') reset();
+      });
+
+      viewport.addEventListener('wheel', (event) => {
+        if (!event.ctrlKey && !event.metaKey) return;
+        event.preventDefault();
+        zoomBy(event.deltaY < 0 ? 0.1 : -0.1);
+      }, { passive: false });
+
+      viewport.addEventListener('pointerdown', (event) => {
+        if (event.button !== 0) return;
+        state.dragging = true;
+        state.startX = event.clientX;
+        state.startY = event.clientY;
+        state.originX = state.x;
+        state.originY = state.y;
+        viewport.classList.add('is-dragging');
+        viewport.setPointerCapture(event.pointerId);
+      });
+
+      viewport.addEventListener('pointermove', (event) => {
+        if (!state.dragging) return;
+        state.x = state.originX + event.clientX - state.startX;
+        state.y = state.originY + event.clientY - state.startY;
+        applyTransform();
+      });
+
+      function endDrag(event) {
+        if (!state.dragging) return;
+        state.dragging = false;
+        viewport.classList.remove('is-dragging');
+        if (viewport.hasPointerCapture(event.pointerId)) {
+          viewport.releasePointerCapture(event.pointerId);
+        }
+      }
+
+      viewport.addEventListener('pointerup', endDrag);
+      viewport.addEventListener('pointercancel', endDrag);
+      applyTransform();
+    });
+  }
+
+  function renderMermaid() {
+    const result = mermaid.run
+      ? mermaid.run({ querySelector: '.mermaid' })
+      : Promise.resolve();
+    Promise.resolve(result)
+      .then(enhanceMermaidDiagrams)
+      .catch((error) => {
+        console.error('Mermaid render failed:', error);
+        enhanceMermaidDiagrams();
+      });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', renderMermaid);
+  } else {
+    renderMermaid();
+  }
+})();
+</script>
+
+</body>
+</html>

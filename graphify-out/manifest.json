@@ -1,0 +1,297 @@
+{
+  "package.json": {
+    "mtime": 1787183044.2606785,
+    "ast_hash": "b960ea8380f6a07f347e82347ddf8367",
+    "semantic_hash": "b960ea8380f6a07f347e82347ddf8367"
+  },
+  "scripts/extract-ico.cjs": {
+    "mtime": 1787183276.2430065,
+    "ast_hash": "14abab8c3a9abfc89d039b16010d1642",
+    "semantic_hash": "14abab8c3a9abfc89d039b16010d1642"
+  },
+  "server/index.ts": {
+    "mtime": 1787161205.3824105,
+    "ast_hash": "596be27c8fc0b87b0da7475b4b4f4a00",
+    "semantic_hash": "596be27c8fc0b87b0da7475b4b4f4a00"
+  },
+  "server/middleware/rateLimiter.ts": {
+    "mtime": 1787200037.311157,
+    "ast_hash": "ed0836a8fff23546dc4e27d65e6d8bca",
+    "semantic_hash": "ed0836a8fff23546dc4e27d65e6d8bca"
+  },
+  "server/routes/topex.ts": {
+    "mtime": 1787199827.7155292,
+    "ast_hash": "0fd10ff4605fc4596a3b4238770e0e90",
+    "semantic_hash": "0fd10ff4605fc4596a3b4238770e0e90"
+  },
+  "server/services/asciiParser.ts": {
+    "mtime": 1787161205.3864665,
+    "ast_hash": "2e093dd9c96d4742c75824c3c36a3ce7",
+    "semantic_hash": "2e093dd9c96d4742c75824c3c36a3ce7"
+  },
+  "server/services/cacheService.ts": {
+    "mtime": 1787161205.3864665,
+    "ast_hash": "3361e5a569b4065e4b92e7053d699013",
+    "semantic_hash": "3361e5a569b4065e4b92e7053d699013"
+  },
+  "server/services/ucsdClient.ts": {
+    "mtime": 1787199714.3587496,
+    "ast_hash": "34b801f0853458c1f7f756c03e985c07",
+    "semantic_hash": "34b801f0853458c1f7f756c03e985c07"
+  },
+  "shared/schema.ts": {
+    "mtime": 1787161205.390046,
+    "ast_hash": "b55ab1f72f0c228e55da3b8017cf73c0",
+    "semantic_hash": "b55ab1f72f0c228e55da3b8017cf73c0"
+  },
+  "src/App.tsx": {
+    "mtime": 1787234238.230885,
+    "ast_hash": "900c7f16c036757781028fa8f490ce96",
+    "semantic_hash": "900c7f16c036757781028fa8f490ce96"
+  },
+  "src/api/client.ts": {
+    "mtime": 1787161888.6653266,
+    "ast_hash": "3066cb5b5c97d99e40a5af967194f5b9",
+    "semantic_hash": "3066cb5b5c97d99e40a5af967194f5b9"
+  },
+  "src/api/clientCache.ts": {
+    "mtime": 1787199740.0981867,
+    "ast_hash": "2a5bfa6846b32aca8babe29086f72d4a",
+    "semantic_hash": "2a5bfa6846b32aca8babe29086f72d4a"
+  },
+  "src/api/parallelFetcher.ts": {
+    "mtime": 1787203662.4301448,
+    "ast_hash": "c8f870e492c263a8486c8c961faaf82f",
+    "semantic_hash": "c8f870e492c263a8486c8c961faaf82f"
+  },
+  "src/components/hud/CoordinateInputs.tsx": {
+    "mtime": 1787161888.6681528,
+    "ast_hash": "44a5908b0dd6201463a26827b9266563",
+    "semantic_hash": "44a5908b0dd6201463a26827b9266563"
+  },
+  "src/components/hud/CoordinateToolbar.tsx": {
+    "mtime": 1787161888.6681528,
+    "ast_hash": "620a68cdbd8c770e369baa7c212b58a4",
+    "semantic_hash": "620a68cdbd8c770e369baa7c212b58a4"
+  },
+  "src/components/hud/DatasetToggles.tsx": {
+    "mtime": 1787161888.6696916,
+    "ast_hash": "3ec664f07d2b700ba202a9f374ad7e62",
+    "semantic_hash": "3ec664f07d2b700ba202a9f374ad7e62"
+  },
+  "src/components/map/MapContainer.tsx": {
+    "mtime": 1787227184.8081722,
+    "ast_hash": "7b948fe38bdae98dc310c66b71d6e94f",
+    "semantic_hash": "7b948fe38bdae98dc310c66b71d6e94f"
+  },
+  "src/components/map/MapSearchBar.tsx": {
+    "mtime": 1787185278.0774128,
+    "ast_hash": "2e66c25009d24def45ca0bd36441a9a5",
+    "semantic_hash": "2e66c25009d24def45ca0bd36441a9a5"
+  },
+  "src/components/modals/CitationsModal.tsx": {
+    "mtime": 1787229264.0819566,
+    "ast_hash": "f2bfc0bae0d160a2324286f931fa1bf0",
+    "semantic_hash": "f2bfc0bae0d160a2324286f931fa1bf0"
+  },
+  "src/components/processing/BouguerControlPanel.tsx": {
+    "mtime": 1787234037.4082985,
+    "ast_hash": "ccb2b45185b73f9848e940136451fbce",
+    "semantic_hash": "ccb2b45185b73f9848e940136451fbce"
+  },
+  "src/components/processing/NettletonRegressionPlot.tsx": {
+    "mtime": 1787229838.753181,
+    "ast_hash": "301f4f7eb8e2fd964c1af1f07ee6ecf1",
+    "semantic_hash": "301f4f7eb8e2fd964c1af1f07ee6ecf1"
+  },
+  "src/components/stepper/WorkflowStepper.tsx": {
+    "mtime": 1787178200.9640393,
+    "ast_hash": "7d20159f033514cb330c47d3fc70ba84",
+    "semantic_hash": "7d20159f033514cb330c47d3fc70ba84"
+  },
+  "src/components/studio/ExportSuiteModal.tsx": {
+    "mtime": 1787179976.4248257,
+    "ast_hash": "1f845a19e9db4efb23cb8d299e86e1ae",
+    "semantic_hash": "1f845a19e9db4efb23cb8d299e86e1ae"
+  },
+  "src/components/studio/MapColorbar.tsx": {
+    "mtime": 1787177875.0701127,
+    "ast_hash": "4202e21dc5ea2e02d5617742848ca50e",
+    "semantic_hash": "4202e21dc5ea2e02d5617742848ca50e"
+  },
+  "src/components/studio/ProfileGraph.tsx": {
+    "mtime": 1787240469.936996,
+    "ast_hash": "10c2698d6b5bb220c3edb0936bc5a111",
+    "semantic_hash": "10c2698d6b5bb220c3edb0936bc5a111"
+  },
+  "src/components/studio/TriMapViewer.tsx": {
+    "mtime": 1787236972.4778636,
+    "ast_hash": "648a847a086a8e7bce131e7880a44463",
+    "semantic_hash": "648a847a086a8e7bce131e7880a44463"
+  },
+  "src/components/studio/WebGLFallbackView.tsx": {
+    "mtime": 1787204406.0222924,
+    "ast_hash": "1b7eacd60bde62374fa69a1f7fe5320d",
+    "semantic_hash": "1b7eacd60bde62374fa69a1f7fe5320d"
+  },
+  "src/components/table/DataTable.tsx": {
+    "mtime": 1787161888.67218,
+    "ast_hash": "51dad2c606cd13289f5d69fa4877ac7a",
+    "semantic_hash": "51dad2c606cd13289f5d69fa4877ac7a"
+  },
+  "src/components/table/ExportDropdown.tsx": {
+    "mtime": 1787161888.6733513,
+    "ast_hash": "7e7632090465f48c218383d04d6ec44e",
+    "semantic_hash": "7e7632090465f48c218383d04d6ec44e"
+  },
+  "src/components/ui/Disclaimer.tsx": {
+    "mtime": 1787229228.8337593,
+    "ast_hash": "162c0057385341cedf648471947be0a9",
+    "semantic_hash": "162c0057385341cedf648471947be0a9"
+  },
+  "src/components/ui/Header.tsx": {
+    "mtime": 1787184013.125265,
+    "ast_hash": "2d30d099776cc5637908d0a8cee3361a",
+    "semantic_hash": "2d30d099776cc5637908d0a8cee3361a"
+  },
+  "src/components/ui/PWAInstallModal.tsx": {
+    "mtime": 1787196466.2687616,
+    "ast_hash": "5ae7c659870ec58d879f239d66bbd67a",
+    "semantic_hash": "5ae7c659870ec58d879f239d66bbd67a"
+  },
+  "src/components/ui/StreamingProgressBar.tsx": {
+    "mtime": 1787161888.6759334,
+    "ast_hash": "08ac3e2b7d03d67088297fda3ef1adc0",
+    "semantic_hash": "08ac3e2b7d03d67088297fda3ef1adc0"
+  },
+  "src/components/ui/Toast.tsx": {
+    "mtime": 1787161888.6759334,
+    "ast_hash": "08fd91f052b45976d1db5aafc2ce901d",
+    "semantic_hash": "08fd91f052b45976d1db5aafc2ce901d"
+  },
+  "src/hooks/usePWAInstall.ts": {
+    "mtime": 1787183901.7308438,
+    "ast_hash": "45b4922d9ca8892e5f50802c6518477a",
+    "semantic_hash": "45b4922d9ca8892e5f50802c6518477a"
+  },
+  "src/main.tsx": {
+    "mtime": 1787161888.6767075,
+    "ast_hash": "03a277f37b92a9878c388f16101a20c9",
+    "semantic_hash": "03a277f37b92a9878c388f16101a20c9"
+  },
+  "src/services/geophysicsWorkerService.ts": {
+    "mtime": 1787234246.4713569,
+    "ast_hash": "3abe69355b8b791a9487f3687f57f8c6",
+    "semantic_hash": "3abe69355b8b791a9487f3687f57f8c6"
+  },
+  "src/types/index.ts": {
+    "mtime": 1787235933.6265607,
+    "ast_hash": "8a3d8841d0b41717d84ddc11da0bc042",
+    "semantic_hash": "8a3d8841d0b41717d84ddc11da0bc042"
+  },
+  "src/utils/chunking.ts": {
+    "mtime": 1787203651.1015959,
+    "ast_hash": "0b14803fdfc300dd6a9cebf2b1f49d2a",
+    "semantic_hash": "0b14803fdfc300dd6a9cebf2b1f49d2a"
+  },
+  "src/utils/coordinateParser.ts": {
+    "mtime": 1787161888.6831167,
+    "ast_hash": "9de23bfc6a81322b5030a395e84d6475",
+    "semantic_hash": "9de23bfc6a81322b5030a395e84d6475"
+  },
+  "src/utils/exporters/basemapTiles.ts": {
+    "mtime": 1787233617.8905537,
+    "ast_hash": "5c3136828bc5257324ab6b6337dbf859",
+    "semantic_hash": "5c3136828bc5257324ab6b6337dbf859"
+  },
+  "src/utils/exporters/compositeReport.ts": {
+    "mtime": 1787237884.21294,
+    "ast_hash": "798f1f7305d551854825de1cdd8a6187",
+    "semantic_hash": "798f1f7305d551854825de1cdd8a6187"
+  },
+  "src/utils/exporters/fullSuiteExport.ts": {
+    "mtime": 1787184340.6351266,
+    "ast_hash": "05701350bbeba23ebb70e647059ae5d8",
+    "semantic_hash": "05701350bbeba23ebb70e647059ae5d8"
+  },
+  "src/utils/exporters/geosoft.ts": {
+    "mtime": 1787177875.07276,
+    "ast_hash": "af00faa57eed1fe50ba43f45bd1ba9ec",
+    "semantic_hash": "af00faa57eed1fe50ba43f45bd1ba9ec"
+  },
+  "src/utils/exporters/index.ts": {
+    "mtime": 1787161888.6847847,
+    "ast_hash": "675a2abb471a655ffaffee5e40f49960",
+    "semantic_hash": "675a2abb471a655ffaffee5e40f49960"
+  },
+  "src/utils/exporters/mapImage.ts": {
+    "mtime": 1787233632.4650593,
+    "ast_hash": "898d5b0f3d4beec3d848661ed265af07",
+    "semantic_hash": "898d5b0f3d4beec3d848661ed265af07"
+  },
+  "src/utils/exporters/profileImage.ts": {
+    "mtime": 1787240083.2544909,
+    "ast_hash": "41b6841264c9a49fd6406f565af5c272",
+    "semantic_hash": "41b6841264c9a49fd6406f565af5c272"
+  },
+  "src/utils/geophysics/bouguer.ts": {
+    "mtime": 1787233980.475565,
+    "ast_hash": "d63c22f9a0b9a8e742b39aef4ddf8040",
+    "semantic_hash": "d63c22f9a0b9a8e742b39aef4ddf8040"
+  },
+  "src/utils/geophysics/colormaps.ts": {
+    "mtime": 1787177875.074543,
+    "ast_hash": "002c58652c3ed8f2f27e94dfc3a448f7",
+    "semantic_hash": "002c58652c3ed8f2f27e94dfc3a448f7"
+  },
+  "src/utils/geophysics/derivatives.ts": {
+    "mtime": 1787235845.4708915,
+    "ast_hash": "ef9ad0f3874861c2090911dec77fde84",
+    "semantic_hash": "ef9ad0f3874861c2090911dec77fde84"
+  },
+  "src/utils/geophysics/interpolation.ts": {
+    "mtime": 1787235952.2004,
+    "ast_hash": "4fb8d734beca478af88395a5e50effbe",
+    "semantic_hash": "4fb8d734beca478af88395a5e50effbe"
+  },
+  "src/utils/geophysics/profile.ts": {
+    "mtime": 1787235885.2089477,
+    "ast_hash": "6bb2c3fa5dd1cbc7351ada7b7e40b314",
+    "semantic_hash": "6bb2c3fa5dd1cbc7351ada7b7e40b314"
+  },
+  "src/utils/geophysics/regionalResidual.ts": {
+    "mtime": 1787230281.14576,
+    "ast_hash": "f075449f4bd0049c93f48341f523c317",
+    "semantic_hash": "f075449f4bd0049c93f48341f523c317"
+  },
+  "src/utils/geophysics/terrainCorrection.ts": {
+    "mtime": 1787233968.2612262,
+    "ast_hash": "a115e7fd9436e780c020540e6ba4c26d",
+    "semantic_hash": "a115e7fd9436e780c020540e6ba4c26d"
+  },
+  "src/utils/webgl/webglDetector.ts": {
+    "mtime": 1787204278.2169602,
+    "ast_hash": "ee0cbf1ace36dfe44e20f67d8985b218",
+    "semantic_hash": "ee0cbf1ace36dfe44e20f67d8985b218"
+  },
+  "src/utils/webgl/webglRenderer.ts": {
+    "mtime": 1787227239.6730595,
+    "ast_hash": "c3dd8a5d944f82b3ebec226c1af7392c",
+    "semantic_hash": "c3dd8a5d944f82b3ebec226c1af7392c"
+  },
+  "src/workers/geophysics.worker.ts": {
+    "mtime": 1787234006.2126975,
+    "ast_hash": "690bb874fdaa81f0f07a39de5a712a76",
+    "semantic_hash": "690bb874fdaa81f0f07a39de5a712a76"
+  },
+  "tsconfig.json": {
+    "mtime": 1787161205.4235048,
+    "ast_hash": "c872041411637a2915c3e0008b169d83",
+    "semantic_hash": "c872041411637a2915c3e0008b169d83"
+  },
+  "vite.config.ts": {
+    "mtime": 1787183109.0561235,
+    "ast_hash": "1ae26a38ad4721f0ec5ee3381fd61a3c",
+    "semantic_hash": "1ae26a38ad4721f0ec5ee3381fd61a3c"
+  }
+}
