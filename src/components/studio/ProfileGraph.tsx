@@ -988,23 +988,33 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
                   const p = points[ptIdx];
                   if (!p) return null;
 
-                  // Search local neighborhood window (+/- 20 samples along profile) for local SVD extrema
-                  const windowSize = 20;
-                  const startIdx = Math.max(0, ptIdx - windowSize);
-                  const endIdx = Math.min(points.length - 1, ptIdx + windowSize);
-                  
-                  let localSvdMax = -Infinity;
-                  let localSvdMin = Infinity;
-                  let localMaxFhd = 0;
+                  // Evaluate Elkins (1951) Fault Classification via SVD Amplitude Ratio (|SVD|min vs |SVD|max)
+                  let localSvdMax = p.svd !== undefined && p.svd > 0 ? p.svd : 0;
+                  let localSvdMin = p.svd !== undefined && p.svd < 0 ? p.svd : 0;
 
-                  for (let w = startIdx; w <= endIdx; w++) {
-                    const ptVal = points[w];
-                    if (ptVal.svd !== undefined) {
-                      if (ptVal.svd > localSvdMax) localSvdMax = ptVal.svd;
-                      if (ptVal.svd < localSvdMin) localSvdMin = ptVal.svd;
-                    }
-                    if (ptVal.fhd !== undefined && ptVal.fhd > localMaxFhd) {
-                      localMaxFhd = ptVal.fhd;
+                  // 1. If multiple sounding picks are pinned, prioritize the user's explicit pinned pair
+                  const pinnedSvdVals = pinnedIndices
+                    .map((idx) => points[idx]?.svd)
+                    .filter((v): v is number => v !== undefined);
+                  
+                  const hasPinnedPeakTrough =
+                    pinnedSvdVals.some((v) => v > 0) && pinnedSvdVals.some((v) => v < 0);
+
+                  if (hasPinnedPeakTrough) {
+                    localSvdMax = Math.max(...pinnedSvdVals.filter((v) => v > 0));
+                    localSvdMin = Math.min(...pinnedSvdVals.filter((v) => v < 0));
+                  } else {
+                    // 2. Otherwise search immediate local inflection window (+/- 8 samples)
+                    const searchRadius = 8;
+                    const startIdx = Math.max(0, ptIdx - searchRadius);
+                    const endIdx = Math.min(points.length - 1, ptIdx + searchRadius);
+
+                    for (let w = startIdx; w <= endIdx; w++) {
+                      const ptVal = points[w];
+                      if (ptVal?.svd !== undefined) {
+                        if (ptVal.svd > localSvdMax) localSvdMax = ptVal.svd;
+                        if (ptVal.svd < localSvdMin) localSvdMin = ptVal.svd;
+                      }
                     }
                   }
 
@@ -1020,13 +1030,13 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
                     tooltip: 'Elkins (1951): Low gradient, quiescent regional basement',
                   };
 
-                  if (maxMagnitude < 0.004 && localMaxFhd < 0.04) {
+                  if (maxMagnitude < 0.004) {
                     verdict = {
                       label: 'Stable Basement',
                       className: 'verdict-stable',
-                      tooltip: 'Elkins (1951): Low SVD curvature and gradient (Stable Regional Basement)',
+                      tooltip: `Elkins (1951): |SVD|max (${absSvdMax.toFixed(3)}) & |SVD|min (${absSvdMin.toFixed(3)}) are near zero (Stable Basement)`,
                     };
-                  } else if (symmetryRatio <= 0.15) {
+                  } else if (symmetryRatio <= 0.12) {
                     // |SVD|min ≈ |SVD|max
                     verdict = {
                       label: 'Strike-Slip Fault',
