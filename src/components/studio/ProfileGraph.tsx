@@ -1036,8 +1036,8 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
                       className: 'verdict-stable',
                       tooltip: `Elkins (1951): |SVD|max (${absSvdMax.toFixed(3)}) & |SVD|min (${absSvdMin.toFixed(3)}) are near zero (Stable Basement)`,
                     };
-                  } else if (symmetryRatio <= 0.12) {
-                    // |SVD|min ≈ |SVD|max
+                  } else if (symmetryRatio <= 0.03) {
+                    // |SVD|min ≈ |SVD|max (Within strict 3% symmetry)
                     verdict = {
                       label: 'Strike-Slip Fault',
                       className: 'verdict-strike-slip',
