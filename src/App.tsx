@@ -194,6 +194,19 @@ export const App: React.FC = () => {
     }
   };
 
+  const [isNavigatingToStudio, setIsNavigatingToStudio] = useState<boolean>(false);
+
+  const handleProceedToStudio = () => {
+    setIsNavigatingToStudio(true);
+    // Yield to the browser render loop so the button spinner paints immediately
+    setTimeout(() => {
+      setCurrentStep('studio');
+      setTimeout(() => {
+        setIsNavigatingToStudio(false);
+      }, 150);
+    }, 50);
+  };
+
   return (
     <div id="page-container">
       <Header />
@@ -335,7 +348,8 @@ export const App: React.FC = () => {
               onParamsChange={setBouguerParams}
               stats={geophysicsStats}
               records={processedRecords}
-              onProceedToStudio={() => setCurrentStep('studio')}
+              onProceedToStudio={handleProceedToStudio}
+              isTransitioning={isNavigatingToStudio}
             />
           </div>
         )}

@@ -1,6 +1,6 @@
 import React from 'react';
 import type { BouguerParams, ProcessedRecord, GeophysicsSummaryStats } from '@/types';
-import { ArrowRight, RotateCcw, Info, Sliders } from 'lucide-react';
+import { ArrowRight, RotateCcw, Info, Sliders, Loader2 } from 'lucide-react';
 import { NettletonRegressionPlot } from '@/components/processing/NettletonRegressionPlot';
 
 interface BouguerControlPanelProps {
@@ -9,6 +9,7 @@ interface BouguerControlPanelProps {
   stats: GeophysicsSummaryStats;
   records: ProcessedRecord[];
   onProceedToStudio: () => void;
+  isTransitioning?: boolean;
 }
 
 export const BouguerControlPanel: React.FC<BouguerControlPanelProps> = ({
@@ -17,6 +18,7 @@ export const BouguerControlPanel: React.FC<BouguerControlPanelProps> = ({
   stats,
   records,
   onProceedToStudio,
+  isTransitioning = false,
 }) => {
   const handleReset = () => {
     onParamsChange({
@@ -209,9 +211,23 @@ export const BouguerControlPanel: React.FC<BouguerControlPanelProps> = ({
 
       {/* Proceed to Studio Action Bar */}
       <div className="processing-action-bar">
-        <button type="button" className="btn-proceed-studio" onClick={onProceedToStudio}>
-          <span>Launch Satellite Gravity Studio</span>
-          <ArrowRight size={18} />
+        <button
+          type="button"
+          className="btn-proceed-studio"
+          onClick={onProceedToStudio}
+          disabled={isTransitioning}
+        >
+          {isTransitioning ? (
+            <>
+              <Loader2 size={18} style={{ animation: 'rotate 1s linear infinite' }} />
+              <span>Launching Studio...</span>
+            </>
+          ) : (
+            <>
+              <span>Launch Satellite Gravity Studio</span>
+              <ArrowRight size={18} />
+            </>
+          )}
         </button>
       </div>
     </div>
