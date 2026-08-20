@@ -582,39 +582,57 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
       ctx.fill();
     }
 
-    // 3. Active target reticle
-    if (activeRecord) {
-      const px = Math.round(((activeRecord.longitude - bounds.west) / lonRange) * w);
-      const py = Math.round(((bounds.north - activeRecord.latitude) / latRange) * h);
+    // 3. Active target / hovered sounding reticle (crystal-clear unshaded geophysical reticle)
+    const probeRecord = hoveredRecord || activeRecord;
+    if (probeRecord) {
+      const px = Math.round(((probeRecord.longitude - bounds.west) / lonRange) * w);
+      const py = Math.round(((bounds.north - probeRecord.latitude) / latRange) * h);
 
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2.5;
+      // Glowing outer ring
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+      ctx.lineWidth = 4;
       ctx.beginPath();
-      ctx.arc(px, py, 7, 0, Math.PI * 2);
+      ctx.arc(px, py, 8, 0, Math.PI * 2);
       ctx.stroke();
 
+      // Bright Cyan inner ring
       ctx.strokeStyle = '#0284c7';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(px, py, 5, 0, Math.PI * 2);
+      ctx.arc(px, py, 8, 0, Math.PI * 2);
       ctx.stroke();
 
+      // Center crosshair with dark shadow
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(px - 12, py);
+      ctx.lineTo(px - 4, py);
+      ctx.moveTo(px + 4, py);
+      ctx.lineTo(px + 12, py);
+      ctx.moveTo(px, py - 12);
+      ctx.lineTo(px, py - 4);
+      ctx.moveTo(px, py + 4);
+      ctx.lineTo(px, py + 12);
+      ctx.stroke();
+
+      // Center crosshair white lines
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.moveTo(px - 11, py);
+      ctx.moveTo(px - 12, py);
       ctx.lineTo(px - 4, py);
       ctx.moveTo(px + 4, py);
-      ctx.lineTo(px + 11, py);
-      ctx.moveTo(px, py - 11);
+      ctx.lineTo(px + 12, py);
+      ctx.moveTo(px, py - 12);
       ctx.lineTo(px, py - 4);
       ctx.moveTo(px, py + 4);
-      ctx.lineTo(px, py + 11);
+      ctx.lineTo(px, py + 12);
       ctx.stroke();
     }
 
     ctx.restore();
-  }, [bounds, lines, activeLineId, hoveredProfilePoint, profilePoints, activeRecord]);
+  }, [bounds, lines, activeLineId, hoveredProfilePoint, profilePoints, activeRecord, hoveredRecord]);
 
   // Synchronously update all 3 overlay layers on mouse move / hover / draw
   const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
@@ -969,6 +987,11 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
         </div>
 
         <div className="interp-right-group">
+          <div className="transect-drag-hint">
+            <Move size={14} className="text-primary-blue" />
+            <span>Draw transect ({activeLine.labelStart} &rarr; {activeLine.labelEnd})</span>
+          </div>
+
           <button
             type="button"
             className={`btn-toggle-maps-collapse ${isMapsCollapsed ? 'is-collapsed' : ''}`}
@@ -979,11 +1002,6 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
             {isMapsCollapsed ? <ChevronDown size={15} /> : <ChevronUp size={15} />}
             <span>{isMapsCollapsed ? 'Expand Maps' : 'Collapse Maps'}</span>
           </button>
-        </div>
-
-        <div className="transect-drag-hint">
-          <Move size={14} className="text-primary-blue" />
-          <span>Click & drag on maps to draw transect ({activeLine.labelStart} &rarr; {activeLine.labelEnd})</span>
         </div>
       </div>
 
@@ -1042,13 +1060,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
               }}
             />
             {hoverPos && hoverPos.mapId === 'topo' && hoveredRecord && (
-              <div
-                className="map-cursor-tooltip"
-                style={{
-                  left: `${Math.min(Math.max(hoverPos.x + 14, 10), 480 - 215)}px`,
-                  top: `${Math.min(Math.max(hoverPos.y - 30, 20), 360 - 85)}px`,
-                }}
-              >
+              <div className="map-corner-probe-hud">
                 <div className="tooltip-coord-row">
                   <span>{hoveredRecord.latitude.toFixed(4)}°, {hoveredRecord.longitude.toFixed(4)}°</span>
                 </div>
@@ -1142,13 +1154,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
               }}
             />
             {hoverPos && hoverPos.mapId === 'faa' && hoveredRecord && (
-              <div
-                className="map-cursor-tooltip"
-                style={{
-                  left: `${Math.min(Math.max(hoverPos.x + 14, 10), 480 - 215)}px`,
-                  top: `${Math.min(Math.max(hoverPos.y - 30, 20), 360 - 85)}px`,
-                }}
-              >
+              <div className="map-corner-probe-hud">
                 <div className="tooltip-coord-row">
                   <span>{hoveredRecord.latitude.toFixed(4)}°, {hoveredRecord.longitude.toFixed(4)}°</span>
                 </div>
@@ -1282,13 +1288,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
               }}
             />
             {hoverPos && hoverPos.mapId === 'bouguer' && hoveredRecord && (
-              <div
-                className="map-cursor-tooltip"
-                style={{
-                  left: `${Math.min(Math.max(hoverPos.x + 14, 10), 480 - 215)}px`,
-                  top: `${Math.min(Math.max(hoverPos.y - 30, 20), 360 - 85)}px`,
-                }}
-              >
+              <div className="map-corner-probe-hud">
                 <div className="tooltip-coord-row">
                   <span>{hoveredRecord.latitude.toFixed(4)}°, {hoveredRecord.longitude.toFixed(4)}°</span>
                 </div>

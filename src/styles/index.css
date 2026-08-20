@@ -2507,61 +2507,63 @@ footer {
 }
 
 /* ==========================================================================
-   Map Floating Cursor Probe Tooltip (Light Theme Glassmorphic)
+   Map Floating Corner Probe HUD (Unobtrusive Light Theme Overlay)
    ========================================================================== */
-.map-cursor-tooltip {
+.map-corner-probe-hud {
   position: absolute;
+  top: 8px;
+  right: 8px;
   z-index: 30;
   pointer-events: none;
-  background: rgba(255, 255, 255, 0.96);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border: 1px solid #cbd5e1;
-  border-radius: var(--radius-md, 8px);
-  padding: 8px 12px;
+  border-radius: var(--radius-sm, 6px);
+  padding: 6px 10px;
   color: #0f172a;
-  font-size: 0.76rem;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 4px 10px rgba(0, 0, 0, 0.05), 0 0 1px rgba(0, 0, 0, 0.2);
-  transform: translate(12px, -50%);
+  font-size: 0.72rem;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  min-width: 205px;
-  animation: popoverFadeIn 0.1s ease-out;
+  gap: 3px;
+  min-width: 195px;
+  animation: popoverFadeIn 0.15s ease-out;
 }
 
-.tooltip-coord-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  border-bottom: 1px solid #e2e8f0;
-  padding-bottom: 4px;
-  font-family: var(--font-mono, monospace);
-  font-size: 0.74rem;
-  color: #0284c7;
-  font-weight: 700;
-}
-
-.tooltip-data-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px 10px;
-}
-
-.tooltip-data-item {
+.map-corner-probe-hud .tooltip-coord-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  font-size: 0.74rem;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 3px;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.72rem;
+  color: #0284c7;
+  font-weight: 700;
 }
 
-.tooltip-label {
+.map-corner-probe-hud .tooltip-data-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 8px;
+}
+
+.map-corner-probe-hud .tooltip-data-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  font-size: 0.72rem;
+}
+
+.map-corner-probe-hud .tooltip-label {
   color: #64748b;
   font-weight: 600;
 }
 
-.tooltip-val {
+.map-corner-probe-hud .tooltip-val {
   font-family: var(--font-mono, monospace);
   font-weight: 700;
 }
@@ -2639,6 +2641,15 @@ footer {
   animation: fadeIn 0.2s ease;
 }
 
+.studio-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
 .studio-export-dropdown-wrapper {
   position: relative;
 }
@@ -2673,11 +2684,12 @@ footer {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
-  width: 270px;
+  left: auto;
+  width: 265px;
   background: #ffffff;
   border: 1px solid #cbd5e1;
   border-radius: var(--radius-md);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
   padding: 6px;
   z-index: 50;
   display: flex;
@@ -2723,6 +2735,189 @@ footer {
   height: 1px;
   background: #e2e8f0;
   margin: 3px 0;
+}
+
+/* ==========================================================================
+   Interpolation & Regional Filter Controls Toolbar
+   ========================================================================== */
+.interpolation-toolbar-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: var(--radius-md, 8px);
+  margin-bottom: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  flex-wrap: wrap;
+  transition: border-color 0.2s ease;
+}
+
+.interpolation-toolbar-card.is-rendering-active {
+  border-color: #38bdf8;
+}
+
+.interp-left-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex: 1 1 auto;
+}
+
+.interp-control-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.interp-label-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.interp-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #334155;
+  white-space: nowrap;
+}
+
+.interp-select-wrapper {
+  position: relative;
+}
+
+.interp-select {
+  padding: 5px 26px 5px 8px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #0f172a;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.interp-select:hover:not(:disabled) {
+  border-color: #94a3b8;
+  background: #ffffff;
+}
+
+.interp-select:focus {
+  border-color: #0284c7;
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.15);
+}
+
+.interp-divider {
+  width: 1px;
+  height: 20px;
+  background: #cbd5e1;
+  margin: 0 2px;
+}
+
+.regional-radius-control-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.radius-slider-bar {
+  width: 100px;
+  height: 6px;
+  accent-color: #0284c7;
+  cursor: pointer;
+}
+
+.radius-value-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 7px;
+  border-radius: 12px;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #0369a1;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.74rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.interp-rendering-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 12px;
+  background: #e0f2fe;
+  color: #0369a1;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.interp-right-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.btn-toggle-maps-collapse {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: var(--radius-sm, 6px);
+  color: #334155;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.btn-toggle-maps-collapse:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.transect-drag-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm, 6px);
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+  font-size: 0.74rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+@media (max-width: 960px) {
+  .interpolation-toolbar-card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .interp-right-group {
+    margin-left: 0;
+    justify-content: space-between;
+    width: 100%;
+    border-top: 1px solid #f1f5f9;
+    padding-top: 6px;
+  }
 }
 
 /* ==========================================================================

@@ -35,7 +35,7 @@ export function exportCompositeReportImage(options: CompositeReportOptions): voi
 
   const canvas = document.createElement('canvas');
   const W = 2400;
-  const H = 1750;
+  const H = 1360;
   canvas.width = W;
   canvas.height = H;
 
@@ -96,11 +96,11 @@ export function exportCompositeReportImage(options: CompositeReportOptions): voi
   const gridBg = buildRegularGrid(records, bounds, (r) => r.bouguer);
   const gridResidual = buildRegularGrid(records, bounds, (r) => r.residual ?? r.bouguer);
 
-  const mapW = 540;
+  const mapW = 545;
   const mapH = 370;
   const mapY = 165;
-  const startX = 50;
-  const gapX = 33;
+  const startX = 70;
+  const gapX = 26;
 
   const mapConfigs = [
     { title: '1. Topography / Bathymetry', unit: 'm', grid: gridTopo, colormap: 'gebco' as const, x: startX },
@@ -246,9 +246,9 @@ export function exportCompositeReportImage(options: CompositeReportOptions): voi
   // ==========================================
   // 3. 2D Geophysical Cross-Section Profile
   // ==========================================
-  const profX = 65;
+  const profX = 70;
   const profY = 630;
-  const profW = W - 130;
+  const profW = W - 140;
   const profH = 430;
   const splitProfY = profY + 195;
 
@@ -586,21 +586,21 @@ export function exportCompositeReportImage(options: CompositeReportOptions): voi
   // ==========================================
   const statY = H - 220;
   ctx.fillStyle = '#f8fafc';
-  ctx.fillRect(50, statY, W - 100, 130);
+  ctx.fillRect(70, statY, W - 140, 130);
   ctx.strokeStyle = '#cbd5e1';
   ctx.lineWidth = 1.5;
-  ctx.strokeRect(50, statY, W - 100, 130);
+  ctx.strokeRect(70, statY, W - 140, 130);
 
   ctx.fillStyle = '#0f172a';
   ctx.font = 'bold 15px Inter, sans-serif';
   ctx.textAlign = 'left';
-  ctx.fillText('GEOPHYSICAL REDUCTION & SURVEY SPECIFICATIONS', 70, statY + 28);
+  ctx.fillText('GEOPHYSICAL REDUCTION & SURVEY SPECIFICATIONS', 90, statY + 28);
 
   ctx.font = '13px Inter, sans-serif';
   ctx.fillStyle = '#334155';
-  ctx.fillText(`• Standard Crustal Density (ρc): ${params.crustalDensity.toFixed(2)} g/cm³`, 70, statY + 56);
-  ctx.fillText(`• Seawater Reference Density (ρw): ${params.waterDensity.toFixed(2)} g/cm³`, 70, statY + 80);
-  ctx.fillText(`• Marine Density Contrast (Δρ): ${(params.crustalDensity - params.waterDensity).toFixed(2)} g/cm³`, 70, statY + 104);
+  ctx.fillText(`• Standard Crustal Density (ρc): ${params.crustalDensity.toFixed(2)} g/cm³`, 90, statY + 56);
+  ctx.fillText(`• Seawater Reference Density (ρw): ${params.waterDensity.toFixed(2)} g/cm³`, 90, statY + 80);
+  ctx.fillText(`• Marine Density Contrast (Δρ): ${(params.crustalDensity - params.waterDensity).toFixed(2)} g/cm³`, 90, statY + 104);
 
   ctx.fillText(`• Total Soundings: ${records.length.toLocaleString()}`, 800, statY + 56);
   ctx.fillText(`• Active Transect Length: ${totalDist.toFixed(1)} km`, 800, statY + 80);
@@ -619,7 +619,7 @@ export function exportCompositeReportImage(options: CompositeReportOptions): voi
   ctx.fillText(
     'Data source: Scripps Institution of Oceanography, UC San Diego (SIO/UCSD) • TOPEX/Poseidon & Sandwell-Smith Satellite Altimetry Model',
     W / 2,
-    H - 52
+    H - 45
   );
 
   ctx.font = 'bold 15px Inter, sans-serif';
@@ -627,7 +627,7 @@ export function exportCompositeReportImage(options: CompositeReportOptions): voi
   ctx.fillText(
     'Generated with TOPEX Interactive Downloader • https://topex-interactive.yufajjiru.work',
     W / 2,
-    H - 30
+    H - 24
   );
 
   // Download Trigger
