@@ -100,11 +100,101 @@ export function clipRecordsToBounds<T extends { latitude: number; longitude: num
   const minLon = Math.min(bounds.west, bounds.east);
   const maxLon = Math.max(bounds.west, bounds.east);
 
-  return records.filter(
-    (r) =>
-      r.latitude >= minLat - 0.0001 &&
-      r.latitude <= maxLat + 0.0001 &&
-      r.longitude >= minLon - 0.0001 &&
-      r.longitude <= maxLon + 0.0001
-  );
+  return records.filter((r) => {
+    return (
+      r.latitude >= minLat &&
+      r.latitude <= maxLat &&
+      r.longitude >= minLon &&
+      r.longitude <= maxLon
+    );
+  });
+}
+
+/**
+ * Structural Grid Integrity & Checksum Validator.
+ * Verifies that returned soundings form a valid, non-truncated geophysical grid
+ * before committing to L1 memory, L2 IndexedDB, or edge cache.
+ */
+export interface TileValidationResult {
+  isValid: boolean;
+  reason?: string;
+  pointCount: number;
+  expectedMinPoints: number;
+}
+
+export function validateTileIntegrity(
+  records: { latitude: number; longitude: number; elevation?: number; gravity?: number }[] | undefined,
+  bounds: BoundingBox,
+  includeGravity: boolean
+): TileValidationResult {
+  const pointCount = records ? records.length : 0;
+
+  if (!records || pointCount === 0) {
+    return {
+      isValid: false,
+      reason: 'Empty dataset (0 soundings returned)',
+      pointCount: 0,
+      expectedMinPoints: 50,
+    };
+  }
+
+  // 1. Minimum Point Density Calculation
+  // Standard TOPEX 1-minute grid on 0.5° x 0.5° has ~31 x 31 = 961 points (min threshold ~250).
+  const latSpan = Math.abs(bounds.north - bounds.south);
+  const lonSpan = Math.abs(bounds.east - bounds.west);
+  const isFullTile = latSpan >= 0.45 && lonSpan >= 0.45;
+  const expectedMinPoints = isFullTile ? 250 : Math.max(20, Math.round(latSpan * lonSpan * 1000));
+
+  if (pointCount < expectedMinPoints) {
+    return {
+      isValid: false,
+      reason: `Truncated stream: received ${pointCount} points, expected at least ${expectedMinPoints}`,
+      pointCount,
+      expectedMinPoints,
+    };
+  }
+
+  // 2. Sample Check for NaN / Coordinate Sanity & Elevation Range (-12000m to +9000m)
+  const sampleSize = Math.min(pointCount, 30);
+  const step = Math.max(1, Math.floor(pointCount / sampleSize));
+
+  for (let i = 0; i < pointCount; i += step) {
+    const r = records[i];
+    if (isNaN(r.latitude) || isNaN(r.longitude)) {
+      return {
+        isValid: false,
+        reason: `Corrupted coordinate at index ${i}`,
+        pointCount,
+        expectedMinPoints,
+      };
+    }
+
+    if (r.elevation !== undefined) {
+      if (isNaN(r.elevation) || r.elevation < -12000 || r.elevation > 9000) {
+        return {
+          isValid: false,
+          reason: `Out-of-bounds elevation value (${r.elevation}m) at index ${i}`,
+          pointCount,
+          expectedMinPoints,
+        };
+      }
+    }
+
+    if (includeGravity && r.gravity !== undefined) {
+      if (isNaN(r.gravity) || r.gravity < -1000 || r.gravity > 1000) {
+        return {
+          isValid: false,
+          reason: `Out-of-bounds gravity anomaly value (${r.gravity} mGal) at index ${i}`,
+          pointCount,
+          expectedMinPoints,
+        };
+      }
+    }
+  }
+
+  return {
+    isValid: true,
+    pointCount,
+    expectedMinPoints,
+  };
 }

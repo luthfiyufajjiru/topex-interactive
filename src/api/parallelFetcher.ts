@@ -1,6 +1,6 @@
 import type { BoundingBox, TopexRecord } from '@/types';
 import { extractTopexData } from './client';
-import { generateChunkTiles, ChunkTile, clipRecordsToBounds } from '@/utils/chunking';
+import { generateChunkTiles, ChunkTile, clipRecordsToBounds, validateTileIntegrity } from '@/utils/chunking';
 import { getClientCachedTileAsync, setClientCachedTile } from './clientCache';
 
 export interface ChunkProgress {
@@ -49,6 +49,12 @@ export async function fetchLargeGridInChunks(
         });
 
         if (res.data && res.data.length > 0) {
+          // Perform structural integrity check before accepting
+          const validation = validateTileIntegrity(res.data, tileBounds, options.includeGravity);
+          if (!validation.isValid) {
+            console.warn(`Tile validation check failed: ${validation.reason}, retrying...`);
+            throw new Error(`Tile integrity check failed: ${validation.reason}`);
+          }
           return res.data;
         }
         return [];
