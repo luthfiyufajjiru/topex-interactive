@@ -51,6 +51,7 @@ function solveLinearSystem(A: number[][], b: number[]): number[] | null {
 /**
  * Griffin (1949) Discrete Moving Average Window Filter
  * Uses discrete grid window radius k (e.g. k=1 -> 3x3, k=2 -> 5x5, k=3 -> 7x7)
+ * Implemented via 1D Separable Boxcar Convolution (Horizontal then Vertical: O(N*M*2K))
  */
 function applyGridMovingAverage(
   records: ProcessedRecord[],
@@ -92,30 +93,42 @@ function applyGridMovingAverage(
     }
   }
 
-  const regionalGrid = new Float32Array(nrows * ncols);
-
+  // Pass 1: 1D Horizontal Boxcar Pass
+  const tempGrid = new Float32Array(nrows * ncols);
   for (let row = 0; row < nrows; row++) {
-    const minR = Math.max(0, row - k);
-    const maxR = Math.min(nrows - 1, row + k);
-
+    const rowOffset = row * ncols;
     for (let col = 0; col < ncols; col++) {
       const minC = Math.max(0, col - k);
       const maxC = Math.min(ncols - 1, col + k);
-
-      let count = 0;
       let sum = 0;
-
-      for (let nr = minR; nr <= maxR; nr++) {
-        for (let nc = minC; nc <= maxC; nc++) {
-          const val = grid[nr * ncols + nc];
-          if (!isNaN(val)) {
-            sum += val;
-            count++;
-          }
+      let count = 0;
+      for (let nc = minC; nc <= maxC; nc++) {
+        const val = grid[rowOffset + nc];
+        if (!isNaN(val)) {
+          sum += val;
+          count++;
         }
       }
+      tempGrid[rowOffset + col] = count > 0 ? sum / count : grid[rowOffset + col];
+    }
+  }
 
-      regionalGrid[row * ncols + col] = count > 0 ? sum / count : grid[row * ncols + col];
+  // Pass 2: 1D Vertical Boxcar Pass
+  const regionalGrid = new Float32Array(nrows * ncols);
+  for (let col = 0; col < ncols; col++) {
+    for (let row = 0; row < nrows; row++) {
+      const minR = Math.max(0, row - k);
+      const maxR = Math.min(nrows - 1, row + k);
+      let sum = 0;
+      let count = 0;
+      for (let nr = minR; nr <= maxR; nr++) {
+        const val = tempGrid[nr * ncols + col];
+        if (!isNaN(val)) {
+          sum += val;
+          count++;
+        }
+      }
+      regionalGrid[row * ncols + col] = count > 0 ? sum / count : tempGrid[row * ncols + col];
     }
   }
 
@@ -145,6 +158,7 @@ function applyGridMovingAverage(
 /**
  * 2D Gaussian Spatial Low-Pass Filter
  * Uses real spatial metric distance in km (radiusKm = 2 * sigma)
+ * Ultra-fast 1D Separable Gaussian Convolution (Horizontal then Vertical: O(N*M*2K))
  */
 function applyGaussianFilter(
   records: ProcessedRecord[],
@@ -170,8 +184,8 @@ function applyGaussianFilter(
   const latStepKm = nrows > 1 ? haversineDistanceKm(lats[0], midLon, lats[1], midLon) : 1;
   const lonStepKm = ncols > 1 ? haversineDistanceKm(midLat, lons[0], midLat, lons[1]) : 1;
 
-  const rCellY = Math.max(1, Math.round(radiusKm / Math.max(0.1, latStepKm)));
-  const rCellX = Math.max(1, Math.round(radiusKm / Math.max(0.1, lonStepKm)));
+  const rCellY = Math.max(1, Math.min(nrows - 1, Math.round(radiusKm / Math.max(0.1, latStepKm))));
+  const rCellX = Math.max(1, Math.min(ncols - 1, Math.round(radiusKm / Math.max(0.1, lonStepKm))));
 
   const grid = new Float32Array(nrows * ncols);
   grid.fill(NaN);
@@ -192,40 +206,62 @@ function applyGaussianFilter(
     }
   }
 
-  const sigmaKm = radiusKm / 2;
+  const sigmaKm = Math.max(1, radiusKm / 2);
   const twoSigmaSq = 2 * sigmaKm * sigmaKm;
-  const regionalGrid = new Float32Array(nrows * ncols);
 
+  // Precompute 1D Gaussian Kernel Weights along X and Y
+  const wX = new Float32Array(2 * rCellX + 1);
+  for (let dx = -rCellX; dx <= rCellX; dx++) {
+    const distKm = dx * lonStepKm;
+    wX[dx + rCellX] = Math.exp(-(distKm * distKm) / twoSigmaSq);
+  }
+
+  const wY = new Float32Array(2 * rCellY + 1);
+  for (let dy = -rCellY; dy <= rCellY; dy++) {
+    const distKm = dy * latStepKm;
+    wY[dy + rCellY] = Math.exp(-(distKm * distKm) / twoSigmaSq);
+  }
+
+  // Pass 1: Separable 1D Horizontal Gaussian Blur
+  const tempGrid = new Float32Array(nrows * ncols);
   for (let row = 0; row < nrows; row++) {
-    const minR = Math.max(0, row - rCellY);
-    const maxR = Math.min(nrows - 1, row + rCellY);
-
+    const rowOffset = row * ncols;
     for (let col = 0; col < ncols; col++) {
+      let wSum = 0;
+      let vSum = 0;
       const minC = Math.max(0, col - rCellX);
       const maxC = Math.min(ncols - 1, col + rCellX);
 
-      let weightSum = 0;
-      let valSum = 0;
-
-      for (let nr = minR; nr <= maxR; nr++) {
-        const dyKm = (nr - row) * latStepKm;
-
-        for (let nc = minC; nc <= maxC; nc++) {
-          const val = grid[nr * ncols + nc];
-          if (isNaN(val)) continue;
-
-          const dxKm = (nc - col) * lonStepKm;
-          const distSq = dxKm * dxKm + dyKm * dyKm;
-
-          if (distSq <= radiusKm * radiusKm) {
-            const w = Math.exp(-distSq / twoSigmaSq);
-            valSum += val * w;
-            weightSum += w;
-          }
+      for (let nc = minC; nc <= maxC; nc++) {
+        const v = grid[rowOffset + nc];
+        if (!isNaN(v)) {
+          const weight = wX[nc - col + rCellX];
+          vSum += v * weight;
+          wSum += weight;
         }
       }
+      tempGrid[rowOffset + col] = wSum > 0 ? vSum / wSum : grid[rowOffset + col];
+    }
+  }
 
-      regionalGrid[row * ncols + col] = weightSum > 0 ? valSum / weightSum : grid[row * ncols + col];
+  // Pass 2: Separable 1D Vertical Gaussian Blur
+  const regionalGrid = new Float32Array(nrows * ncols);
+  for (let col = 0; col < ncols; col++) {
+    for (let row = 0; row < nrows; row++) {
+      let wSum = 0;
+      let vSum = 0;
+      const minR = Math.max(0, row - rCellY);
+      const maxR = Math.min(nrows - 1, row + rCellY);
+
+      for (let nr = minR; nr <= maxR; nr++) {
+        const v = tempGrid[nr * ncols + col];
+        if (!isNaN(v)) {
+          const weight = wY[nr - row + rCellY];
+          vSum += v * weight;
+          wSum += weight;
+        }
+      }
+      regionalGrid[row * ncols + col] = wSum > 0 ? vSum / wSum : tempGrid[row * ncols + col];
     }
   }
 
