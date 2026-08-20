@@ -24,7 +24,8 @@ export type RegionalResidualMethod = 'gaussian' | 'moving_avg' | 'poly2' | 'poly
 
 export interface RegionalResidualConfig {
   method: RegionalResidualMethod;
-  radiusKm?: number; // filter window radius in km (10 to 200 km, default: 35)
+  radiusKm?: number; // for Gaussian filter in km (10 to 150 km, default: 35)
+  gridWindowCells?: number; // for Moving Average grid radius k (k=1: 3x3, k=2: 5x5, k=3: 7x7, default: 3)
 }
 
 export interface ProcessedRecord extends TopexRecord {

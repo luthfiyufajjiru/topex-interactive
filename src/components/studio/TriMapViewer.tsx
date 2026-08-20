@@ -744,16 +744,16 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
             </select>
           </div>
 
-          {/* Filter Window Radius Slider */}
-          {(residualConfig.method === 'gaussian' || residualConfig.method === 'moving_avg') && (
+          {/* Gaussian Filter Window Radius Slider (in km) */}
+          {residualConfig.method === 'gaussian' && (
             <div className="regional-radius-control-group">
-              <span className="interp-title">Window Radius:</span>
+              <span className="interp-title">Radius:</span>
               <input
                 type="range"
                 min="10"
                 max="150"
                 step="5"
-                value={residualConfig.radiusKm}
+                value={residualConfig.radiusKm ?? 35}
                 onChange={(e) =>
                   setResidualConfig((prev) => ({
                     ...prev,
@@ -761,9 +761,34 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
                   }))
                 }
                 className="density-slider radius-slider-bar"
-                title={`Filter window radius: ${residualConfig.radiusKm} km`}
+                title={`Gaussian filter radius: ${residualConfig.radiusKm ?? 35} km`}
               />
-              <span className="radius-value-pill">{residualConfig.radiusKm} km</span>
+              <span className="radius-value-pill">{residualConfig.radiusKm ?? 35} km</span>
+            </div>
+          )}
+
+          {/* Moving Average Discrete Grid Window Slider (k = 1, 2, 3...) */}
+          {residualConfig.method === 'moving_avg' && (
+            <div className="regional-radius-control-group">
+              <span className="interp-title">Grid Window:</span>
+              <input
+                type="range"
+                min="1"
+                max="12"
+                step="1"
+                value={residualConfig.gridWindowCells ?? 3}
+                onChange={(e) =>
+                  setResidualConfig((prev) => ({
+                    ...prev,
+                    gridWindowCells: parseInt(e.target.value, 10) || 1,
+                  }))
+                }
+                className="density-slider radius-slider-bar"
+                title={`Moving average grid box size: ${2 * (residualConfig.gridWindowCells ?? 3) + 1}×${2 * (residualConfig.gridWindowCells ?? 3) + 1} cells`}
+              />
+              <span className="radius-value-pill" style={{ minWidth: '78px' }}>
+                {2 * (residualConfig.gridWindowCells ?? 3) + 1}×{2 * (residualConfig.gridWindowCells ?? 3) + 1} (k={residualConfig.gridWindowCells ?? 3})
+              </span>
             </div>
           )}
 
