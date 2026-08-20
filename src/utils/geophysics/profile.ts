@@ -32,7 +32,10 @@ export function extractProfilePoints(
   method: InterpolationMethod = 'bicubic',
   numSamples = 100,
   gridSba: RegularGrid2D | null = null,
-  gridTc: RegularGrid2D | null = null
+  gridTc: RegularGrid2D | null = null,
+  gridFhd: RegularGrid2D | null = null,
+  gridSvd: RegularGrid2D | null = null,
+  gridTdr: RegularGrid2D | null = null
 ): ProfilePoint[] {
   if (!gridTopo) return [];
 
@@ -58,6 +61,9 @@ export function extractProfilePoints(
     const tc = gridTc ? sampleInterpolatedValue(gridTc, u, v, method) : undefined;
     const residual = gridResidual ? sampleInterpolatedValue(gridResidual, u, v, method) : undefined;
     const regional = gridRegional ? sampleInterpolatedValue(gridRegional, u, v, method) : undefined;
+    const fhd = gridFhd ? sampleInterpolatedValue(gridFhd, u, v, method) : undefined;
+    const svd = gridSvd ? sampleInterpolatedValue(gridSvd, u, v, method) : undefined;
+    const tdr = gridTdr ? sampleInterpolatedValue(gridTdr, u, v, method) : undefined;
 
     points.push({
       index: i,
@@ -71,6 +77,9 @@ export function extractProfilePoints(
       terrainCorrection: tc !== undefined ? Number(tc.toFixed(2)) : undefined,
       residual: residual !== undefined ? Number(residual.toFixed(2)) : undefined,
       regional: regional !== undefined ? Number(regional.toFixed(2)) : undefined,
+      fhd: fhd !== undefined ? Number(fhd.toFixed(3)) : undefined,
+      svd: svd !== undefined ? Number(svd.toFixed(4)) : undefined,
+      tdr: tdr !== undefined ? Number(tdr.toFixed(1)) : undefined,
     });
   }
 
@@ -83,7 +92,22 @@ export function extractProfilePoints(
 export function exportProfileToCsv(points: ProfilePoint[], filename = 'topex_cross_section_profile.csv'): void {
   if (points.length === 0) return;
 
-  const headers = ['Index', 'Distance_km', 'Latitude', 'Longitude', 'Topography_m', 'FreeAir_mGal', 'Bouguer_mGal', 'Residual_mGal', 'Regional_mGal'];
+  const headers = [
+    'Index',
+    'Distance_km',
+    'Latitude',
+    'Longitude',
+    'Topography_m',
+    'FreeAir_mGal',
+    'Bouguer_CBA_mGal',
+    'SimpleBouguer_SBA_mGal',
+    'TerrainCorrection_TC_mGal',
+    'Residual_mGal',
+    'Regional_mGal',
+    'FHD_mGal_per_km',
+    'SVD_mGal_per_km2',
+    'TiltAngle_deg',
+  ];
   const rows = points.map((p) => [
     p.index,
     p.distanceKm,
@@ -92,8 +116,13 @@ export function exportProfileToCsv(points: ProfilePoint[], filename = 'topex_cro
     p.elevation,
     p.freeAir ?? '',
     p.bouguer ?? '',
+    p.simpleBouguer ?? '',
+    p.terrainCorrection ?? '',
     p.residual ?? '',
     p.regional ?? '',
+    p.fhd ?? '',
+    p.svd ?? '',
+    p.tdr ?? '',
   ]);
 
   const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');

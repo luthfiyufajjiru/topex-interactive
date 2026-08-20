@@ -22,6 +22,16 @@ export interface BouguerParams {
   terrainRadiusKm?: number; // default: 15 km
 }
 
+export interface RegularGrid2D {
+  lats: number[];
+  lons: number[];
+  nrows: number;
+  ncols: number;
+  data: Float32Array;
+  minVal: number;
+  maxVal: number;
+}
+
 export type RegionalResidualMethod = 'gaussian' | 'moving_avg' | 'poly2' | 'poly1' | 'none';
 
 export interface RegionalResidualConfig {
@@ -37,6 +47,9 @@ export interface ProcessedRecord extends TopexRecord {
   slabCorrection?: number;
   regional?: number;
   residual?: number;
+  fhd?: number; // First Horizontal Derivative (mGal/km)
+  svd?: number; // Second Vertical Derivative (mGal/km2)
+  tdr?: number; // Tilt Derivative / Tilt Angle (degrees)
 }
 
 export interface ProfilePoint {
@@ -52,6 +65,9 @@ export interface ProfilePoint {
   slabCorrection?: number;
   regional?: number;
   residual?: number;
+  fhd?: number;
+  svd?: number;
+  tdr?: number;
 }
 
 export interface ProfileLine {

@@ -209,11 +209,16 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
   const gridBg = baseGrids.bouguer;
   const gridSba = baseGrids.simpleBouguer;
   const gridTc = baseGrids.tc;
+  const gridFhd = baseGrids.fhd ?? null;
+  const gridSvd = baseGrids.svd ?? null;
+  const gridTdr = baseGrids.tdr ?? null;
   const gridResidual = residualGrids.residual ?? baseGrids.residual;
   const gridRegional = residualGrids.regional ?? baseGrids.regional;
 
-  // Map 3 Anomaly Display Mode: 'residual' | 'bouguer' | 'simpleBouguer' | 'tc' | 'regional'
-  const [bouguerViewMode, setBouguerViewMode] = useState<'residual' | 'bouguer' | 'simpleBouguer' | 'tc' | 'regional'>('residual');
+  // Map 3 Anomaly Display Mode: 'residual' | 'bouguer' | 'simpleBouguer' | 'tc' | 'fhd' | 'svd' | 'tdr' | 'regional'
+  const [bouguerViewMode, setBouguerViewMode] = useState<
+    'residual' | 'bouguer' | 'simpleBouguer' | 'tc' | 'fhd' | 'svd' | 'tdr' | 'regional'
+  >('residual');
 
   const activeMap3Grid =
     bouguerViewMode === 'residual'
@@ -224,12 +229,18 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
       ? gridSba
       : bouguerViewMode === 'tc'
       ? gridTc
+      : bouguerViewMode === 'fhd'
+      ? gridFhd
+      : bouguerViewMode === 'svd'
+      ? gridSvd
+      : bouguerViewMode === 'tdr'
+      ? gridTdr
       : gridBg;
 
   const activeMap3Colormap: ColormapName =
-    bouguerViewMode === 'residual'
+    bouguerViewMode === 'residual' || bouguerViewMode === 'svd' || bouguerViewMode === 'tdr'
       ? 'coolwarm'
-      : bouguerViewMode === 'tc'
+      : bouguerViewMode === 'tc' || bouguerViewMode === 'fhd'
       ? 'turbo'
       : 'viridis';
 
@@ -246,9 +257,12 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
       interpolationMethod,
       120,
       gridSba,
-      gridTc
+      gridTc,
+      gridFhd,
+      gridSvd,
+      gridTdr
     );
-  }, [activeLine, gridTopo, gridFaa, gridBg, gridResidual, gridRegional, bounds, interpolationMethod, gridSba, gridTc]);
+  }, [activeLine, gridTopo, gridFaa, gridBg, gridResidual, gridRegional, bounds, interpolationMethod, gridSba, gridTc, gridFhd, gridSvd, gridTdr]);
 
   // Add new Profile Line
   const handleAddLine = () => {
@@ -1446,6 +1460,30 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
                 </button>
                 <button
                   type="button"
+                  className={`btn-mode-pill ${bouguerViewMode === 'fhd' ? 'active' : ''}`}
+                  onClick={() => setBouguerViewMode('fhd')}
+                  title="First Horizontal Derivative: Maxima peaks trace faults & edges"
+                >
+                  FHD (Faults)
+                </button>
+                <button
+                  type="button"
+                  className={`btn-mode-pill ${bouguerViewMode === 'svd' ? 'active' : ''}`}
+                  onClick={() => setBouguerViewMode('svd')}
+                  title="Second Vertical Derivative: Zero-crossings trace boundary contacts"
+                >
+                  SVD (Laplace)
+                </button>
+                <button
+                  type="button"
+                  className={`btn-mode-pill ${bouguerViewMode === 'tdr' ? 'active' : ''}`}
+                  onClick={() => setBouguerViewMode('tdr')}
+                  title="Tilt Derivative: Normalized angle (-90° to +90°) for subtle lineaments"
+                >
+                  Tilt (TDR)
+                </button>
+                <button
+                  type="button"
                   className={`btn-mode-pill ${bouguerViewMode === 'regional' ? 'active' : ''}`}
                   onClick={() => setBouguerViewMode('regional')}
                   title="Regional Trend: Deep background crust/Moho field"
@@ -1484,6 +1522,12 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
                       ? 'Rendering Simple Bouguer...'
                       : bouguerViewMode === 'tc'
                       ? 'Rendering Terrain Correction...'
+                      : bouguerViewMode === 'fhd'
+                      ? 'Computing Horizontal Gradient (FHD)...'
+                      : bouguerViewMode === 'svd'
+                      ? 'Computing Laplace Derivative (SVD)...'
+                      : bouguerViewMode === 'tdr'
+                      ? 'Computing Tilt Angle (TDR)...'
                       : 'Rendering Complete Bouguer Anomaly...'}
                   </span>
                 </div>
@@ -1549,12 +1593,6 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
                     </span>
                   </div>
                   <div className="tooltip-data-item">
-                    <span className="tooltip-label">Regional:</span>
-                    <span className="tooltip-val" style={{ color: '#0284c7' }}>
-                      {hoveredRecord.regional !== undefined ? `${hoveredRecord.regional.toFixed(1)} mGal` : 'N/A'}
-                    </span>
-                  </div>
-                  <div className="tooltip-data-item">
                     <span className="tooltip-label">Residual:</span>
                     <span className="tooltip-val" style={{ color: '#7c3aed' }}>
                       {hoveredRecord.residual !== undefined ? `${hoveredRecord.residual.toFixed(1)} mGal` : 'N/A'}
@@ -1569,7 +1607,15 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
               colormap={activeMap3Colormap}
               min={activeMap3Grid.minVal}
               max={activeMap3Grid.maxVal}
-              unit="mGal"
+              unit={
+                bouguerViewMode === 'fhd'
+                  ? 'mGal/km'
+                  : bouguerViewMode === 'svd'
+                  ? 'mGal/km²'
+                  : bouguerViewMode === 'tdr'
+                  ? 'deg (°)'
+                  : 'mGal'
+              }
               label={
                 bouguerViewMode === 'residual'
                   ? 'Residual Anomaly'
@@ -1579,6 +1625,12 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
                   ? 'Simple Bouguer (SBA)'
                   : bouguerViewMode === 'tc'
                   ? 'Terrain Correction (TC)'
+                  : bouguerViewMode === 'fhd'
+                  ? 'First Horizontal Derivative (FHD)'
+                  : bouguerViewMode === 'svd'
+                  ? 'Second Vertical Derivative (SVD)'
+                  : bouguerViewMode === 'tdr'
+                  ? 'Tilt Angle Derivative (TDR)'
                   : 'Complete Bouguer (CBA)'
               }
             />

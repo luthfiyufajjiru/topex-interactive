@@ -1,5 +1,6 @@
 import type { ProcessedRecord, BoundingBox, InterpolationMethod } from '@/types';
 import { getInterpolatedColor, ColormapName } from './colormaps';
+import { computePotentialFieldDerivatives } from './derivatives';
 
 export interface RegularGrid2D {
   lats: number[];
@@ -12,7 +13,7 @@ export interface RegularGrid2D {
 }
 
 /**
- * Builds all 5 geophysical 2D regular grids (Topo, FAA, Bouguer, Residual, Regional)
+ * Builds all geophysical 2D regular grids (Topo, FAA, Bouguer, Simple Bouguer, TC, Residual, Regional, FHD, SVD, TDR)
  * in a single high-performance vectorized pass.
  */
 export interface AllGridsResult {
@@ -23,14 +24,28 @@ export interface AllGridsResult {
   tc: RegularGrid2D | null;
   residual: RegularGrid2D | null;
   regional: RegularGrid2D | null;
+  fhd?: RegularGrid2D | null;
+  svd?: RegularGrid2D | null;
+  tdr?: RegularGrid2D | null;
 }
 
 export function buildAllRegularGrids(
   records: ProcessedRecord[],
-  _bounds: BoundingBox
+  bounds: BoundingBox
 ): AllGridsResult {
   if (records.length === 0) {
-    return { topo: null, faa: null, bouguer: null, simpleBouguer: null, tc: null, residual: null, regional: null };
+    return {
+      topo: null,
+      faa: null,
+      bouguer: null,
+      simpleBouguer: null,
+      tc: null,
+      residual: null,
+      regional: null,
+      fhd: null,
+      svd: null,
+      tdr: null,
+    };
   }
 
   // 1. Single pass coordinate collection
@@ -166,7 +181,7 @@ export function buildAllRegularGrids(
   fillGaps(dataRes);
   fillGaps(dataReg);
 
-  return {
+  const baseResult: AllGridsResult = {
     topo: {
       lats,
       lons,
@@ -231,6 +246,16 @@ export function buildAllRegularGrids(
       maxVal: maxReg === -Infinity ? 50 : maxReg,
     },
   };
+
+  // Compute FHD, SVD, TDR on Complete Bouguer Grid
+  if (baseResult.bouguer) {
+    const derivGrids = computePotentialFieldDerivatives(baseResult.bouguer, bounds);
+    baseResult.fhd = derivGrids.fhd;
+    baseResult.svd = derivGrids.svd;
+    baseResult.tdr = derivGrids.tdr;
+  }
+
+  return baseResult;
 }
 
 /**
