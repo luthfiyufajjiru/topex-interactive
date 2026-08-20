@@ -30,14 +30,14 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
   onSetPresetLine,
 }) => {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
-  const [pinnedIndex, setPinnedIndex] = useState<number | null>(null);
+  const [pinnedIndices, setPinnedIndices] = useState<number[]>([]);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   if (points.length === 0) return null;
 
   const totalDist = points[points.length - 1].distanceKm;
 
-  // Compute min/max for gravity
+  // Compute min/max for gravity (including Free-Air, Bouguer, and Residual)
   let minGrav = 0;
   let maxGrav = 0;
   let hasGravity = false;
@@ -53,6 +53,11 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
       hasGravity = true;
       if (p.bouguer < minGrav) minGrav = p.bouguer;
       if (p.bouguer > maxGrav) maxGrav = p.bouguer;
+    }
+    if (p.residual !== undefined) {
+      hasGravity = true;
+      if (p.residual < minGrav) minGrav = p.residual;
+      if (p.residual > maxGrav) maxGrav = p.residual;
     }
   }
 
@@ -148,33 +153,54 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
 
   // Mouse move handler
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (pinnedIndex !== null) return; // Keep pinned point active
     const idx = getIndexFromMouseEvent(e);
     setHoverIndex(idx);
     onHoverPoint(points[idx]);
   };
 
-  // Click handler: Toggle Pinned Correlation Line
+  // Click handler: Toggle Multiple Pinned Correlation Lines
   const handleClick = (e: React.MouseEvent<SVGSVGElement>) => {
     const idx = getIndexFromMouseEvent(e);
-    if (pinnedIndex === idx) {
-      setPinnedIndex(null);
-    } else {
-      setPinnedIndex(idx);
-      onHoverPoint(points[idx]);
-    }
+    setPinnedIndices((prev) => {
+      // Toggle off if clicked within proximity of an existing pin
+      const nearIdx = prev.findIndex((p) => Math.abs(p - idx) <= Math.max(2, Math.round(points.length * 0.015)));
+      if (nearIdx !== -1) {
+        return prev.filter((_, i) => i !== nearIdx);
+      }
+      // Add up to 8 pinned sounding targets along the transect
+      if (prev.length >= 8) {
+        return [...prev.slice(1), idx];
+      }
+      return [...prev, idx];
+    });
+    onHoverPoint(points[idx]);
   };
 
   const handleMouseLeave = () => {
-    if (pinnedIndex === null) {
-      setHoverIndex(null);
+    setHoverIndex(null);
+    if (pinnedIndices.length > 0) {
+      onHoverPoint(points[pinnedIndices[pinnedIndices.length - 1]]);
+    } else {
       onHoverPoint(null);
     }
   };
 
-  // Active Correlation Point (Pinned has priority, fallback to hover, fallback to mid-point default)
-  const activeIdx = pinnedIndex !== null ? pinnedIndex : hoverIndex !== null ? hoverIndex : Math.floor(points.length / 2);
+  // Active Sounding Record to display in stats footer
+  const activeIdx = hoverIndex !== null
+    ? hoverIndex
+    : pinnedIndices.length > 0
+    ? pinnedIndices[pinnedIndices.length - 1]
+    : Math.floor(points.length / 2);
   const activePoint = points[activeIdx] || hoveredPoint;
+
+  // Collect all points to render correlation lines for
+  const correlationIndices: { index: number; isPinned: boolean }[] = [];
+  pinnedIndices.forEach((idx) => {
+    correlationIndices.push({ index: idx, isPinned: true });
+  });
+  if (hoverIndex !== null && !pinnedIndices.includes(hoverIndex)) {
+    correlationIndices.push({ index: hoverIndex, isPinned: false });
+  }
 
   return (
     <div className="profile-graph-card">
@@ -252,121 +278,107 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
           </div>
           <div>
             <h3 className="profile-title">
-              2D Geophysical Cross-Section: {activeLine.name} ({activeLine.labelStart} &rarr; {activeLine.labelEnd})
+              2D Cross-Section: {activeLine.name} ({activeLine.labelStart} &rarr; {activeLine.labelEnd})
             </h3>
-            <p className="profile-desc">
-              Total Length: <strong>{totalDist.toFixed(1)} km</strong> &bull; Start: ({activeLine.start.lat.toFixed(3)}&deg;, {activeLine.start.lon.toFixed(3)}&deg;) &bull; End: ({activeLine.end.lat.toFixed(3)}&deg;, {activeLine.end.lon.toFixed(3)}&deg;)
-            </p>
+            <span className="profile-subtitle">
+              Total Length: {totalDist.toFixed(1)} km &bull; {points.length} soundings &bull; Click anywhere on profile to add multiple picks
+            </span>
           </div>
         </div>
 
-        {/* Transect Preset Toolbar & Exporter */}
+        {/* Quick Preset Buttons & Exporters */}
         <div className="profile-actions-group">
           <div className="preset-buttons-group">
             <button
               type="button"
-              className="btn-preset-transect"
+              className="btn-preset"
               onClick={() => onSetPresetLine('we')}
-              title="Align active line: West to East"
+              title="Align transect West to East (W → E)"
             >
-              <Compass size={13} />
+              <Compass size={12} />
               <span>W &rarr; E</span>
             </button>
             <button
               type="button"
-              className="btn-preset-transect"
+              className="btn-preset"
               onClick={() => onSetPresetLine('ns')}
-              title="Align active line: North to South"
+              title="Align transect North to South (N → S)"
             >
-              <Compass size={13} />
+              <Compass size={12} />
               <span>N &rarr; S</span>
             </button>
             <button
               type="button"
-              className="btn-preset-transect"
+              className="btn-preset"
               onClick={() => onSetPresetLine('diag1')}
-              title="Align active line: SW to NE diagonal"
+              title="Align transect NW to SE"
             >
-              <Compass size={13} />
-              <span>SW &rarr; NE</span>
+              <span>NW &rarr; SE</span>
             </button>
             <button
               type="button"
-              className="btn-preset-transect"
+              className="btn-preset"
               onClick={() => onSetPresetLine('diag2')}
-              title="Align active line: NW to SE diagonal"
+              title="Align transect SW to NE"
             >
-              <Compass size={13} />
-              <span>NW &rarr; SE</span>
+              <span>SW &rarr; NE</span>
             </button>
           </div>
 
           <button
             type="button"
-            className="btn-save-plot-png"
+            className="btn-export-profile-img"
             onClick={() => exportProfileGraphToPng({ points, line: activeLine, activePoint })}
-            title="Download publication-ready 2D Cross-Section Plot (PNG) with correlation line"
+            title="Download high-resolution PNG image of this 2D profile"
           >
-            <Image size={14} />
-            <span>Save Plot (PNG)</span>
+            <Image size={13} />
+            <span>Profile PNG</span>
           </button>
 
           <button
             type="button"
-            className="btn-export-profile-csv"
-            onClick={() => exportProfileToCsv(points, `${activeLine.name.toLowerCase().replace(/\s+/g, '_')}_profile.csv`)}
-            title="Download Active Profile Data as CSV"
+            className="btn-export-csv"
+            onClick={() => exportProfileToCsv(points, `profile_${activeLine.name.toLowerCase().replace(/\s+/g, '_')}.csv`)}
+            title="Export this transect profile soundings to CSV"
           >
-            <Download size={14} />
-            <span>Export Profile (.CSV)</span>
+            <Download size={13} />
+            <span>Export CSV</span>
           </button>
         </div>
       </div>
 
-      {/* SVG Interactive Profile Canvas with Correlation Line & Picked Value Tags */}
-      <div className="svg-profile-wrapper" ref={containerRef}>
+      {/* SVG Interactive Profile Canvas */}
+      <div className="profile-svg-container" ref={containerRef}>
         <svg
           viewBox={`0 0 ${svgWidth} ${svgHeight}`}
           className="profile-svg"
           onMouseMove={handleMouseMove}
-          onClick={handleClick}
           onMouseLeave={handleMouseLeave}
+          onClick={handleClick}
           style={{ cursor: 'crosshair' }}
         >
           <defs>
-            {/* Topography Crust Gradient (Light Earth Sandstone) */}
-            <linearGradient id="crustGradLight" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#e2e8f0" stopOpacity="0.9" />
-              <stop offset="100%" stopColor="#f1f5f9" stopOpacity="0.95" />
+            {/* Topography Crust Gradient */}
+            <linearGradient id="crustGradLight" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#10b981" stopOpacity="0.45" />
+              <stop offset="40%" stopColor="#059669" stopOpacity="0.25" />
+              <stop offset="100%" stopColor="#047857" stopOpacity="0.10" />
             </linearGradient>
           </defs>
 
-          {/* Clean Light Background */}
-          <rect x={0} y={0} width={svgWidth} height={svgHeight} fill="#ffffff" rx={8} />
-
-          {/* Gravity Box */}
+          {/* Grid Background Lines (Gravity Panel) */}
           <rect
             x={margin.left}
             y={margin.top}
             width={graphWidth}
             height={gravHeight}
-            fill="#f8fafc"
+            fill="#ffffff"
             stroke="#e2e8f0"
             strokeWidth={1}
           />
 
-          {/* Horizontal grid lines for gravity */}
-          <line
-            x1={margin.left}
-            y1={margin.top + gravHeight / 2}
-            x2={margin.left + graphWidth}
-            y2={margin.top + gravHeight / 2}
-            stroke="#f1f5f9"
-            strokeWidth={1}
-          />
-
           {/* Zero Gravity Line */}
-          {minGrav <= 0 && maxGrav >= 0 && (
+          {hasGravity && (
             <line
               x1={margin.left}
               y1={zeroGravY}
@@ -399,17 +411,6 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
             strokeWidth={1.2}
             strokeDasharray="5 3"
           />
-          <text
-            x={margin.left + graphWidth - 8}
-            y={zeroElevY - 4}
-            fill="#0284c7"
-            fontSize="10"
-            fontWeight="bold"
-            textAnchor="end"
-            fontFamily="monospace"
-          >
-            0 m Sea Level (MSL)
-          </text>
 
           {/* Topography Crust Fill & Outline */}
           <path d={topoAreaPath} fill="url(#crustGradLight)" />
@@ -424,7 +425,7 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
               )}
               {/* Free Air Curve (Royal Sky Blue) */}
               <path d={faaPath} fill="none" stroke="#0284c7" strokeWidth={2.0} />
-              {/* Bouguer Curve (Rich Amber Orange) */}
+              {/* Complete Bouguer Curve (Rich Amber Orange) */}
               <path d={bgPath} fill="none" stroke="#d97706" strokeWidth={2.4} />
               {/* Residual Anomaly Curve (Vibrant Violet/Purple) */}
               {residualPath && (
@@ -539,35 +540,40 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
             Profile Distance (km)
           </text>
 
-          {/* Continuous Vertical Correlation Tracker Line Across Both Panels */}
-          {activePoint && (() => {
-            const posX = scaleX(activePoint.distanceKm);
+          {/* Render All Multiple Correlation Tracker Lines & Value Tags */}
+          {correlationIndices.map(({ index, isPinned }) => {
+            const point = points[index];
+            if (!point) return null;
+
+            const posX = scaleX(point.distanceKm);
             const isRightSide = posX > margin.left + graphWidth * 0.75;
             const badgeAnchor = isRightSide ? 'end' : 'start';
             const badgeOffset = isRightSide ? -10 : 10;
 
-            const yCba = activePoint.bouguer !== undefined ? scaleYGrav(activePoint.bouguer) : null;
-            const yFaa = activePoint.freeAir !== undefined ? scaleYGrav(activePoint.freeAir) : null;
-            const yTopo = scaleYTopo(activePoint.elevation);
+            const yCba = point.bouguer !== undefined ? scaleYGrav(point.bouguer) : null;
+            const yFaa = point.freeAir !== undefined ? scaleYGrav(point.freeAir) : null;
+            const yRes = point.residual !== undefined ? scaleYGrav(point.residual) : null;
+            const yTopo = scaleYTopo(point.elevation);
 
             return (
-              <g className="correlation-group">
-                {/* 1. Full vertical correlation dashed line */}
+              <g key={`pick-${index}-${isPinned ? 'pinned' : 'hover'}`} className="correlation-group">
+                {/* 1. Full vertical correlation line */}
                 <line
                   x1={posX}
                   y1={margin.top}
                   x2={posX}
                   y2={bottomY}
-                  stroke="#0f172a"
-                  strokeWidth={2}
-                  strokeDasharray="4 3"
+                  stroke={isPinned ? '#0f172a' : '#64748b'}
+                  strokeWidth={isPinned ? 2 : 1.4}
+                  strokeDasharray={isPinned ? '4 3' : '3 3'}
+                  opacity={isPinned ? 1 : 0.85}
                 />
 
                 {/* 2. Topo Picked Anchor Dot & Value Tag */}
                 <circle
                   cx={posX}
                   cy={yTopo}
-                  r={5.5}
+                  r={isPinned ? 6 : 4.5}
                   fill="#059669"
                   stroke="#ffffff"
                   strokeWidth={2.5}
@@ -591,7 +597,7 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
                   textAnchor={badgeAnchor}
                   fontFamily="monospace"
                 >
-                  {activePoint.elevation.toFixed(1)} m
+                  {point.elevation.toFixed(1)} m
                 </text>
 
                 {/* 3. FAA Picked Anchor Dot & Value Tag */}
@@ -600,7 +606,7 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
                     <circle
                       cx={posX}
                       cy={yFaa}
-                      r={5}
+                      r={isPinned ? 5.5 : 4}
                       fill="#0284c7"
                       stroke="#ffffff"
                       strokeWidth={2}
@@ -624,7 +630,7 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
                       textAnchor={badgeAnchor}
                       fontFamily="monospace"
                     >
-                      {activePoint.freeAir?.toFixed(1)} mGal
+                      {point.freeAir?.toFixed(1)} mGal
                     </text>
                   </>
                 )}
@@ -635,7 +641,7 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
                     <circle
                       cx={posX}
                       cy={yCba}
-                      r={5.5}
+                      r={isPinned ? 6 : 4.5}
                       fill="#d97706"
                       stroke="#ffffff"
                       strokeWidth={2.5}
@@ -659,19 +665,54 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
                       textAnchor={badgeAnchor}
                       fontFamily="monospace"
                     >
-                      {activePoint.bouguer?.toFixed(1)} mGal
+                      {point.bouguer?.toFixed(1)} mGal
                     </text>
                   </>
                 )}
 
-                {/* 5. Bottom Distance Callout Tag */}
+                {/* 5. Residual Anomaly Picked Anchor Dot & Value Tag */}
+                {yRes !== null && (
+                  <>
+                    <circle
+                      cx={posX}
+                      cy={yRes}
+                      r={isPinned ? 6 : 4.5}
+                      fill="#8b5cf6"
+                      stroke="#ffffff"
+                      strokeWidth={2.5}
+                    />
+                    <rect
+                      x={isRightSide ? posX - 84 : posX + 8}
+                      y={yRes - 10}
+                      width={76}
+                      height={20}
+                      rx={4}
+                      fill="#f5f3ff"
+                      stroke="#ddd6fe"
+                      strokeWidth={1}
+                    />
+                    <text
+                      x={posX + badgeOffset}
+                      y={yRes + 4}
+                      fill="#6d28d9"
+                      fontSize="10.5"
+                      fontWeight="bold"
+                      textAnchor={badgeAnchor}
+                      fontFamily="monospace"
+                    >
+                      {point.residual?.toFixed(1)} mGal
+                    </text>
+                  </>
+                )}
+
+                {/* 6. Bottom Distance Callout Tag */}
                 <rect
                   x={posX - 38}
                   y={bottomY + 4}
                   width={76}
                   height={18}
                   rx={3}
-                  fill="#0f172a"
+                  fill={isPinned ? '#0f172a' : '#475569'}
                 />
                 <text
                   x={posX}
@@ -682,15 +723,15 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
                   textAnchor="middle"
                   fontFamily="monospace"
                 >
-                  {activePoint.distanceKm.toFixed(1)} km
+                  {point.distanceKm.toFixed(1)} km
                 </text>
               </g>
             );
-          })()}
+          })}
         </svg>
       </div>
 
-      {/* Legend & Hover Data Bar with Pin/Unpin Status */}
+      {/* Legend & Hover Data Bar with Multi-Pin Clear Action */}
       <div className="profile-footer-bar">
         <div className="profile-legends">
           <div className="legend-item">
@@ -713,12 +754,12 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
 
         {activePoint && (
           <div className="profile-probe-values">
-            {pinnedIndex !== null ? (
+            {pinnedIndices.length > 0 && (
               <span className="pin-indicator">
                 <Pin size={13} className="text-emerald" />
-                <strong>Pinned Pick</strong>
+                <strong>Picks: {pinnedIndices.length}</strong>
               </span>
-            ) : null}
+            )}
             <span className="probe-highlight-dist">
               Dist: <strong>{activePoint.distanceKm.toFixed(1)} km</strong>
             </span>
@@ -740,15 +781,15 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
               </span>
             )}
 
-            {pinnedIndex !== null && (
+            {pinnedIndices.length > 0 && (
               <button
                 type="button"
                 className="btn-unpin"
-                onClick={() => setPinnedIndex(null)}
-                title="Unpin correlation line"
+                onClick={() => setPinnedIndices([])}
+                title="Clear all pinned correlation picks"
               >
                 <PinOff size={12} />
-                <span>Unpin</span>
+                <span>Clear ({pinnedIndices.length})</span>
               </button>
             )}
           </div>
