@@ -641,56 +641,22 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
             Profile Distance (km)
           </text>
 
-          {/* Render All Multiple Correlation Tracker Lines & Value Tags */}
+          {/* Render All Multiple Correlation Tracker Lines & Subtle Pinned Markers */}
           {correlationIndices.map(({ index, isPinned }) => {
             const point = points[index];
             if (!point) return null;
 
             const posX = scaleX(point.distanceKm);
-            const isRightSide = posX > margin.left + graphWidth * 0.75;
-            const badgeAnchor = isRightSide ? 'end' : 'start';
-            const badgeOffset = isRightSide ? -10 : 10;
-
             const yCba = point.bouguer !== undefined ? scaleYGrav(point.bouguer) : null;
             const yFaa = point.freeAir !== undefined ? scaleYGrav(point.freeAir) : null;
             const yRes = point.residual !== undefined ? scaleYGrav(point.residual) : null;
-            const yTopo = scaleYTopo(point.elevation);
-
             const ySba = point.simpleBouguer !== undefined ? scaleYGrav(point.simpleBouguer) : null;
             const yFhd = point.fhd !== undefined ? scaleYFhd(point.fhd) : null;
             const ySvd = point.svd !== undefined ? scaleYSvd(point.svd) : null;
             const yTdr = point.tdr !== undefined ? scaleYTdr(point.tdr) : null;
+            const yTopo = scaleYTopo(point.elevation);
 
-            // Compute collision-free badge Y positions for gravity values
-            const gravBadges = [
-              visibleChannels.faa && yFaa !== null ? { key: 'faa', anchorY: yFaa, y: yFaa, val: `${point.freeAir?.toFixed(1)} mGal`, color: '#0369a1', bg: '#f0f9ff', border: '#bae6fd', dotColor: '#0284c7' } : null,
-              visibleChannels.cba && yCba !== null ? { key: 'cba', anchorY: yCba, y: yCba, val: `${point.bouguer?.toFixed(1)} mGal`, color: '#b45309', bg: '#fffbeb', border: '#fde68a', dotColor: '#d97706' } : null,
-              visibleChannels.sba && ySba !== null ? { key: 'sba', anchorY: ySba, y: ySba, val: `${point.simpleBouguer?.toFixed(1)} mGal`, color: '#92400e', bg: '#fef3c7', border: '#fcd34d', dotColor: '#b45309' } : null,
-              visibleChannels.residual && yRes !== null ? { key: 'res', anchorY: yRes, y: yRes, val: `${point.residual?.toFixed(1)} mGal`, color: '#6d28d9', bg: '#f5f3ff', border: '#ddd6fe', dotColor: '#8b5cf6' } : null,
-              visibleChannels.fhd && yFhd !== null ? { key: 'fhd', anchorY: yFhd, y: yFhd, val: `${point.fhd?.toFixed(2)} mGal/km`, color: '#be123c', bg: '#fff1f2', border: '#fecdd3', dotColor: '#e11d48' } : null,
-              visibleChannels.svd && ySvd !== null ? { key: 'svd', anchorY: ySvd, y: ySvd, val: `${point.svd?.toFixed(3)} mGal/km²`, color: '#0f766e', bg: '#f0fdfa', border: '#99f6e4', dotColor: '#0d9488' } : null,
-              visibleChannels.tdr && yTdr !== null ? { key: 'tdr', anchorY: yTdr, y: yTdr, val: `${point.tdr?.toFixed(1)}°`, color: '#b45309', bg: '#fffbeb', border: '#fde68a', dotColor: '#f59e0b' } : null,
-            ].filter((b): b is { key: string; anchorY: number; y: number; val: string; color: string; bg: string; border: string; dotColor: string } => b !== null);
-
-            // Sort by anchor Y
-            gravBadges.sort((a, b) => a.y - b.y);
-
-            // Maintain minimum 22px vertical clearance between badges
-            for (let bIdx = 1; bIdx < gravBadges.length; bIdx++) {
-              if (gravBadges[bIdx].y - gravBadges[bIdx - 1].y < 22) {
-                gravBadges[bIdx].y = gravBadges[bIdx - 1].y + 22;
-              }
-            }
-            // Keep within gravity chart bounds
-            const maxGravY = splitY - 12;
-            for (let bIdx = gravBadges.length - 1; bIdx >= 0; bIdx--) {
-              if (gravBadges[bIdx].y > maxGravY) {
-                gravBadges[bIdx].y = maxGravY;
-                if (bIdx > 0 && gravBadges[bIdx].y - gravBadges[bIdx - 1].y < 22) {
-                  gravBadges[bIdx - 1].y = gravBadges[bIdx].y - 22;
-                }
-              }
-            }
+            const pinNumber = isPinned ? pinnedIndices.indexOf(index) + 1 : null;
 
             return (
               <g key={`pick-${index}-${isPinned ? 'pinned' : 'hover'}`} className="correlation-group">
@@ -700,115 +666,141 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
                   y1={margin.top}
                   x2={posX}
                   y2={bottomY}
-                  stroke={isPinned ? '#0f172a' : '#64748b'}
-                  strokeWidth={isPinned ? 2 : 1.4}
-                  strokeDasharray={isPinned ? '4 3' : '3 3'}
-                  opacity={isPinned ? 1 : 0.85}
+                  stroke={isPinned ? '#d97706' : '#0284c7'}
+                  strokeWidth={isPinned ? 2 : 1.5}
+                  strokeDasharray={isPinned ? '5 3' : '3 3'}
+                  opacity={isPinned ? 0.95 : 0.85}
                 />
 
-                {/* 2. Topo Picked Anchor Dot & Value Tag */}
+                {/* 2. Topo Picked Anchor Dot */}
                 <circle
                   cx={posX}
                   cy={yTopo}
-                  r={isPinned ? 6 : 4.5}
+                  r={isPinned ? 5.5 : 4}
                   fill="#059669"
                   stroke="#ffffff"
-                  strokeWidth={2.5}
+                  strokeWidth={2}
                 />
-                <rect
-                  x={isRightSide ? posX - 76 : posX + 8}
-                  y={yTopo - 10}
-                  width={68}
-                  height={20}
-                  rx={4}
-                  fill="#f0fdf4"
-                  stroke="#86efac"
-                  strokeWidth={1}
-                />
-                <text
-                  x={posX + badgeOffset}
-                  y={yTopo + 4}
-                  fill="#166534"
-                  fontSize="10.5"
-                  fontWeight="bold"
-                  textAnchor={badgeAnchor}
-                  fontFamily="monospace"
-                >
-                  {point.elevation.toFixed(1)} m
-                </text>
 
-                {/* 3. Anti-Colliding Gravity Badges & Curve Anchors */}
-                {gravBadges.map((badge) => (
-                  <React.Fragment key={badge.key}>
-                    {/* Anchor dot on curve */}
-                    <circle
-                      cx={posX}
-                      cy={badge.anchorY}
-                      r={isPinned ? 5.5 : 4}
-                      fill={badge.dotColor}
-                      stroke="#ffffff"
-                      strokeWidth={2}
-                    />
-                    {/* Connector line if displaced due to collision */}
-                    {Math.abs(badge.y - badge.anchorY) > 2 && (
-                      <line
-                        x1={posX}
-                        y1={badge.anchorY}
-                        x2={isRightSide ? posX - 8 : posX + 8}
-                        y2={badge.y}
-                        stroke={badge.border}
-                        strokeWidth={1}
-                        strokeDasharray="2 2"
-                      />
-                    )}
-                    {/* Non-overlapping Badge */}
+                {/* 3. Curve Anchor Dots (Subtle, non-overlapping) */}
+                {visibleChannels.faa && yFaa !== null && (
+                  <circle cx={posX} cy={yFaa} r={isPinned ? 4.5 : 3.5} fill="#0284c7" stroke="#ffffff" strokeWidth={1.5} />
+                )}
+                {visibleChannels.cba && yCba !== null && (
+                  <circle cx={posX} cy={yCba} r={isPinned ? 4.5 : 3.5} fill="#d97706" stroke="#ffffff" strokeWidth={1.5} />
+                )}
+                {visibleChannels.sba && ySba !== null && (
+                  <circle cx={posX} cy={ySba} r={isPinned ? 4.5 : 3.5} fill="#b45309" stroke="#ffffff" strokeWidth={1.5} />
+                )}
+                {visibleChannels.residual && yRes !== null && (
+                  <circle cx={posX} cy={yRes} r={isPinned ? 4.5 : 3.5} fill="#8b5cf6" stroke="#ffffff" strokeWidth={1.5} />
+                )}
+                {visibleChannels.fhd && yFhd !== null && (
+                  <circle cx={posX} cy={yFhd} r={isPinned ? 4.5 : 3.5} fill="#e11d48" stroke="#ffffff" strokeWidth={1.5} />
+                )}
+                {visibleChannels.svd && ySvd !== null && (
+                  <circle cx={posX} cy={ySvd} r={isPinned ? 4.5 : 3.5} fill="#0d9488" stroke="#ffffff" strokeWidth={1.5} />
+                )}
+                {visibleChannels.tdr && yTdr !== null && (
+                  <circle cx={posX} cy={yTdr} r={isPinned ? 4.5 : 3.5} fill="#f59e0b" stroke="#ffffff" strokeWidth={1.5} />
+                )}
+
+                {/* 4. Bottom Pin Badge */}
+                {isPinned ? (
+                  <g>
                     <rect
-                      x={isRightSide ? posX - 84 : posX + 8}
-                      y={badge.y - 10}
-                      width={76}
+                      x={posX - 24}
+                      y={bottomY + 4}
+                      width={48}
                       height={20}
-                      rx={4}
-                      fill={badge.bg}
-                      stroke={badge.border}
-                      strokeWidth={1}
+                      rx={10}
+                      fill="#0f172a"
+                      stroke="#f59e0b"
+                      strokeWidth={1.5}
                     />
                     <text
-                      x={posX + badgeOffset}
-                      y={badge.y + 4}
-                      fill={badge.color}
-                      fontSize="10.5"
+                      x={posX}
+                      y={bottomY + 18}
+                      fill="#fef08a"
+                      fontSize="10"
                       fontWeight="bold"
-                      textAnchor={badgeAnchor}
+                      textAnchor="middle"
                       fontFamily="monospace"
                     >
-                      {badge.val}
+                      #{pinNumber}
                     </text>
-                  </React.Fragment>
-                ))}
-
-                {/* 4. Bottom Distance Callout Tag */}
-                <rect
-                  x={posX - 38}
-                  y={bottomY + 4}
-                  width={76}
-                  height={18}
-                  rx={3}
-                  fill={isPinned ? '#0f172a' : '#475569'}
-                />
-                <text
-                  x={posX}
-                  y={bottomY + 17}
-                  fill="#ffffff"
-                  fontSize="10.5"
-                  fontWeight="bold"
-                  textAnchor="middle"
-                  fontFamily="monospace"
-                >
-                  {point.distanceKm.toFixed(1)} km
-                </text>
+                  </g>
+                ) : (
+                  <g>
+                    <rect
+                      x={posX - 35}
+                      y={bottomY + 4}
+                      width={70}
+                      height={18}
+                      rx={4}
+                      fill="#0284c7"
+                    />
+                    <text
+                      x={posX}
+                      y={bottomY + 17}
+                      fill="#ffffff"
+                      fontSize="9.5"
+                      fontWeight="bold"
+                      textAnchor="middle"
+                      fontFamily="monospace"
+                    >
+                      {point.distanceKm.toFixed(1)} km
+                    </text>
+                  </g>
+                )}
               </g>
             );
           })}
+
+          {/* Unified Hover HUD Readout Box in the Top Graph Corner */}
+          {hoverIndex !== null && points[hoverIndex] && (
+            <g className="unified-profile-hud" transform={`translate(${graphWidth + margin.left - 240}, ${margin.top + 8})`}>
+              <rect
+                width={230}
+                height={125}
+                rx={6}
+                fill="rgba(15, 23, 42, 0.92)"
+                stroke="#334155"
+                strokeWidth={1}
+              />
+              <text x={10} y={18} fill="#38bdf8" fontSize="11" fontWeight="bold" fontFamily="Inter, sans-serif">
+                Distance: {points[hoverIndex].distanceKm.toFixed(1)} km &bull; Elev: {points[hoverIndex].elevation.toFixed(0)} m
+              </text>
+              <line x1={10} y1={25} x2={220} y2={25} stroke="#334155" strokeWidth={1} />
+              
+              <text x={10} y={42} fill="#c4b5fd" fontSize="10" fontFamily="monospace">
+                Residual: <tspan fontWeight="bold" fill="#ffffff">{points[hoverIndex].residual?.toFixed(1) ?? '--'} mGal</tspan>
+              </text>
+              <text x={120} y={42} fill="#fde68a" fontSize="10" fontFamily="monospace">
+                CBA: <tspan fontWeight="bold" fill="#ffffff">{points[hoverIndex].bouguer?.toFixed(1) ?? '--'} mGal</tspan>
+              </text>
+
+              <text x={10} y={60} fill="#bae6fd" fontSize="10" fontFamily="monospace">
+                Free-Air: <tspan fontWeight="bold" fill="#ffffff">{points[hoverIndex].freeAir?.toFixed(1) ?? '--'} mGal</tspan>
+              </text>
+              <text x={120} y={60} fill="#fed7aa" fontSize="10" fontFamily="monospace">
+                SBA: <tspan fontWeight="bold" fill="#ffffff">{points[hoverIndex].simpleBouguer?.toFixed(1) ?? '--'} mGal</tspan>
+              </text>
+
+              <text x={10} y={78} fill="#fecdd3" fontSize="10" fontFamily="monospace">
+                FHD (Fault): <tspan fontWeight="bold" fill="#ffffff">{points[hoverIndex].fhd?.toFixed(2) ?? '--'} mGal/km</tspan>
+              </text>
+              <text x={10} y={96} fill="#99f6e4" fontSize="10" fontFamily="monospace">
+                SVD: <tspan fontWeight="bold" fill="#ffffff">{points[hoverIndex].svd?.toFixed(3) ?? '--'} mGal/km²</tspan>
+              </text>
+              <text x={120} y={96} fill="#fef08a" fontSize="10" fontFamily="monospace">
+                Tilt: <tspan fontWeight="bold" fill="#ffffff">{points[hoverIndex].tdr?.toFixed(1) ?? '--'}°</tspan>
+              </text>
+              <text x={10} y={115} fill="#94a3b8" fontSize="8.5" fontFamily="Inter, sans-serif">
+                Lat: {points[hoverIndex].latitude.toFixed(3)}&deg; Lon: {points[hoverIndex].longitude.toFixed(3)}&deg;
+              </text>
+            </g>
+          )}
         </svg>
       </div>
 
@@ -918,6 +910,97 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
           </div>
         )}
       </div>
+
+      {/* Sounding Picks Inspection & Comparison Table */}
+      {pinnedIndices.length > 0 && (
+        <div className="profile-picks-table-card">
+          <div className="picks-table-header">
+            <div className="picks-title-group">
+              <span className="picks-table-title">Sounding Picks Inspection Table ({pinnedIndices.length} points)</span>
+              <span className="picks-table-subtitle">Compare anomalies, derivative gradients, and fault contacts across survey picks</span>
+            </div>
+            <div className="picks-table-actions">
+              <button
+                type="button"
+                className="btn-picks-export"
+                onClick={() => {
+                  const pinnedPts = pinnedIndices.map((idx) => points[idx]).filter(Boolean);
+                  exportProfileToCsv(pinnedPts, `picks_${activeLine.name.toLowerCase().replace(/\s+/g, '_')}.csv`);
+                }}
+                title="Export selected picks to CSV"
+              >
+                <Download size={13} />
+                <span>Export Picks (CSV)</span>
+              </button>
+              <button
+                type="button"
+                className="btn-unpin-all"
+                onClick={() => setPinnedIndices([])}
+                title="Clear all pinned picks"
+              >
+                <PinOff size={13} />
+                <span>Clear All</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="picks-table-scroll-container">
+            <table className="picks-data-table">
+              <thead>
+                <tr>
+                  <th style={{ width: 45 }}>#</th>
+                  <th>Distance</th>
+                  <th>Coordinates</th>
+                  <th>Elevation</th>
+                  <th>Residual</th>
+                  <th>Bouguer (CBA)</th>
+                  <th>Simple (SBA)</th>
+                  <th>Free-Air (FAA)</th>
+                  <th>FHD (Faults)</th>
+                  <th>SVD (Laplace)</th>
+                  <th>Tilt (TDR)</th>
+                  <th style={{ width: 40 }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {pinnedIndices.map((ptIdx, rowIdx) => {
+                  const p = points[ptIdx];
+                  if (!p) return null;
+                  return (
+                    <tr key={`pick-row-${ptIdx}`}>
+                      <td>
+                        <span className="pick-row-badge">#{rowIdx + 1}</span>
+                      </td>
+                      <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{p.distanceKm.toFixed(1)} km</td>
+                      <td style={{ fontFamily: 'monospace', fontSize: '0.74rem', color: '#64748b' }}>
+                        {p.latitude.toFixed(3)}&deg;, {p.longitude.toFixed(3)}&deg;
+                      </td>
+                      <td style={{ fontFamily: 'monospace', fontWeight: 700, color: '#047857' }}>{p.elevation.toFixed(1)} m</td>
+                      <td style={{ fontFamily: 'monospace', color: '#6d28d9', fontWeight: 600 }}>{p.residual !== undefined ? `${p.residual.toFixed(1)} mGal` : '--'}</td>
+                      <td style={{ fontFamily: 'monospace', color: '#b45309', fontWeight: 600 }}>{p.bouguer !== undefined ? `${p.bouguer.toFixed(1)} mGal` : '--'}</td>
+                      <td style={{ fontFamily: 'monospace', color: '#c2410c' }}>{p.simpleBouguer !== undefined ? `${p.simpleBouguer.toFixed(1)} mGal` : '--'}</td>
+                      <td style={{ fontFamily: 'monospace', color: '#0369a1' }}>{p.freeAir !== undefined ? `${p.freeAir.toFixed(1)} mGal` : '--'}</td>
+                      <td style={{ fontFamily: 'monospace', color: '#be123c', fontWeight: 700 }}>{p.fhd !== undefined ? `${p.fhd.toFixed(2)} mGal/km` : '--'}</td>
+                      <td style={{ fontFamily: 'monospace', color: '#0f766e' }}>{p.svd !== undefined ? `${p.svd.toFixed(3)} mGal/km²` : '--'}</td>
+                      <td style={{ fontFamily: 'monospace', color: '#a16207' }}>{p.tdr !== undefined ? `${p.tdr.toFixed(1)}°` : '--'}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="btn-delete-pick"
+                          onClick={() => setPinnedIndices((prev) => prev.filter((_, i) => i !== rowIdx))}
+                          title={`Remove pick #${rowIdx + 1}`}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
