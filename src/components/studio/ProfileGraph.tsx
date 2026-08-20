@@ -31,6 +31,30 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const [pinnedIndices, setPinnedIndices] = useState<number[]>([]);
   const [isKebabOpen, setIsKebabOpen] = useState(false);
+  const [visibleChannels, setVisibleChannels] = useState<{
+    cba: boolean;
+    sba: boolean;
+    faa: boolean;
+    residual: boolean;
+    regional: boolean;
+    fhd: boolean;
+    svd: boolean;
+    tdr: boolean;
+  }>({
+    cba: true,
+    sba: false,
+    faa: true,
+    residual: true,
+    regional: false,
+    fhd: true,
+    svd: false,
+    tdr: false,
+  });
+
+  const toggleChannel = (key: keyof typeof visibleChannels) => {
+    setVisibleChannels((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
   const containerRef = useRef<HTMLDivElement | null>(null);
   const kebabRef = useRef<HTMLDivElement | null>(null);
 
@@ -55,6 +79,8 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
   let minGrav = 0;
   let maxGrav = 0;
   let hasGravity = false;
+  let maxFhd = 0.1;
+  let maxAbsSvd = 0.01;
 
   for (let i = 0; i < points.length; i++) {
     const p = points[i];
@@ -68,10 +94,22 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
       if (p.bouguer < minGrav) minGrav = p.bouguer;
       if (p.bouguer > maxGrav) maxGrav = p.bouguer;
     }
+    if (p.simpleBouguer !== undefined) {
+      hasGravity = true;
+      if (p.simpleBouguer < minGrav) minGrav = p.simpleBouguer;
+      if (p.simpleBouguer > maxGrav) maxGrav = p.simpleBouguer;
+    }
     if (p.residual !== undefined) {
       hasGravity = true;
       if (p.residual < minGrav) minGrav = p.residual;
       if (p.residual > maxGrav) maxGrav = p.residual;
+    }
+    if (p.fhd !== undefined && p.fhd > maxFhd) {
+      maxFhd = p.fhd;
+    }
+    if (p.svd !== undefined) {
+      const absS = Math.abs(p.svd);
+      if (absS > maxAbsSvd) maxAbsSvd = absS;
     }
   }
 
@@ -79,6 +117,9 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
   const gravPad = Math.max(10, (maxGrav - minGrav) * 0.1);
   minGrav = Math.floor(minGrav - gravPad);
   maxGrav = Math.ceil(maxGrav + gravPad);
+
+  maxFhd = Math.max(0.2, maxFhd * 1.2);
+  maxAbsSvd = Math.max(0.02, maxAbsSvd * 1.25);
 
   // Compute min/max for elevation
   let minElev = 0;
@@ -95,7 +136,7 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
   // SVG Dimensions
   const svgWidth = 1000;
   const svgHeight = 370;
-  const margin = { top: 25, right: 35, bottom: 45, left: 65 };
+  const margin = { top: 25, right: 45, bottom: 45, left: 65 };
   const graphWidth = svgWidth - margin.left - margin.right;
   const splitY = 165; // Height split between gravity (top) and topo (bottom)
 
@@ -109,11 +150,23 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
   const scaleYTopo = (val: number) =>
     splitY + 20 + topoHeight - ((val - minElev) / ((maxElev - minElev) || 1)) * topoHeight;
 
+  // Derivative Scale Helpers
+  const scaleYFhd = (val: number) =>
+    margin.top + gravHeight - (Math.max(0, val) / maxFhd) * gravHeight;
+  const scaleYSvd = (val: number) =>
+    margin.top + gravHeight / 2 - (val / maxAbsSvd) * (gravHeight / 2);
+  const scaleYTdr = (val: number) =>
+    margin.top + gravHeight / 2 - (val / 90) * (gravHeight / 2);
+
   // Build SVG Path strings
   let faaPath = '';
   let bgPath = '';
+  let sbaPath = '';
   let residualPath = '';
   let regionalPath = '';
+  let fhdPath = '';
+  let svdPath = '';
+  let tdrPath = '';
   let topoLinePath = '';
   let topoAreaPath = '';
 
@@ -131,6 +184,11 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
       bgPath += (i === 0 ? `M ${x} ${yBg}` : ` L ${x} ${yBg}`);
     }
 
+    if (p.simpleBouguer !== undefined) {
+      const ySba = scaleYGrav(p.simpleBouguer);
+      sbaPath += (i === 0 ? `M ${x} ${ySba}` : ` L ${x} ${ySba}`);
+    }
+
     if (p.residual !== undefined) {
       const yRes = scaleYGrav(p.residual);
       residualPath += (i === 0 ? `M ${x} ${yRes}` : ` L ${x} ${yRes}`);
@@ -139,6 +197,21 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
     if (p.regional !== undefined) {
       const yReg = scaleYGrav(p.regional);
       regionalPath += (i === 0 ? `M ${x} ${yReg}` : ` L ${x} ${yReg}`);
+    }
+
+    if (p.fhd !== undefined) {
+      const yFhd = scaleYFhd(p.fhd);
+      fhdPath += (i === 0 ? `M ${x} ${yFhd}` : ` L ${x} ${yFhd}`);
+    }
+
+    if (p.svd !== undefined) {
+      const ySvd = scaleYSvd(p.svd);
+      svdPath += (i === 0 ? `M ${x} ${ySvd}` : ` L ${x} ${ySvd}`);
+    }
+
+    if (p.tdr !== undefined) {
+      const yTdr = scaleYTdr(p.tdr);
+      tdrPath += (i === 0 ? `M ${x} ${yTdr}` : ` L ${x} ${yTdr}`);
     }
 
     const yTopo = scaleYTopo(p.elevation);
@@ -413,20 +486,40 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
           <path d={topoAreaPath} fill="url(#crustGradLight)" />
           <path d={topoLinePath} fill="none" stroke="#059669" strokeWidth={2.5} />
 
-          {/* Gravity Anomaly Curves */}
+          {/* Gravity Anomaly & Derivative Curves */}
           {hasGravity && (
             <>
               {/* Regional Trend (Slate Grey Dashed) */}
-              {regionalPath && (
+              {visibleChannels.regional && regionalPath && (
                 <path d={regionalPath} fill="none" stroke="#94a3b8" strokeWidth={1.8} strokeDasharray="5 3" />
               )}
               {/* Free Air Curve (Royal Sky Blue) */}
-              <path d={faaPath} fill="none" stroke="#0284c7" strokeWidth={2.0} />
+              {visibleChannels.faa && (
+                <path d={faaPath} fill="none" stroke="#0284c7" strokeWidth={2.0} />
+              )}
               {/* Complete Bouguer Curve (Rich Amber Orange) */}
-              <path d={bgPath} fill="none" stroke="#d97706" strokeWidth={2.4} />
+              {visibleChannels.cba && (
+                <path d={bgPath} fill="none" stroke="#d97706" strokeWidth={2.4} />
+              )}
+              {/* Simple Bouguer Curve (Dashed Golden Amber) */}
+              {visibleChannels.sba && sbaPath && (
+                <path d={sbaPath} fill="none" stroke="#b45309" strokeWidth={2.0} strokeDasharray="4 3" />
+              )}
               {/* Residual Anomaly Curve (Vibrant Violet/Purple) */}
-              {residualPath && (
+              {visibleChannels.residual && residualPath && (
                 <path d={residualPath} fill="none" stroke="#8b5cf6" strokeWidth={2.6} />
+              )}
+              {/* First Horizontal Derivative (FHD: Rose Crimson) */}
+              {visibleChannels.fhd && fhdPath && (
+                <path d={fhdPath} fill="none" stroke="#e11d48" strokeWidth={2.4} />
+              )}
+              {/* Second Vertical Derivative (SVD: Teal Dashed) */}
+              {visibleChannels.svd && svdPath && (
+                <path d={svdPath} fill="none" stroke="#0d9488" strokeWidth={2.2} strokeDasharray="4 2" />
+              )}
+              {/* Tilt Derivative (TDR: Gold Amber) */}
+              {visibleChannels.tdr && tdrPath && (
+                <path d={tdrPath} fill="none" stroke="#f59e0b" strokeWidth={2.2} />
               )}
             </>
           )}
@@ -552,12 +645,21 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
             const yRes = point.residual !== undefined ? scaleYGrav(point.residual) : null;
             const yTopo = scaleYTopo(point.elevation);
 
+            const ySba = point.simpleBouguer !== undefined ? scaleYGrav(point.simpleBouguer) : null;
+            const yFhd = point.fhd !== undefined ? scaleYFhd(point.fhd) : null;
+            const ySvd = point.svd !== undefined ? scaleYSvd(point.svd) : null;
+            const yTdr = point.tdr !== undefined ? scaleYTdr(point.tdr) : null;
+
             // Compute collision-free badge Y positions for gravity values
             const gravBadges = [
-              { key: 'faa', anchorY: yFaa, y: yFaa, val: `${point.freeAir?.toFixed(1)} mGal`, color: '#0369a1', bg: '#f0f9ff', border: '#bae6fd', dotColor: '#0284c7' },
-              { key: 'cba', anchorY: yCba, y: yCba, val: `${point.bouguer?.toFixed(1)} mGal`, color: '#b45309', bg: '#fffbeb', border: '#fde68a', dotColor: '#d97706' },
-              { key: 'res', anchorY: yRes, y: yRes, val: `${point.residual?.toFixed(1)} mGal`, color: '#6d28d9', bg: '#f5f3ff', border: '#ddd6fe', dotColor: '#8b5cf6' },
-            ].filter((b): b is { key: string; anchorY: number; y: number; val: string; color: string; bg: string; border: string; dotColor: string } => b.y !== null);
+              visibleChannels.faa && yFaa !== null ? { key: 'faa', anchorY: yFaa, y: yFaa, val: `${point.freeAir?.toFixed(1)} mGal`, color: '#0369a1', bg: '#f0f9ff', border: '#bae6fd', dotColor: '#0284c7' } : null,
+              visibleChannels.cba && yCba !== null ? { key: 'cba', anchorY: yCba, y: yCba, val: `${point.bouguer?.toFixed(1)} mGal`, color: '#b45309', bg: '#fffbeb', border: '#fde68a', dotColor: '#d97706' } : null,
+              visibleChannels.sba && ySba !== null ? { key: 'sba', anchorY: ySba, y: ySba, val: `${point.simpleBouguer?.toFixed(1)} mGal`, color: '#92400e', bg: '#fef3c7', border: '#fcd34d', dotColor: '#b45309' } : null,
+              visibleChannels.residual && yRes !== null ? { key: 'res', anchorY: yRes, y: yRes, val: `${point.residual?.toFixed(1)} mGal`, color: '#6d28d9', bg: '#f5f3ff', border: '#ddd6fe', dotColor: '#8b5cf6' } : null,
+              visibleChannels.fhd && yFhd !== null ? { key: 'fhd', anchorY: yFhd, y: yFhd, val: `${point.fhd?.toFixed(2)} mGal/km`, color: '#be123c', bg: '#fff1f2', border: '#fecdd3', dotColor: '#e11d48' } : null,
+              visibleChannels.svd && ySvd !== null ? { key: 'svd', anchorY: ySvd, y: ySvd, val: `${point.svd?.toFixed(3)} mGal/km²`, color: '#0f766e', bg: '#f0fdfa', border: '#99f6e4', dotColor: '#0d9488' } : null,
+              visibleChannels.tdr && yTdr !== null ? { key: 'tdr', anchorY: yTdr, y: yTdr, val: `${point.tdr?.toFixed(1)}°`, color: '#b45309', bg: '#fffbeb', border: '#fde68a', dotColor: '#f59e0b' } : null,
+            ].filter((b): b is { key: string; anchorY: number; y: number; val: string; color: string; bg: string; border: string; dotColor: string } => b !== null);
 
             // Sort by anchor Y
             gravBadges.sort((a, b) => a.y - b.y);
@@ -699,24 +801,84 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
         </svg>
       </div>
 
-      {/* Clean Legend & Pinned Picks Action Bar */}
+      {/* Clean Interactive Legend & Channel Toggles */}
       <div className="profile-footer-bar">
         <div className="profile-legends">
-          <div className="legend-item">
+          <button
+            type="button"
+            className={`legend-item-btn ${visibleChannels.residual ? 'active' : 'inactive'}`}
+            onClick={() => toggleChannel('residual')}
+            title="Toggle Residual Gravity Anomaly"
+          >
             <span className="legend-dot" style={{ background: '#8b5cf6' }} />
-            <span className="legend-label">Residual Gravity Anomaly</span>
-          </div>
-          <div className="legend-item">
+            <span className="legend-label">Residual</span>
+          </button>
+          <button
+            type="button"
+            className={`legend-item-btn ${visibleChannels.cba ? 'active' : 'inactive'}`}
+            onClick={() => toggleChannel('cba')}
+            title="Toggle Complete Bouguer Anomaly (CBA = SBA + TC)"
+          >
             <span className="legend-dot" style={{ background: '#d97706' }} />
-            <span className="legend-label">Complete Bouguer Anomaly (CBA)</span>
-          </div>
-          <div className="legend-item">
+            <span className="legend-label">Bouguer (CBA)</span>
+          </button>
+          <button
+            type="button"
+            className={`legend-item-btn ${visibleChannels.sba ? 'active' : 'inactive'}`}
+            onClick={() => toggleChannel('sba')}
+            title="Toggle Simple Bouguer Anomaly (SBA = FAA - Slab)"
+          >
+            <span className="legend-dot" style={{ background: '#b45309', border: '1px dashed #ffffff' }} />
+            <span className="legend-label">Simple (SBA)</span>
+          </button>
+          <button
+            type="button"
+            className={`legend-item-btn ${visibleChannels.faa ? 'active' : 'inactive'}`}
+            onClick={() => toggleChannel('faa')}
+            title="Toggle Free-Air Gravity Anomaly (FAA)"
+          >
             <span className="legend-dot" style={{ background: '#0284c7' }} />
-            <span className="legend-label">Free-Air Gravity Anomaly (FAA)</span>
-          </div>
-          <div className="legend-item">
+            <span className="legend-label">Free-Air (FAA)</span>
+          </button>
+          <button
+            type="button"
+            className={`legend-item-btn ${visibleChannels.fhd ? 'active' : 'inactive'}`}
+            onClick={() => toggleChannel('fhd')}
+            title="Toggle First Horizontal Derivative (FHD - Fault Edges)"
+          >
+            <span className="legend-dot" style={{ background: '#e11d48' }} />
+            <span className="legend-label">FHD (Faults)</span>
+          </button>
+          <button
+            type="button"
+            className={`legend-item-btn ${visibleChannels.svd ? 'active' : 'inactive'}`}
+            onClick={() => toggleChannel('svd')}
+            title="Toggle Second Vertical Derivative (SVD - Zero Crossings)"
+          >
+            <span className="legend-dot" style={{ background: '#0d9488' }} />
+            <span className="legend-label">SVD (Laplace)</span>
+          </button>
+          <button
+            type="button"
+            className={`legend-item-btn ${visibleChannels.tdr ? 'active' : 'inactive'}`}
+            onClick={() => toggleChannel('tdr')}
+            title="Toggle Tilt Angle Derivative (TDR)"
+          >
+            <span className="legend-dot" style={{ background: '#f59e0b' }} />
+            <span className="legend-label">Tilt (TDR)</span>
+          </button>
+          <button
+            type="button"
+            className={`legend-item-btn ${visibleChannels.regional ? 'active' : 'inactive'}`}
+            onClick={() => toggleChannel('regional')}
+            title="Toggle Regional Trend"
+          >
+            <span className="legend-dot" style={{ background: '#94a3b8' }} />
+            <span className="legend-label">Regional</span>
+          </button>
+          <div className="legend-item static">
             <span className="legend-dot" style={{ background: '#059669' }} />
-            <span className="legend-label">Seafloor Bathymetry / Topography</span>
+            <span className="legend-label">Topography</span>
           </div>
         </div>
 
