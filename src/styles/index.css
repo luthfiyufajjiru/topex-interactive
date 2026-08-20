@@ -737,6 +737,129 @@ body {
   border-radius: 3px;
 }
 
+/* Step 1 Extraction Completion & Partial State Banners */
+.step-advance-banner {
+  background: #f0fdf4;
+  border: 1.5px solid #86efac;
+  border-radius: var(--radius-md);
+  padding: 12px 18px;
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  box-shadow: var(--shadow-sm);
+}
+
+.step-advance-text {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  color: #166534;
+}
+
+.btn-next-step {
+  background: #16a34a;
+  color: #ffffff;
+  border: none;
+  padding: 9px 18px;
+  border-radius: var(--radius-sm);
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(22, 163, 74, 0.3);
+}
+
+.btn-next-step:hover {
+  background: #15803d;
+  transform: translateY(-1px);
+}
+
+/* Partial / Interrupted Extraction Banner */
+.step-partial-banner {
+  background: #fffbeb;
+  border: 1.5px solid #fde68a;
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  box-shadow: var(--shadow-sm);
+}
+
+.partial-banner-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex: 1;
+  min-width: 240px;
+}
+
+.partial-banner-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #92400e;
+}
+
+.partial-banner-subtitle {
+  font-size: 0.8rem;
+  color: #b45309;
+  margin-top: 2px;
+}
+
+.partial-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-resume-extraction {
+  background: #d97706;
+  color: #ffffff;
+  border: none;
+  padding: 9px 18px;
+  border-radius: var(--radius-sm);
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 6px rgba(217, 119, 6, 0.3);
+}
+
+.btn-resume-extraction:hover {
+  background: #b45309;
+  transform: translateY(-1px);
+}
+
+.btn-proceed-partial {
+  background: transparent;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-proceed-partial:hover {
+  background: #fef3c7;
+}
+
 /* Spreadsheet Wrapper (DodgerBlue refined) */
 #spreadsheet-wrapper {
   background: linear-gradient(180deg, #1e88e5 0%, #1565c0 100%);

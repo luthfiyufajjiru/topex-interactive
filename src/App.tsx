@@ -15,7 +15,7 @@ import { DatasetToggles } from '@/components/hud/DatasetToggles';
 import { DataTable } from '@/components/table/DataTable';
 import { BouguerControlPanel } from '@/components/processing/BouguerControlPanel';
 import { TriMapViewer } from '@/components/studio/TriMapViewer';
-import { Download, Loader2, ArrowRight, Github } from 'lucide-react';
+import { Download, Loader2, ArrowRight, Github, AlertTriangle, CheckCircle2, Play } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<WorkflowStep>('extract');
@@ -24,7 +24,9 @@ export const App: React.FC = () => {
   const [includeGravity, setIncludeGravity] = useState<boolean>(true);
   const [records, setRecords] = useState<TopexRecord[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [extractionStatus, setExtractionStatus] = useState<'idle' | 'loading' | 'completed' | 'partial'>('idle');
   const [progress, setProgress] = useState<ChunkProgress | null>(null);
+  const [lastProgress, setLastProgress] = useState<ChunkProgress | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -74,6 +76,8 @@ export const App: React.FC = () => {
   const handleBoundsChange = (newBounds: BoundingBox | null, source: 'map' | 'input' = 'map') => {
     setBounds(newBounds);
     setBoundsSource(source);
+    // If user changes bounding box, reset completed/partial flags
+    setExtractionStatus('idle');
   };
 
   const handleToast = (type: 'success' | 'error', message: string) => {
@@ -93,10 +97,16 @@ export const App: React.FC = () => {
     }
     setIsLoading(false);
     setProgress(null);
-    setErrorMsg('Data extraction cancelled.');
+    if (records.length > 0) {
+      setExtractionStatus('partial');
+      setErrorMsg('Extraction paused. You can resume to complete missing tiles.');
+    } else {
+      setExtractionStatus('idle');
+      setErrorMsg('Data extraction cancelled.');
+    }
   };
 
-  const handleFetch = async () => {
+  const handleFetch = async (isResume = false) => {
     if (!bounds) {
       setErrorMsg('Please select or draw a bounding box on the map first.');
       return;
@@ -111,30 +121,48 @@ export const App: React.FC = () => {
     setErrorMsg(null);
     setSuccessMsg(null);
     setProgress(null);
-    setRecords([]); // Reset for fresh stream
+    if (!isResume) {
+      setRecords([]); // Reset only when starting fresh
+      setLastProgress(null);
+    }
     setIsLoading(true);
+    setExtractionStatus('loading');
 
     try {
       const result = await fetchLargeGridInChunks({
         bounds,
         includeGravity,
-        concurrency: 6,
+        concurrency: 2,
         abortSignal: abortController.signal,
         onChunkReceived: (newChunkRecords, p) => {
-          setRecords((prev) => [...prev, ...newChunkRecords]);
+          setRecords((prev) => {
+            if (isResume) {
+              const existingKeys = new Set(prev.map((r) => `${r.longitude.toFixed(4)}_${r.latitude.toFixed(4)}`));
+              const fresh = newChunkRecords.filter(
+                (r) => !existingKeys.has(`${r.longitude.toFixed(4)}_${r.latitude.toFixed(4)}`)
+              );
+              return [...prev, ...fresh];
+            }
+            return [...prev, ...newChunkRecords];
+          });
           setProgress(p);
+          setLastProgress(p);
         },
         onProgress: (p) => {
           setProgress(p);
+          setLastProgress(p);
         },
       });
 
       if (!abortController.signal.aborted) {
         if (!result.records || result.records.length === 0) {
           setErrorMsg('Server returned 0 records for the given area.');
+          setExtractionStatus('idle');
           return;
         }
 
+        setRecords(result.records);
+        setExtractionStatus('completed');
         const tileText = result.totalTiles > 1 ? ` across ${result.totalTiles} parallel tiles` : '';
         setSuccessMsg(
           `Extracted ${result.records.length.toLocaleString()} soundings${tileText} in ${result.executionTimeMs}ms.`
@@ -144,6 +172,7 @@ export const App: React.FC = () => {
       if (!abortController.signal.aborted) {
         const msg = err instanceof Error ? err.message : 'Error fetching data';
         setErrorMsg(msg);
+        setExtractionStatus(records.length > 0 ? 'partial' : 'idle');
       }
     } finally {
       if (abortControllerRef.current === abortController) {
@@ -200,7 +229,7 @@ export const App: React.FC = () => {
                 type="button"
                 id="fetch-data"
                 className="btn-download"
-                onClick={handleFetch}
+                onClick={() => handleFetch(false)}
                 disabled={!bounds || isLoading}
               >
                 {isLoading ? (
@@ -211,7 +240,7 @@ export const App: React.FC = () => {
                 ) : (
                   <>
                     <Download size={20} />
-                    <span>Fetch Soundings Grid</span>
+                    <span>{records.length > 0 ? 'Re-Fetch Soundings Grid' : 'Fetch Soundings Grid'}</span>
                   </>
                 )}
               </button>
@@ -219,11 +248,51 @@ export const App: React.FC = () => {
               {/* Non-blocking Streaming Progress Banner */}
               {isLoading && <StreamingProgressBar progress={progress} onCancel={handleCancel} />}
 
-              {/* Step Transition Hint */}
-              {records.length > 0 && includeGravity && !isLoading && (
+              {/* Incomplete / Interrupted / Rate Limited State Banner */}
+              {!isLoading && extractionStatus === 'partial' && (
+                <div className="step-partial-banner">
+                  <div className="partial-banner-info">
+                    <AlertTriangle size={20} className="text-amber-600 flex-shrink-0" />
+                    <div>
+                      <div className="partial-banner-title">
+                        Extraction Incomplete: {lastProgress ? `${lastProgress.completedTiles} of ${lastProgress.totalTiles} tiles loaded` : `${records.length.toLocaleString()} points retrieved`}
+                      </div>
+                      <div className="partial-banner-subtitle">
+                        {errorMsg || 'Process stopped before completing all grid tiles. Cached tiles are preserved.'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="partial-banner-actions">
+                    <button
+                      type="button"
+                      className="btn-resume-extraction"
+                      onClick={() => handleFetch(true)}
+                    >
+                      <Play size={16} />
+                      <span>Continue Extraction</span>
+                    </button>
+                    {includeGravity && records.length > 0 && (
+                      <button
+                        type="button"
+                        className="btn-proceed-partial"
+                        onClick={() => setCurrentStep('process')}
+                        title="Proceed to Bouguer reduction with current partial soundings"
+                      >
+                        <span>Proceed with Partial Grid &rarr;</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Step Transition Hint (100% Fully Complete Only) */}
+              {records.length > 0 && includeGravity && !isLoading && extractionStatus === 'completed' && (
                 <div className="step-advance-banner">
                   <div className="step-advance-text">
-                    <strong>{records.length.toLocaleString()} Soundings Ready</strong> &bull; Topography and Free-Air Gravity extracted.
+                    <CheckCircle2 size={18} className="text-emerald-600 flex-shrink-0" />
+                    <div>
+                      <strong>{records.length.toLocaleString()} Soundings Ready</strong> &bull; Topography and Free-Air Gravity 100% extracted.
+                    </div>
                   </div>
                   <button
                     type="button"
