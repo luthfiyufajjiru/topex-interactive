@@ -34,7 +34,8 @@ uniform int u_interpMethod;   // 0=nearest, 1=bilinear, 2=bicubic, 3=spline, 4=i
 float fetchGrid(int col, int row) {
   int c = clamp(col, 0, int(u_gridDimensions.x) - 1);
   int r = clamp(row, 0, int(u_gridDimensions.y) - 1);
-  return texelFetch(u_gridTexture, ivec2(c, r), 0).r;
+  float v = texelFetch(u_gridTexture, ivec2(c, r), 0).r;
+  return isnan(v) ? u_minVal : v;
 }
 
 // 1D Cubic Hermite / Catmull-Rom spline kernel

@@ -39,49 +39,48 @@ export const MapContainer: React.FC<MapContainerProps> = ({ bounds, onBoundsChan
     // Remove existing search pin
     removeSearchMarker();
 
-    // Zoom/Pan to location
-    if (loc.bbox) {
-      map.flyToBounds(
-        [
-          [loc.bbox[0], loc.bbox[2]],
-          [loc.bbox[1], loc.bbox[3]],
-        ],
-        { maxZoom: 10, duration: 1.2 }
-      );
-    } else {
-      map.flyTo([loc.lat, loc.lon], 9, { duration: 1.2 });
+    // Determine target bounding box (use explicit bbox or +/- 1.0 deg box)
+    const bbox = loc.bbox || [
+      Math.max(-80.738, loc.lat - 1.0),
+      Math.min(80.738, loc.lat + 1.0),
+      loc.lon - 1.0,
+      loc.lon + 1.0,
+    ];
+
+    const newBounds: BoundingBox = {
+      south: bbox[0],
+      north: bbox[1],
+      west: bbox[2],
+      east: bbox[3],
+    };
+
+    // Zoom/Pan map to fit bounding box
+    map.flyToBounds(
+      [
+        [newBounds.south, newBounds.west],
+        [newBounds.north, newBounds.east],
+      ],
+      { maxZoom: 9, duration: 1.2, padding: [40, 40] }
+    );
+
+    // Draw the active bounding box rectangle on the Leaflet map immediately
+    if (drawnItemsRef.current) {
+      drawnItemsRef.current.clearLayers();
+      const sw = new L.LatLng(newBounds.south, newBounds.west);
+      const ne = new L.LatLng(newBounds.north, newBounds.east);
+      const rectBounds = new L.LatLngBounds(sw, ne);
+      const rectLayer = L.rectangle(rectBounds, {
+        color: '#0284c7',
+        weight: 2,
+        fillColor: '#0284c7',
+        fillOpacity: 0.15,
+      });
+      drawnItemsRef.current.addLayer(rectLayer);
+      currentLayerRef.current = rectLayer;
     }
 
-    // Add glowing search pinpoint marker
-    const pinIcon = L.divIcon({
-      className: 'search-pin-container',
-      html: `
-        <div class="search-pin-wrapper">
-          <div class="search-pin-pulse"></div>
-          <div class="search-pin-badge">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:4px;"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
-            <span class="search-pin-title">${loc.name}</span>
-          </div>
-        </div>
-      `,
-      iconSize: [140, 36],
-      iconAnchor: [70, 32],
-    });
-
-    const marker = L.marker([loc.lat, loc.lon], { icon: pinIcon })
-      .bindPopup(
-        `<div style="font-family: var(--font-sans); font-size: 13px; padding: 2px;">` +
-          `<strong>${loc.name}</strong><br/>` +
-          `<span style="color: #64748b; font-family: var(--font-mono); font-size: 11px;">${loc.lat.toFixed(4)}°, ${loc.lon.toFixed(4)}°</span><br/>` +
-          `<div style="margin-top: 4px; color: #0284c7; font-weight: 600; font-size: 12px;">` +
-          `Draw a rectangle to select this area` +
-          `</div>` +
-          `</div>`
-      )
-      .addTo(map);
-
-    marker.openPopup();
-    searchMarkerRef.current = marker;
+    // Trigger onBoundsChange so inputs, sounding count estimate, and fetching update immediately
+    onBoundsChange(newBounds, 'input');
   };
 
   useEffect(() => {

@@ -111,6 +111,39 @@ export function buildAllRegularGrids(
     }
   }
 
+  // 2. Fill sparse missing cells with nearest valid neighbor so shader never receives NaNs
+  const fillGaps = (arr: Float32Array) => {
+    for (let r = 0; r < nrows; r++) {
+      for (let c = 0; c < ncols; c++) {
+        const idx = r * ncols + c;
+        if (isNaN(arr[idx])) {
+          let found = false;
+          for (let radius = 1; radius <= 5 && !found; radius++) {
+            for (let dr = -radius; dr <= radius && !found; dr++) {
+              for (let dc = -radius; dc <= radius && !found; dc++) {
+                const nr = r + dr;
+                const nc = c + dc;
+                if (nr >= 0 && nr < nrows && nc >= 0 && nc < ncols) {
+                  const nval = arr[nr * ncols + nc];
+                  if (!isNaN(nval)) {
+                    arr[idx] = nval;
+                    found = true;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  };
+
+  fillGaps(dataTopo);
+  fillGaps(dataFaa);
+  fillGaps(dataBg);
+  fillGaps(dataRes);
+  fillGaps(dataReg);
+
   return {
     topo: {
       lats,
