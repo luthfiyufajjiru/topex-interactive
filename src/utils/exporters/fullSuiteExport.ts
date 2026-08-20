@@ -608,6 +608,13 @@ ${lines
 Data provided by Scripps Institution of Oceanography, University of California San Diego (SIO/UCSD).
 Model: Sandwell, D. T., and W. H. F. Smith, Global Marine Gravity from Retracked Geosat and ERS-1 Altimetry.
 Web Application: TOPEX Interactive Downloader (https://topex-interactive.yufajjiru.work)
+
+5. LICENSE & USAGE TERMS
+--------------------------------------------------------------------------------
+License: Free Commercial Use (No Commercial Redistribution).
+- Free of charge for commercial exploration, geotechnical assessment, client deliverables, and academic research.
+- Commercial redistribution, resale, or sublicensing of the software code or cloud platform as a paid product is strictly prohibited.
+- Copyright (c) 2022-2026 Luthfi Yufajjiru Surya Dharma.
 ================================================================================`;
 
   zip.file('README_SURVEY_REPORT.txt', reportText);

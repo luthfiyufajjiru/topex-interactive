@@ -273,16 +273,8 @@ export const App: React.FC = () => {
         <div className="footer-inner">
           <div className="footer-left">
             <span>
-              Made with <span id="footer-content-love">&#10084;</span> by{' '}
-              <a
-                id="linkedin"
-                target="_blank"
-                rel="noopener noreferrer"
-                href="https://www.linkedin.com/in/yufajjiru/"
-              >
-                Luthfi Yufajjiru
-              </a>{' '}
-              2022&ndash;2026
+              &copy; <a target="_blank" rel="noopener noreferrer" href="https://www.linkedin.com/in/yufajjiru/">Luthfi Yufajjiru</a>{' '}
+              2022&ndash;2026 &bull; Free Commercial Use (No Commercial Redistribution)
             </span>
           </div>
 

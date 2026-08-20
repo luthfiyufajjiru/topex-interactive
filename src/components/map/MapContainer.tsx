@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet-draw';
 import type { BoundingBox } from '@/types';
+import { MapSearchBar, LocationResult } from './MapSearchBar';
 
 // Fix Leaflet marker icons in bundlers
 delete (L.Icon.Default.prototype as { _getIconUrl?: unknown })._getIconUrl;
@@ -22,6 +23,66 @@ export const MapContainer: React.FC<MapContainerProps> = ({ bounds, onBoundsChan
   const mapRef = useRef<L.Map | null>(null);
   const drawnItemsRef = useRef<L.FeatureGroup | null>(null);
   const currentLayerRef = useRef<L.Rectangle | null>(null);
+  const searchMarkerRef = useRef<L.Marker | null>(null);
+
+  const removeSearchMarker = () => {
+    if (searchMarkerRef.current && mapRef.current) {
+      mapRef.current.removeLayer(searchMarkerRef.current);
+      searchMarkerRef.current = null;
+    }
+  };
+
+  const handleSelectLocation = (loc: LocationResult) => {
+    if (!mapRef.current) return;
+    const map = mapRef.current;
+
+    // Remove existing search pin
+    removeSearchMarker();
+
+    // Zoom/Pan to location
+    if (loc.bbox) {
+      map.flyToBounds(
+        [
+          [loc.bbox[0], loc.bbox[2]],
+          [loc.bbox[1], loc.bbox[3]],
+        ],
+        { maxZoom: 10, duration: 1.2 }
+      );
+    } else {
+      map.flyTo([loc.lat, loc.lon], 9, { duration: 1.2 });
+    }
+
+    // Add glowing search pinpoint marker
+    const pinIcon = L.divIcon({
+      className: 'search-pin-container',
+      html: `
+        <div class="search-pin-wrapper">
+          <div class="search-pin-pulse"></div>
+          <div class="search-pin-badge">
+            <span class="search-pin-emoji">📍</span>
+            <span class="search-pin-title">${loc.name}</span>
+          </div>
+        </div>
+      `,
+      iconSize: [140, 36],
+      iconAnchor: [70, 32],
+    });
+
+    const marker = L.marker([loc.lat, loc.lon], { icon: pinIcon })
+      .bindPopup(
+        `<div style="font-family: var(--font-sans); font-size: 13px; padding: 2px;">` +
+          `<strong>${loc.name}</strong><br/>` +
+          `<span style="color: #64748b; font-family: var(--font-mono); font-size: 11px;">${loc.lat.toFixed(4)}°, ${loc.lon.toFixed(4)}°</span><br/>` +
+          `<div style="margin-top: 4px; color: #0284c7; font-weight: 600; font-size: 12px;">` +
+          `Draw a rectangle to select this area` +
+          `</div>` +
+          `</div>`
+      )
+      .addTo(map);
+
+    marker.openPopup();
+    searchMarkerRef.current = marker;
+  };
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -81,7 +142,7 @@ export const MapContainer: React.FC<MapContainerProps> = ({ bounds, onBoundsChan
           'OpenStreetMap': osm,
         },
         { 'Draw Layer': drawnItems },
-        { position: 'topleft', collapsed: false }
+        { position: 'topleft', collapsed: true }
       )
       .addTo(map);
 
@@ -128,7 +189,13 @@ export const MapContainer: React.FC<MapContainerProps> = ({ bounds, onBoundsChan
       );
     };
 
+    // Remove search pinpoint marker as soon as user starts drawing or finishes drawing
+    map.on(L.Draw.Event.DRAWSTART as any, () => {
+      removeSearchMarker();
+    });
+
     map.on(L.Draw.Event.CREATED, (event: any) => {
+      removeSearchMarker();
       drawnItems.clearLayers();
       const layer = event.layer as L.Rectangle;
       drawnItems.addLayer(layer);
@@ -137,6 +204,7 @@ export const MapContainer: React.FC<MapContainerProps> = ({ bounds, onBoundsChan
     });
 
     map.on(L.Draw.Event.EDITED, (event: any) => {
+      removeSearchMarker();
       event.layers.eachLayer((layer: any) => {
         currentLayerRef.current = layer;
         extractBoundsFromLayer(layer);
@@ -204,5 +272,13 @@ export const MapContainer: React.FC<MapContainerProps> = ({ bounds, onBoundsChan
     }
   }, [bounds, source]);
 
-  return <div id="map" ref={containerRef} />;
+  return (
+    <div className="map-wrapper-relative">
+      <MapSearchBar
+        onSelectLocation={handleSelectLocation}
+        onClearLocation={removeSearchMarker}
+      />
+      <div id="map" ref={containerRef} />
+    </div>
+  );
 };

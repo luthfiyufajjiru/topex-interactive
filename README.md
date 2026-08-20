@@ -96,6 +96,15 @@ Data belongs to Scripps Institution of Oceanography, University of California Sa
 
 ---
 
+## License
+
+**Free Commercial Use (No Commercial Redistribution)**
+- Free of charge for commercial use, client deliverables, research, and analysis.
+- Commercial resale, sublicensing, or packaging of the software itself as a paid product is prohibited.
+- See the full [LICENSE](LICENSE) for details.
+
+---
+
 ## Author
 
 Created by [Luthfi Yufajjiru](https://www.linkedin.com/in/yufajjiru/) (2022-2026).

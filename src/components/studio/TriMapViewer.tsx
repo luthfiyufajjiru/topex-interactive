@@ -9,7 +9,7 @@ import { exportToOasisMontajXYZ, exportToGeosoftGXF } from '@/utils/exporters/ge
 import { exportMapToPng } from '@/utils/exporters/mapImage';
 import { exportCompositeReportImage } from '@/utils/exporters/compositeReport';
 import { ExportSuiteModal } from './ExportSuiteModal';
-import { FileCode, Image, Crosshair, SlidersHorizontal, Pin, PinOff, Move, LayoutGrid, PackageCheck } from 'lucide-react';
+import { FileCode, Image, Crosshair, SlidersHorizontal, Pin, PinOff, Move, LayoutGrid, PackageCheck, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface SatelliteGravityStudioProps {
   records: ProcessedRecord[];
@@ -47,16 +47,15 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
   const [hoveredProfilePoint, setHoveredProfilePoint] = useState<ProfilePoint | null>(null);
   const [interpolationMethod, setInterpolationMethod] = useState<InterpolationMethod>('bicubic');
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isMapsCollapsed, setIsMapsCollapsed] = useState<boolean>(false);
 
   // Interactive Dragging State for Profile Line
   const [draggingMode, setDraggingMode] = useState<'start' | 'end' | 'draw' | null>(null);
   const [cursorStyle, setCursorStyle] = useState<string>('crosshair');
 
-  // Initial Multi-Line Profiles
+  // Initial Multi-Line Profiles - Default to 1 clean transect line
   const [lines, setLines] = useState<NamedProfileLine[]>(() => {
     const midLat = (bounds.north + bounds.south) / 2;
-    const midLon = (bounds.west + bounds.east) / 2;
-    const latSpan = bounds.north - bounds.south;
     const lonSpan = bounds.east - bounds.west;
 
     return [
@@ -68,24 +67,6 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
         color: '#f59e0b',
         start: { lat: midLat, lon: bounds.west + lonSpan * 0.1 },
         end: { lat: midLat, lon: bounds.east - lonSpan * 0.1 },
-      },
-      {
-        id: 'line-2',
-        name: 'Line 2',
-        labelStart: 'B',
-        labelEnd: "B'",
-        color: '#10b981',
-        start: { lat: bounds.north - latSpan * 0.25, lon: bounds.west + lonSpan * 0.15 },
-        end: { lat: bounds.north - latSpan * 0.25, lon: bounds.east - lonSpan * 0.15 },
-      },
-      {
-        id: 'line-3',
-        name: 'Line 3',
-        labelStart: 'C',
-        labelEnd: "C'",
-        color: '#0284c7',
-        start: { lat: bounds.north - latSpan * 0.1, lon: midLon },
-        end: { lat: bounds.south + latSpan * 0.1, lon: midLon },
       },
     ];
   });
@@ -204,21 +185,40 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
     );
   };
 
-  // Convert client mouse event to Lat/Lon
-  const getLatLonFromEvent = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  // Convert client mouse or touch event to Lat/Lon
+  const getLatLonFromEvent = (
+    e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>
+  ) => {
     const canvas = e.currentTarget;
     const rect = canvas.getBoundingClientRect();
-    const xNorm = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    const yNorm = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+
+    let clientX = 0;
+    let clientY = 0;
+    const isTouch = 'touches' in e || 'changedTouches' in e;
+    if ('touches' in e && e.touches.length > 0) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else if ('changedTouches' in e && e.changedTouches.length > 0) {
+      clientX = e.changedTouches[0].clientX;
+      clientY = e.changedTouches[0].clientY;
+    } else if ('clientX' in e) {
+      clientX = (e as React.MouseEvent).clientX;
+      clientY = (e as React.MouseEvent).clientY;
+    }
+
+    const xNorm = Math.max(0, Math.min(1, (clientX - rect.left) / (rect.width || 1)));
+    const yNorm = Math.max(0, Math.min(1, (clientY - rect.top) / (rect.height || 1)));
 
     const lon = bounds.west + xNorm * (bounds.east - bounds.west);
     const lat = bounds.north - yNorm * (bounds.north - bounds.south);
-    return { lat, lon, xNorm, yNorm, rect };
+    return { lat, lon, xNorm, yNorm, rect, isTouch };
   };
 
-  // Check proximity to endpoints
-  const getEndpointProximity = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const { xNorm, yNorm, rect } = getLatLonFromEvent(e);
+  // Check proximity to endpoints (generous hit target for touch screens)
+  const getEndpointProximity = (
+    e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>
+  ) => {
+    const { xNorm, yNorm, rect, isTouch } = getLatLonFromEvent(e);
     const lonRange = bounds.east - bounds.west || 1;
     const latRange = bounds.north - bounds.south || 1;
 
@@ -233,8 +233,9 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
     const yB = ((bounds.north - activeLine.end.lat) / latRange) * rect.height;
     const distB = Math.sqrt((px - xB) ** 2 + (py - yB) ** 2);
 
-    if (distA <= 16) return 'start';
-    if (distB <= 16) return 'end';
+    const hitRadius = isTouch ? 30 : 18;
+    if (distA <= hitRadius) return 'start';
+    if (distB <= hitRadius) return 'end';
     return null;
   };
 
@@ -296,6 +297,78 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
 
   // Mouse Up: Commit line
   const handleCanvasMouseUp = () => {
+    setDraggingMode(null);
+    setCursorStyle('crosshair');
+  };
+
+  // Touch Events for Mobile PWA & Touchscreens
+  const handleCanvasTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (e.touches.length !== 1) return;
+    const endpoint = getEndpointProximity(e);
+    const { lat, lon } = getLatLonFromEvent(e);
+
+    if (endpoint === 'start') {
+      setDraggingMode('start');
+      setCursorStyle('grabbing');
+    } else if (endpoint === 'end') {
+      setDraggingMode('end');
+      setCursorStyle('grabbing');
+    } else {
+      setDraggingMode('draw');
+      setCursorStyle('crosshair');
+      setLines(
+        lines.map((l) =>
+          l.id === activeLineId
+            ? { ...l, start: { lat, lon }, end: { lat, lon } }
+            : l
+        )
+      );
+    }
+  };
+
+  const handleCanvasTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (e.touches.length !== 1) return;
+    const { lat, lon } = getLatLonFromEvent(e);
+
+    if (draggingMode === 'start') {
+      setLines(
+        lines.map((l) => (l.id === activeLineId ? { ...l, start: { lat, lon } } : l))
+      );
+      return;
+    } else if (draggingMode === 'end' || draggingMode === 'draw') {
+      setLines(
+        lines.map((l) => (l.id === activeLineId ? { ...l, end: { lat, lon } } : l))
+      );
+      return;
+    }
+
+    if (!pinnedRecord) {
+      const nearest = findNearestSounding(lat, lon);
+      setHoveredRecord(nearest);
+    }
+  };
+
+  const handleCanvasTouchEnd = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (draggingMode === 'draw') {
+      const active = lines.find((l) => l.id === activeLineId);
+      if (active) {
+        const dLat = Math.abs(active.start.lat - active.end.lat);
+        const dLon = Math.abs(active.start.lon - active.end.lon);
+        // If single tap without drag, pin/unpin nearest sounding
+        if (dLat < 0.002 && dLon < 0.002) {
+          const { lat, lon } = getLatLonFromEvent(e);
+          const nearest = findNearestSounding(lat, lon);
+          if (nearest) {
+            setPinnedRecord(
+              pinnedRecord?.latitude === nearest.latitude &&
+              pinnedRecord?.longitude === nearest.longitude
+                ? null
+                : nearest
+            );
+          }
+        }
+      }
+    }
     setDraggingMode(null);
     setCursorStyle('crosshair');
   };
@@ -496,8 +569,10 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
   }, [gridTopo, gridFaa, gridBg, interpolationMethod, activeRecord, lines, activeLineId, hoveredProfilePoint, draggingMode]);
 
   useEffect(() => {
-    renderAllCanvases();
-  }, [renderAllCanvases]);
+    if (!isMapsCollapsed) {
+      renderAllCanvases();
+    }
+  }, [renderAllCanvases, isMapsCollapsed]);
 
   const handleExportMap = (cfg: MapConfig) => {
     exportMapToPng(
@@ -613,29 +688,41 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
 
       {/* Interpolation Control Dropdown Toolbar & Interactive Drawing Hint */}
       <div className="interpolation-toolbar-card">
-        <div className="interp-label-group">
-          <SlidersHorizontal size={17} className="text-primary-blue" />
-          <span className="interp-title">Spatial Interpolation Filter:</span>
-        </div>
+        <div className="interp-left-group">
+          <div className="interp-label-group">
+            <SlidersHorizontal size={17} className="text-primary-blue" />
+            <span className="interp-title">Spatial Filter:</span>
+          </div>
 
-        <div className="interp-select-wrapper">
-          <select
-            id="interp-method-select"
-            className="form-control interp-select"
-            value={interpolationMethod}
-            onChange={(e) => setInterpolationMethod(e.target.value as InterpolationMethod)}
+          <div className="interp-select-wrapper">
+            <select
+              id="interp-method-select"
+              className="form-control interp-select"
+              value={interpolationMethod}
+              onChange={(e) => setInterpolationMethod(e.target.value as InterpolationMethod)}
+            >
+              <option value="bicubic">Bicubic Spline (Continuous 1st Derivatives — Standard Potential Field)</option>
+              <option value="spline">Thin Plate Spline (Minimum Curvature Harmonic Surface)</option>
+              <option value="bilinear">Bilinear (2D Linear Mesh)</option>
+              <option value="idw">Inverse Distance Weighting (IDW Power 2)</option>
+              <option value="nearest">Nearest Neighbor (Raw Discrete Soundings)</option>
+            </select>
+          </div>
+
+          <button
+            type="button"
+            className={`btn-toggle-maps-collapse ${isMapsCollapsed ? 'is-collapsed' : ''}`}
+            onClick={() => setIsMapsCollapsed(!isMapsCollapsed)}
+            title={isMapsCollapsed ? "Expand 3-Map Viewports" : "Collapse 3-Map Viewports to maximize 2D profile workspace"}
           >
-            <option value="bicubic">Bicubic Spline (Continuous 1st Derivatives — Standard Potential Field)</option>
-            <option value="spline">Thin Plate Spline (Minimum Curvature Harmonic Surface)</option>
-            <option value="bilinear">Bilinear (2D Linear Mesh)</option>
-            <option value="idw">Inverse Distance Weighting (IDW Power 2)</option>
-            <option value="nearest">Nearest Neighbor (Raw Discrete Soundings)</option>
-          </select>
+            {isMapsCollapsed ? <ChevronDown size={15} /> : <ChevronUp size={15} />}
+            <span>{isMapsCollapsed ? 'Expand Maps (3)' : 'Collapse Maps'}</span>
+          </button>
         </div>
 
         <div className="transect-drag-hint">
           <Move size={14} className="text-primary-blue" />
-          <span>Click and drag on any map to freely draw or adjust cross-section transect ({activeLine.labelStart} &rarr; {activeLine.labelEnd})</span>
+          <span>Click & drag on maps to draw transect ({activeLine.labelStart} &rarr; {activeLine.labelEnd})</span>
         </div>
       </div>
 
@@ -697,8 +784,11 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
         )}
       </div>
 
-      {/* 3 Map Viewports Grid */}
-      <div className="trimap-grid">
+      {/* 3 Map Viewports Grid (Collapsible via CSS) */}
+      <div
+        className={`trimap-grid ${isMapsCollapsed ? 'collapsed' : ''}`}
+        style={{ display: isMapsCollapsed ? 'none' : 'grid' }}
+      >
         {/* Map 1: Topography */}
         <div className="map-view-card">
           <div className="map-view-header">
@@ -719,11 +809,15 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
               width={480}
               height={360}
               className="raster-canvas"
-              style={{ cursor: cursorStyle }}
+              style={{ cursor: cursorStyle, touchAction: 'none' }}
               onMouseDown={handleCanvasMouseDown}
               onMouseMove={handleCanvasMouseMove}
               onMouseUp={handleCanvasMouseUp}
               onClick={handleCanvasClick}
+              onTouchStart={handleCanvasTouchStart}
+              onTouchMove={handleCanvasTouchMove}
+              onTouchEnd={handleCanvasTouchEnd}
+              onTouchCancel={handleCanvasTouchEnd}
               onMouseLeave={() => {
                 handleCanvasMouseUp();
                 if (!pinnedRecord) setHoveredRecord(null);
@@ -761,11 +855,15 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
               width={480}
               height={360}
               className="raster-canvas"
-              style={{ cursor: cursorStyle }}
+              style={{ cursor: cursorStyle, touchAction: 'none' }}
               onMouseDown={handleCanvasMouseDown}
               onMouseMove={handleCanvasMouseMove}
               onMouseUp={handleCanvasMouseUp}
               onClick={handleCanvasClick}
+              onTouchStart={handleCanvasTouchStart}
+              onTouchMove={handleCanvasTouchMove}
+              onTouchEnd={handleCanvasTouchEnd}
+              onTouchCancel={handleCanvasTouchEnd}
               onMouseLeave={() => {
                 handleCanvasMouseUp();
                 if (!pinnedRecord) setHoveredRecord(null);
@@ -803,11 +901,15 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
               width={480}
               height={360}
               className="raster-canvas"
-              style={{ cursor: cursorStyle }}
+              style={{ cursor: cursorStyle, touchAction: 'none' }}
               onMouseDown={handleCanvasMouseDown}
               onMouseMove={handleCanvasMouseMove}
               onMouseUp={handleCanvasMouseUp}
               onClick={handleCanvasClick}
+              onTouchStart={handleCanvasTouchStart}
+              onTouchMove={handleCanvasTouchMove}
+              onTouchEnd={handleCanvasTouchEnd}
+              onTouchCancel={handleCanvasTouchEnd}
               onMouseLeave={() => {
                 handleCanvasMouseUp();
                 if (!pinnedRecord) setHoveredRecord(null);
