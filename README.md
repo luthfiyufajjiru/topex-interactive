@@ -18,44 +18,49 @@ Modern fullstack geophysical exploration platform for extracting, processing, an
 
 ```mermaid
 graph LR
-    Step1[Step 1: Grid Extractor] -->|Snap to 0.5° & Parallel JIT| Step2[Step 2: Bouguer Reduction Engine]
-    Step2 -->|Density Optimization & Regional Filter| Step3[Step 3: Satellite Gravity Studio]
+    Step1[Step 1: Grid Extractor & JIT Streamer] -->|Snap to 0.5° & Parallel Edge Proxy| Step2[Step 2: Bouguer Reduction & Terrain Engine]
+    Step2 -->|Density Optimization & Regional Filter| Step3[Step 3: WebGL 2.0 Potential Field Studio]
 ```
 
 ### 1. Step 1: Universal Grid Extractor & JIT Streamer
-- **Interactive Global Map**: Draw bounding boxes on Google Earth Satellite imagery with 0-meridian wrap support and live coordinate synchronization.
-- **Canonical 0.5° Snap-to-Grid**: Snaps any arbitrary bounding box to universal $0.5^\circ \times 0.5^\circ$ discrete tiles, guaranteeing $100\%$ global cache reuse.
-- **Structural Integrity Validator**: Inspects incoming sounding streams against theoretical point-density thresholds to quarantine truncated CGI streams and trigger automatic self-healing retries.
-- **Resumable Extraction**: Interrupted or rate-limited jobs display an amber warning with a **"Continue Extraction"** button that resumes missing tiles in $0\text{ ms}$ from IndexedDB.
+- **Interactive Global Map**: Bounding-box selection on Google Earth satellite & nautical bathymetry imagery with seamless 0-meridian wrap support.
+- **Canonical 0.5° Snap-to-Grid**: Snaps arbitrary bounding boxes to universal $0.5^\circ \times 0.5^\circ$ discrete tiles, guaranteeing $100\%$ global edge cache reuse.
+- **Resumable Stream Recovery**: Self-healing validation quarantines truncated CGI streams and resumes missing tiles in $0\text{ ms}$ from IndexedDB.
 
 ### 2. Step 2: Complete Bouguer Reduction & Parasnis Regression
-- **Continental & Marine Slab Reduction**: Calculates complete Bouguer anomalies compensating for crustal slabs ($h \ge 0$) and seawater mass deficiencies ($h < 0$) using standard Bullard-A reduction formulas.
-- **Interactive Nettleton / Parasnis Density Regression**: Fits $d(\text{FAA})/dh$ linear regressions ($R^2$, empirical crustal density $\rho_c$, and density contrast $\Delta\rho$) with dynamic scatter plots and parameter synchronization.
+- **Continental & Marine Bullard-A Reduction**: Computes Complete Bouguer Anomalies (CBA) compensating for crustal slabs ($h \ge 0$) and seawater mass deficiencies ($h < 0$).
+- **Hayford-Bowie & Hammer Terrain Correction**: Integrates regional terrain prism corrections into CBA with dynamic marine density adjustments.
+- **Interactive Nettleton / Parasnis Regression**: Real-time least-squares $d(\text{FAA})/dh$ fitting ($R^2$, empirical crustal density $\rho_c$, and density contrast $\Delta\rho$) with dynamic scatter plots.
 
-### 3. Step 3: Satellite Gravity Studio & 2D Cross-Section Profiler
-- **Tri-Map Synchronized Viewports**: Simultaneous raster analysis of **Topography/Bathymetry (GEBCO)**, **Free-Air Gravity Anomaly (Coolwarm)**, and **Complete Bouguer / Regional / Residual Anomaly (Viridis)**.
-- **Live 2D Transect Profiler**: Freely draw, drag, and compare cross-sections ($A \to A'$, $B \to B'$) with multi-line stacking and synchronous distance-anomaly elevation plots.
-- **Regional-Residual Separation**: Griffin (1949) moving average windows, Gaussian spatial low-pass filters, and 1st/2nd-order polynomial trend surface removals.
+### 3. Step 3: Satellite Gravity Studio & 2D Geophysical Profiler
+- **Tri-Map Synchronized Viewports**: Real-time synchronized rasterization of **Topography/Bathymetry (GEBCO)**, **Free-Air Gravity Anomaly (FAA)**, and **Complete Bouguer / Residual Anomaly (CBA)**.
+- **2D Potential Field Calculus Profiler**:
+  - **First Horizontal Derivative (FHD)**: Identifies fault boundary inflection contacts.
+  - **Second Vertical Derivative (SVD)**: Solves Laplace's equation ($\nabla^2 g = 0 \implies \frac{\partial^2 g}{\partial z^2} = -\frac{\partial^2 g}{\partial x^2}$) for high-resolution edge detection.
+  - **Tilt Derivative (TDR)**: AGC phase angle filter ($\theta = \tan^{-1}[\text{VDR}/\text{THDR}]$) normalizing amplitude decay for deep and shallow basement depth estimation ($h = \Delta x_{45^\circ}$).
+- **Elkins (1951) Fault Classification Engine**: Automated real-time structural analysis classifying normal faults, thrust/reverse faults, and strike-slip/transtensional steps from SVD dipole ratios.
+- **Sounding Picks Inspection & Reporting**: Pin multiple sounding stations along transects with interactive SVG HUD, dynamic column filtering, and high-DPI PNG/CSV composite report exports.
 
 ---
 
-## WebGL & Shader Hardware Acceleration
+## WebGL 2.0 & GLSL Hardware Shader Acceleration
 
-### 1. GPU vs. CPU Architecture
-Computing 2D potential field spatial interpolation (Bicubic Spline, Thin Plate Minimum Curvature, Bilinear, IDW) across large grids ($> 100{,}000\text{ soundings}$) in pure JavaScript can lock the CPU event loop.
+### 1. High-Throughput GPU Rasterization & Texture Streaming
+Processing and rendering 2D potential field grids ($>100{,}000\text{ soundings}$) in real-time requires GPU parallelization to prevent main-thread UI stutter:
+* **Custom GLSL Fragment Shaders**: Color mapping (Viridis, Coolwarm, Turbo, Jet, Spectral, Earth/Ocean Bathymetry) is computed entirely on the GPU via custom GLSL fragment shaders.
+* **Vectorized Single-Pass Matrix Pipeline**: Coordinates, sorted spatial axes, and cell index maps are generated in a single pass for all 5 potential fields simultaneously ($5\times$ performance gain).
+* **Hardware Bilinear & Bicubic Filtering**: Leverages WebGL 2.0 32-bit floating-point textures (`OES_texture_float_linear` / `EXT_color_buffer_float`) for zero-latency raster resampling during viewport pan and zoom.
 
-To eliminate main-thread stutter, the Studio utilizes **Hardware-Accelerated WebGL/Canvas Rasterization**:
-* **Vectorized Single-Pass Matrix Builder (`buildAllRegularGrids`)**: Coordinates, unique sorted axes, and cell index maps are generated in a single pass for all 5 fields simultaneously ($5\times$ performance improvement over multi-pass loops).
-* **Asynchronous Control Locking (`isRendering`)**: While rasterization or regional filtering executes, all dropdowns, sliders, and export controls are temporarily locked with an active indicator badge (`Rendering Grid & Applying Filter...`), preventing race conditions and UI lockup.
-
-### 2. WebGL Capability Detection & Download Fallback
-If a client browser or mobile device does not meet the minimum WebGL hardware acceleration standard (e.g. disabled GPU drivers or maximum texture size $< 1024\text{px}$):
-* **Automatic Fallback Screen (`WebGLFallbackView.tsx`)**: The UI gracefully detects capability limits and renders a clean export console instead of crashing.
-* **Direct Export Suite**: Enables instant direct downloads of all computed data without requiring rasterization:
-  * **Soundings Table (.CSV)**
-  * **Oasis Montaj Geosoft Grid (.XYZ)**
+### 2. WebGL Capability Detection & Headless Fallback
+If a client environment lacks full WebGL 2.0 acceleration (e.g. software rendering or mobile low-power mode):
+* **Automatic Fallback Screen (`WebGLFallbackView.tsx`)**: Gracefully detects GPU limits and switches to headless export mode without crashing.
+* **Direct Export Suite**:
+  * **Oasis Montaj / Geosoft Grid (.XYZ)**
+  * **Surfer ASCII Grid (.GRD)**
   * **Geosoft Grid (.GXF)**
-  * **Structured JSON Dataset (.JSON)**
+  * **High-DPI 2D Cross-Section Plates (.PNG)**
+  * **GeoTIFF / GeoJSON (.geojson)**
+  * **CSV Soundings Table (.CSV)**
 
 ---
 
