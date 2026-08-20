@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import type { ProcessedRecord, BoundingBox, BouguerParams, InterpolationMethod, NamedProfileLine, ProfilePoint } from '@/types';
+import type { ProcessedRecord, BoundingBox, BouguerParams, InterpolationMethod, NamedProfileLine, ProfilePoint, RegionalResidualConfig } from '@/types';
 import { ColormapName } from '@/utils/geophysics/colormaps';
 import { buildRegularGrid, renderInterpolatedRasterToCanvas } from '@/utils/geophysics/interpolation';
 import { extractProfilePoints } from '@/utils/geophysics/profile';
+import { separateRegionalResidual } from '@/utils/geophysics/regionalResidual';
 import { MapColorbar } from './MapColorbar';
 import { ProfileGraph } from './ProfileGraph';
 import { exportToOasisMontajXYZ, exportToGeosoftGXF } from '@/utils/exporters/geosoft';
@@ -49,18 +50,28 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isMapsCollapsed, setIsMapsCollapsed] = useState<boolean>(false);
 
-  // Interactive Dragging State for Profile Line
-  const [draggingMode, setDraggingMode] = useState<'start' | 'end' | 'draw' | null>(null);
-  const [cursorStyle, setCursorStyle] = useState<string>('crosshair');
+  // Regional-Residual Separation Configuration
+  const [residualConfig, setResidualConfig] = useState<RegionalResidualConfig>({
+    method: 'gaussian',
+    radiusKm: 35,
+  });
 
-  // Initial Multi-Line Profiles - Default to 1 clean transect line
+  // Calculate live separated records with active filter method and window radius
+  const processedWithResidual = useMemo(() => {
+    return separateRegionalResidual(records, residualConfig);
+  }, [records, residualConfig]);
+
+  // Active sounding record: priority to pinned, fallback to hover
+  const activeRecord = pinnedRecord || hoveredRecord;
+
+  // Single default profile line A -> A' across the center
   const [lines, setLines] = useState<NamedProfileLine[]>(() => {
-    const midLat = (bounds.north + bounds.south) / 2;
     const lonSpan = bounds.east - bounds.west;
+    const midLat = (bounds.north + bounds.south) / 2;
 
     return [
       {
-        id: 'line-1',
+        id: 'line-default-1',
         name: 'Line 1',
         labelStart: 'A',
         labelEnd: "A'",
@@ -71,40 +82,42 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
     ];
   });
 
-  const [activeLineId, setActiveLineId] = useState<string>('line-1');
+  const [activeLineId, setActiveLineId] = useState<string>(lines[0].id);
 
-  // Active line
+  // Active line object
   const activeLine = useMemo(() => {
     return lines.find((l) => l.id === activeLineId) || lines[0];
   }, [lines, activeLineId]);
 
+  // Dragging state for transect endpoints
+  const [draggingMode, setDraggingMode] = useState<'start' | 'end' | 'draw' | null>(null);
+  const [cursorStyle, setCursorStyle] = useState<string>('crosshair');
+
+  // Canvas Refs for Map 1, 2, 3
   const canvasTopoRef = useRef<HTMLCanvasElement | null>(null);
   const canvasFaaRef = useRef<HTMLCanvasElement | null>(null);
   const canvasBgRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Active inspected record
-  const activeRecord = pinnedRecord || hoveredRecord;
-
-  // Build Regular Grids for each variable
+  // Build Regular Grids for all fields
   const gridTopo = useMemo(
-    () => buildRegularGrid(records, bounds, (r) => r.elevation),
-    [records, bounds]
+    () => buildRegularGrid(processedWithResidual, bounds, (r) => r.elevation),
+    [processedWithResidual, bounds]
   );
   const gridFaa = useMemo(
-    () => buildRegularGrid(records, bounds, (r) => r.gravity),
-    [records, bounds]
+    () => buildRegularGrid(processedWithResidual, bounds, (r) => r.gravity),
+    [processedWithResidual, bounds]
   );
   const gridBg = useMemo(
-    () => buildRegularGrid(records, bounds, (r) => r.bouguer),
-    [records, bounds]
+    () => buildRegularGrid(processedWithResidual, bounds, (r) => r.bouguer),
+    [processedWithResidual, bounds]
   );
   const gridResidual = useMemo(
-    () => buildRegularGrid(records, bounds, (r) => r.residual ?? r.bouguer),
-    [records, bounds]
+    () => buildRegularGrid(processedWithResidual, bounds, (r) => r.residual ?? r.bouguer),
+    [processedWithResidual, bounds]
   );
   const gridRegional = useMemo(
-    () => buildRegularGrid(records, bounds, (r) => r.regional ?? r.bouguer),
-    [records, bounds]
+    () => buildRegularGrid(processedWithResidual, bounds, (r) => r.regional ?? r.bouguer),
+    [processedWithResidual, bounds]
   );
 
   // Map 3 Anomaly Display Mode: 'residual' | 'bouguer' | 'regional'
@@ -685,8 +698,8 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
       <div className="interpolation-toolbar-card">
         <div className="interp-left-group">
           <div className="interp-label-group">
-            <SlidersHorizontal size={17} className="text-primary-blue" />
-            <span className="interp-title">Spatial Filter:</span>
+            <SlidersHorizontal size={16} className="text-primary-blue" />
+            <span className="interp-title">Gridding:</span>
           </div>
 
           <div className="interp-select-wrapper">
@@ -695,23 +708,73 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
               className="form-control interp-select"
               value={interpolationMethod}
               onChange={(e) => setInterpolationMethod(e.target.value as InterpolationMethod)}
+              title="2D Potential field interpolation algorithm"
             >
-              <option value="bicubic">Bicubic Spline (Continuous 1st Derivatives — Standard Potential Field)</option>
-              <option value="spline">Thin Plate Spline (Minimum Curvature Harmonic Surface)</option>
-              <option value="bilinear">Bilinear (2D Linear Mesh)</option>
-              <option value="idw">Inverse Distance Weighting (IDW Power 2)</option>
-              <option value="nearest">Nearest Neighbor (Raw Discrete Soundings)</option>
+              <option value="bicubic">Bicubic Spline (Potential Field Standard)</option>
+              <option value="spline">Thin Plate Spline (Minimum Curvature)</option>
+              <option value="bilinear">Bilinear (Linear Mesh)</option>
+              <option value="idw">IDW (Inverse Distance Power 2)</option>
+              <option value="nearest">Nearest (Raw Discrete)</option>
             </select>
           </div>
+
+          <div className="interp-divider" />
+
+          {/* Regional Separation Method */}
+          <div className="interp-label-group">
+            <span className="interp-title">Regional Filter:</span>
+          </div>
+          <div className="interp-select-wrapper">
+            <select
+              className="form-control interp-select"
+              value={residualConfig.method}
+              onChange={(e) =>
+                setResidualConfig((prev) => ({
+                  ...prev,
+                  method: e.target.value as RegionalResidualConfig['method'],
+                }))
+              }
+              title="Regional-Residual separation algorithm (Griffin 1949 / Gaussian filter / Polynomial)"
+            >
+              <option value="gaussian">Gaussian Low-Pass Filter (Smooth Regional)</option>
+              <option value="moving_avg">Moving Average Window (Griffin Boxcar)</option>
+              <option value="poly2">2nd-Order Polynomial (Paraboloid Surface)</option>
+              <option value="poly1">1st-Order Polynomial (Planar Trend)</option>
+              <option value="none">None (Total Bouguer Only)</option>
+            </select>
+          </div>
+
+          {/* Filter Window Radius Slider */}
+          {(residualConfig.method === 'gaussian' || residualConfig.method === 'moving_avg') && (
+            <div className="regional-radius-control-group">
+              <span className="interp-title">Window Radius:</span>
+              <input
+                type="range"
+                min="10"
+                max="150"
+                step="5"
+                value={residualConfig.radiusKm}
+                onChange={(e) =>
+                  setResidualConfig((prev) => ({
+                    ...prev,
+                    radiusKm: parseInt(e.target.value, 10) || 35,
+                  }))
+                }
+                className="density-slider radius-slider-bar"
+                title={`Filter window radius: ${residualConfig.radiusKm} km`}
+              />
+              <span className="radius-value-pill">{residualConfig.radiusKm} km</span>
+            </div>
+          )}
 
           <button
             type="button"
             className={`btn-toggle-maps-collapse ${isMapsCollapsed ? 'is-collapsed' : ''}`}
             onClick={() => setIsMapsCollapsed(!isMapsCollapsed)}
-            title={isMapsCollapsed ? "Expand 3-Map Viewports" : "Collapse 3-Map Viewports to maximize 2D profile workspace"}
+            title={isMapsCollapsed ? "Expand Maps" : "Collapse Maps to maximize 2D profile workspace"}
           >
             {isMapsCollapsed ? <ChevronDown size={15} /> : <ChevronUp size={15} />}
-            <span>{isMapsCollapsed ? 'Expand Maps (3)' : 'Collapse Maps'}</span>
+            <span>{isMapsCollapsed ? 'Expand Maps' : 'Collapse Maps'}</span>
           </button>
         </div>
 
@@ -775,7 +838,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
         ) : (
           <div className="studio-metric-hud default-state">
             <div className="hud-hint">
-              <span>💡 Hover over any map or 2D profile to probe sounding metrics &bull; Click anywhere to lock/pin a target</span>
+              <span>Hover over any map or 2D profile to probe sounding metrics &bull; Click anywhere to lock/pin a target</span>
             </div>
             <button
               type="button"

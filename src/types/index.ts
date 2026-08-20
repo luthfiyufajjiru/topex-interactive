@@ -20,7 +20,12 @@ export interface BouguerParams {
   includeCurvatureBullardB: boolean; // default: false
 }
 
-export type RegionalResidualMethod = 'none' | 'poly1' | 'poly2';
+export type RegionalResidualMethod = 'gaussian' | 'moving_avg' | 'poly2' | 'poly1' | 'none';
+
+export interface RegionalResidualConfig {
+  method: RegionalResidualMethod;
+  radiusKm?: number; // filter window radius in km (10 to 200 km, default: 35)
+}
 
 export interface ProcessedRecord extends TopexRecord {
   bouguer?: number;

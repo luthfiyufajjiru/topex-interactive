@@ -57,7 +57,7 @@ export const PWAInstallModal: React.FC<PWAInstallModalProps> = ({
               </div>
               <ol className="pwa-steps-list">
                 <li>Look at the right side of your <strong>browser URL address bar</strong>.</li>
-                <li>Click the <strong>Install App icon (⊕ or 💻)</strong>.</li>
+                <li>Click the <strong>Install App icon</strong> in the address bar.</li>
                 <li>Click <strong>Install</strong> to add TOPEX Studio to your desktop and taskbar.</li>
               </ol>
             </div>

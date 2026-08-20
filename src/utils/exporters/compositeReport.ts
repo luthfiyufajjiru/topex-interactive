@@ -89,22 +89,24 @@ export function exportCompositeReportImage(options: CompositeReportOptions): voi
   ctx.fillText('Scripps Institution of Oceanography (SIO/UCSD)', W - 55, 96);
 
   // ==========================================
-  // 2. Three Side-by-Side Geophysical Maps
+  // 2. Four Side-by-Side Geophysical Maps (Quad-Map Suite)
   // ==========================================
   const gridTopo = buildRegularGrid(records, bounds, (r) => r.elevation);
   const gridFaa = buildRegularGrid(records, bounds, (r) => r.gravity);
   const gridBg = buildRegularGrid(records, bounds, (r) => r.bouguer);
+  const gridResidual = buildRegularGrid(records, bounds, (r) => r.residual ?? r.bouguer);
 
-  const mapW = 690;
-  const mapH = 460;
-  const mapY = 175;
-  const startX = 65;
-  const gapX = 80;
+  const mapW = 540;
+  const mapH = 370;
+  const mapY = 165;
+  const startX = 50;
+  const gapX = 33;
 
   const mapConfigs = [
-    { title: 'Topography / Bathymetry', unit: 'm', grid: gridTopo, colormap: 'gebco' as const, x: startX },
-    { title: 'Free-Air Gravity Anomaly', unit: 'mGal', grid: gridFaa, colormap: 'coolwarm' as const, x: startX + mapW + gapX },
-    { title: 'Complete Bouguer Anomaly', unit: 'mGal', grid: gridBg, colormap: 'viridis' as const, x: startX + (mapW + gapX) * 2 },
+    { title: '1. Topography / Bathymetry', unit: 'm', grid: gridTopo, colormap: 'gebco' as const, x: startX },
+    { title: '2. Free-Air Gravity Anomaly', unit: 'mGal', grid: gridFaa, colormap: 'coolwarm' as const, x: startX + mapW + gapX },
+    { title: '3. Complete Bouguer Anomaly', unit: 'mGal', grid: gridBg, colormap: 'viridis' as const, x: startX + (mapW + gapX) * 2 },
+    { title: '4. Residual Gravity Anomaly', unit: 'mGal', grid: gridResidual, colormap: 'coolwarm' as const, x: startX + (mapW + gapX) * 3 },
   ];
 
   const lonRange = bounds.east - bounds.west || 1;
@@ -161,17 +163,17 @@ export function exportCompositeReportImage(options: CompositeReportOptions): voi
     // Endpoints
     ctx.fillStyle = '#facc15';
     ctx.beginPath();
-    ctx.arc(xA, yA, 7.5, 0, Math.PI * 2);
-    ctx.arc(xB, yB, 7.5, 0, Math.PI * 2);
+    ctx.arc(xA, yA, 7, 0, Math.PI * 2);
+    ctx.arc(xB, yB, 7, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = '#0f172a';
     ctx.lineWidth = 2.5;
     ctx.stroke();
 
     ctx.fillStyle = '#0f172a';
-    ctx.font = 'bold 13px Inter, sans-serif';
-    ctx.fillText(activeLine.labelStart, xA - 16, yA - 6);
-    ctx.fillText(activeLine.labelEnd, xB + 8, yB - 6);
+    ctx.font = 'bold 12px Inter, sans-serif';
+    ctx.fillText(activeLine.labelStart, xA - 15, yA - 6);
+    ctx.fillText(activeLine.labelEnd, xB + 7, yB - 6);
 
     // >>> CORRELATION POINT ON THE MAP <<<
     if (targetPick) {
@@ -182,67 +184,73 @@ export function exportCompositeReportImage(options: CompositeReportOptions): voi
       ctx.strokeStyle = '#0f172a';
       ctx.lineWidth = 3.5;
       ctx.beginPath();
-      ctx.arc(xPick, yPick, 9, 0, Math.PI * 2);
+      ctx.arc(xPick, yPick, 8, 0, Math.PI * 2);
       ctx.stroke();
 
       // White fill
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.arc(xPick, yPick, 7.5, 0, Math.PI * 2);
+      ctx.arc(xPick, yPick, 6.5, 0, Math.PI * 2);
       ctx.fill();
 
       // Colored center reticle dot
       ctx.fillStyle = '#0284c7';
       ctx.beginPath();
-      ctx.arc(xPick, yPick, 4.5, 0, Math.PI * 2);
+      ctx.arc(xPick, yPick, 4, 0, Math.PI * 2);
       ctx.fill();
     }
 
     ctx.restore();
 
-    // Map Border
+    // Map Title Header
+    ctx.fillStyle = '#0f172a';
+    ctx.font = 'bold 15px Inter, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(mCfg.title, mCfg.x, mapY - 12);
+
+    // Outer Border
     ctx.strokeStyle = '#cbd5e1';
     ctx.lineWidth = 1.5;
     ctx.strokeRect(mCfg.x, mapY, mapW, mapH);
 
-    // Map Title
-    ctx.fillStyle = '#0f172a';
-    ctx.font = 'bold 18px Inter, sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText(mCfg.title, mCfg.x, mapY - 12);
+    // Colorbar strip
+    const barY = mapY + mapH + 10;
+    const barH = 12;
+    const barImgData = ctx.createImageData(mapW, barH);
+    const barPix = barImgData.data;
 
-    // Horizontal Colorbar
-    const cbY = mapY + mapH + 12;
-    const cbH = 14;
-    const grad = ctx.createLinearGradient(mCfg.x, 0, mCfg.x + mapW, 0);
-    for (let s = 0; s <= 10; s++) {
-      const frac = s / 10;
-      const sVal = mCfg.grid.minVal + (mCfg.grid.maxVal - mCfg.grid.minVal) * frac;
-      const [r, g, b] = getInterpolatedColor(sVal, mCfg.grid.minVal, mCfg.grid.maxVal, mCfg.colormap);
-      grad.addColorStop(frac, `rgb(${r}, ${g}, ${b})`);
+    for (let px = 0; px < mapW; px++) {
+      const frac = px / (mapW - 1);
+      const val = mCfg.grid.minVal + frac * (mCfg.grid.maxVal - mCfg.grid.minVal);
+      const [r, g, b, a] = getInterpolatedColor(val, mCfg.grid.minVal, mCfg.grid.maxVal, mCfg.colormap);
+      for (let py = 0; py < barH; py++) {
+        const idx = (py * mapW + px) * 4;
+        barPix[idx] = r;
+        barPix[idx + 1] = g;
+        barPix[idx + 2] = b;
+        barPix[idx + 3] = a;
+      }
     }
-    ctx.fillStyle = grad;
-    ctx.fillRect(mCfg.x, cbY, mapW, cbH);
-    ctx.strokeStyle = '#cbd5e1';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(mCfg.x, cbY, mapW, cbH);
+    ctx.putImageData(barImgData, mCfg.x, barY);
+    ctx.strokeRect(mCfg.x, barY, mapW, barH);
 
+    // Colorbar values
     ctx.fillStyle = '#475569';
-    ctx.font = '12px "JetBrains Mono", monospace';
+    ctx.font = '11.5px "JetBrains Mono", monospace';
     ctx.textAlign = 'left';
-    ctx.fillText(`${mCfg.grid.minVal.toFixed(1)} ${mCfg.unit}`, mCfg.x, cbY + cbH + 16);
+    ctx.fillText(`${mCfg.grid.minVal.toFixed(1)} ${mCfg.unit}`, mCfg.x, barY + barH + 14);
     ctx.textAlign = 'right';
-    ctx.fillText(`${mCfg.grid.maxVal.toFixed(1)} ${mCfg.unit}`, mCfg.x + mapW, cbY + cbH + 16);
+    ctx.fillText(`${mCfg.grid.maxVal.toFixed(1)} ${mCfg.unit}`, mCfg.x + mapW, barY + barH + 14);
   }
 
   // ==========================================
-  // 3. 2D Cross-Section Profile Graph
+  // 3. 2D Geophysical Cross-Section Profile
   // ==========================================
-  const profX = 120;
-  const profY = 745;
-  const profW = W - profX - 120;
-  const profH = 680;
-  const splitProfY = profY + 315;
+  const profX = 65;
+  const profY = 630;
+  const profW = W - 130;
+  const profH = 430;
+  const splitProfY = profY + 195;
 
   ctx.fillStyle = '#0f172a';
   ctx.font = 'bold 20px Inter, sans-serif';
@@ -388,6 +396,25 @@ export function exportCompositeReportImage(options: CompositeReportOptions): voi
   }
   ctx.stroke();
 
+  // Residual Gravity Anomaly Curve (Vibrant Purple)
+  ctx.strokeStyle = '#8b5cf6';
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  let startedRes = false;
+  for (const p of profilePoints) {
+    if (p.residual !== undefined) {
+      const x = scaleX(p.distanceKm);
+      const y = scaleYGrav(p.residual);
+      if (!startedRes) {
+        ctx.moveTo(x, y);
+        startedRes = true;
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+  }
+  ctx.stroke();
+
   // Picked Correlation Line & Floating Value Badges
   if (targetPick) {
     const posX = scaleX(targetPick.distanceKm);
@@ -468,6 +495,28 @@ export function exportCompositeReportImage(options: CompositeReportOptions): voi
       ctx.fillText(`${targetPick.bouguer.toFixed(1)} mGal`, posX + offX + 57, yB + 5);
     }
 
+    // Residual anchor & tag
+    if (targetPick.residual !== undefined) {
+      const yR = scaleYGrav(targetPick.residual);
+      ctx.fillStyle = '#8b5cf6';
+      ctx.beginPath();
+      ctx.arc(posX, yR, 7.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      ctx.fillStyle = '#f5f3ff';
+      ctx.fillRect(posX + offX, yR - 14, 115, 28);
+      ctx.strokeStyle = '#ddd6fe';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(posX + offX, yR - 14, 115, 28);
+      ctx.fillStyle = '#6d28d9';
+      ctx.font = 'bold 13px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(`${targetPick.residual.toFixed(1)} mGal`, posX + offX + 57, yR + 5);
+    }
+
     // Distance tag
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(posX - 50, topoY + topoH + 6, 100, 26);
@@ -510,54 +559,56 @@ export function exportCompositeReportImage(options: CompositeReportOptions): voi
   ctx.fillText(`${totalDist.toFixed(1)} km (${activeLine.labelEnd})`, profX + profW, topoY + topoH + 24);
 
   // Legends
-  const legX = W - 580;
+  const legX = W - 780;
   const legY = profY - 18;
   ctx.font = 'bold 12px Inter, sans-serif';
 
-  ctx.fillStyle = '#d97706';
+  ctx.fillStyle = '#8b5cf6';
   ctx.fillRect(legX, legY - 10, 12, 12);
   ctx.fillStyle = '#0f172a';
   ctx.textAlign = 'left';
-  ctx.fillText('Complete Bouguer (CBA)', legX + 18, legY);
+  ctx.fillText('Residual Anomaly', legX + 18, legY);
+
+  ctx.fillStyle = '#d97706';
+  ctx.fillRect(legX + 160, legY - 10, 12, 12);
+  ctx.fillText('Complete Bouguer', legX + 178, legY);
 
   ctx.fillStyle = '#0284c7';
-  ctx.fillRect(legX + 200, legY - 10, 12, 12);
-  ctx.fillStyle = '#0f172a';
-  ctx.fillText('Free-Air (FAA)', legX + 218, legY);
+  ctx.fillRect(legX + 320, legY - 10, 12, 12);
+  ctx.fillText('Free-Air (FAA)', legX + 338, legY);
 
   ctx.fillStyle = '#059669';
-  ctx.fillRect(legX + 340, legY - 10, 12, 12);
-  ctx.fillStyle = '#0f172a';
-  ctx.fillText('Topography', legX + 358, legY);
+  ctx.fillRect(legX + 460, legY - 10, 12, 12);
+  ctx.fillText('Topography', legX + 478, legY);
 
   // ==========================================
   // 4. Survey Specifications & Density Parameters
   // ==========================================
   const statY = H - 220;
   ctx.fillStyle = '#f8fafc';
-  ctx.fillRect(65, statY, W - 130, 130);
+  ctx.fillRect(50, statY, W - 100, 130);
   ctx.strokeStyle = '#cbd5e1';
   ctx.lineWidth = 1.5;
-  ctx.strokeRect(65, statY, W - 130, 130);
+  ctx.strokeRect(50, statY, W - 100, 130);
 
   ctx.fillStyle = '#0f172a';
   ctx.font = 'bold 15px Inter, sans-serif';
   ctx.textAlign = 'left';
-  ctx.fillText('GEOPHYSICAL REDUCTION & SURVEY SPECIFICATIONS', 85, statY + 28);
+  ctx.fillText('GEOPHYSICAL REDUCTION & SURVEY SPECIFICATIONS', 70, statY + 28);
 
   ctx.font = '13px Inter, sans-serif';
   ctx.fillStyle = '#334155';
-  ctx.fillText(`• Standard Crustal Density (ρc): ${params.crustalDensity.toFixed(2)} g/cm³`, 85, statY + 56);
-  ctx.fillText(`• Seawater Reference Density (ρw): ${params.waterDensity.toFixed(2)} g/cm³`, 85, statY + 80);
-  ctx.fillText(`• Marine Density Contrast (Δρ): ${(params.crustalDensity - params.waterDensity).toFixed(2)} g/cm³`, 85, statY + 104);
+  ctx.fillText(`• Standard Crustal Density (ρc): ${params.crustalDensity.toFixed(2)} g/cm³`, 70, statY + 56);
+  ctx.fillText(`• Seawater Reference Density (ρw): ${params.waterDensity.toFixed(2)} g/cm³`, 70, statY + 80);
+  ctx.fillText(`• Marine Density Contrast (Δρ): ${(params.crustalDensity - params.waterDensity).toFixed(2)} g/cm³`, 70, statY + 104);
 
-  ctx.fillText(`• Total Soundings: ${records.length.toLocaleString()}`, 850, statY + 56);
-  ctx.fillText(`• Active Transect Length: ${totalDist.toFixed(1)} km`, 850, statY + 80);
-  ctx.fillText(`• Spatial Filter: ${interpolationMethod.toUpperCase()}`, 850, statY + 104);
+  ctx.fillText(`• Total Soundings: ${records.length.toLocaleString()}`, 800, statY + 56);
+  ctx.fillText(`• Active Transect Length: ${totalDist.toFixed(1)} km`, 800, statY + 80);
+  ctx.fillText(`• Spatial Filter: ${interpolationMethod.toUpperCase()}`, 800, statY + 104);
 
-  ctx.fillText(`• Elevation Range: [${gridTopo?.minVal.toFixed(1)} m to ${gridTopo?.maxVal.toFixed(1)} m]`, 1600, statY + 56);
-  ctx.fillText(`• Free-Air Range: [${gridFaa?.minVal.toFixed(1)} mGal to ${gridFaa?.maxVal.toFixed(1)} mGal]`, 1600, statY + 80);
-  ctx.fillText(`• Bouguer Range: [${gridBg?.minVal.toFixed(1)} mGal to ${gridBg?.maxVal.toFixed(1)} mGal]`, 1600, statY + 104);
+  ctx.fillText(`• Elevation Range: [${gridTopo?.minVal.toFixed(1)} m to ${gridTopo?.maxVal.toFixed(1)} m]`, 1550, statY + 56);
+  ctx.fillText(`• Free-Air Range: [${gridFaa?.minVal.toFixed(1)} mGal to ${gridFaa?.maxVal.toFixed(1)} mGal]`, 1550, statY + 80);
+  ctx.fillText(`• Residual Range: [${gridResidual?.minVal.toFixed(1)} mGal to ${gridResidual?.maxVal.toFixed(1)} mGal]`, 1550, statY + 104);
 
   // ==========================================
   // 5. Attribution Footer

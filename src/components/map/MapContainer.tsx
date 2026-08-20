@@ -59,7 +59,7 @@ export const MapContainer: React.FC<MapContainerProps> = ({ bounds, onBoundsChan
         <div class="search-pin-wrapper">
           <div class="search-pin-pulse"></div>
           <div class="search-pin-badge">
-            <span class="search-pin-emoji">📍</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:4px;"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
             <span class="search-pin-title">${loc.name}</span>
           </div>
         </div>
