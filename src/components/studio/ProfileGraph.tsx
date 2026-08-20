@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import type { ProfilePoint, NamedProfileLine } from '@/types';
 import { exportProfileToCsv } from '@/utils/geophysics/profile';
 import { exportProfileGraphToPng } from '@/utils/exporters/profileImage';
-import { Download, TrendingUp, Plus, Trash2, Image, Pin, PinOff, MoreVertical } from 'lucide-react';
+import { Download, TrendingUp, Plus, Trash2, Image, PinOff, MoreVertical } from 'lucide-react';
 
 interface ProfileGraphProps {
   lines: NamedProfileLine[];
@@ -552,6 +552,33 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
             const yRes = point.residual !== undefined ? scaleYGrav(point.residual) : null;
             const yTopo = scaleYTopo(point.elevation);
 
+            // Compute collision-free badge Y positions for gravity values
+            const gravBadges = [
+              { key: 'faa', anchorY: yFaa, y: yFaa, val: `${point.freeAir?.toFixed(1)} mGal`, color: '#0369a1', bg: '#f0f9ff', border: '#bae6fd', dotColor: '#0284c7' },
+              { key: 'cba', anchorY: yCba, y: yCba, val: `${point.bouguer?.toFixed(1)} mGal`, color: '#b45309', bg: '#fffbeb', border: '#fde68a', dotColor: '#d97706' },
+              { key: 'res', anchorY: yRes, y: yRes, val: `${point.residual?.toFixed(1)} mGal`, color: '#6d28d9', bg: '#f5f3ff', border: '#ddd6fe', dotColor: '#8b5cf6' },
+            ].filter((b): b is { key: string; anchorY: number; y: number; val: string; color: string; bg: string; border: string; dotColor: string } => b.y !== null);
+
+            // Sort by anchor Y
+            gravBadges.sort((a, b) => a.y - b.y);
+
+            // Maintain minimum 22px vertical clearance between badges
+            for (let bIdx = 1; bIdx < gravBadges.length; bIdx++) {
+              if (gravBadges[bIdx].y - gravBadges[bIdx - 1].y < 22) {
+                gravBadges[bIdx].y = gravBadges[bIdx - 1].y + 22;
+              }
+            }
+            // Keep within gravity chart bounds
+            const maxGravY = splitY - 12;
+            for (let bIdx = gravBadges.length - 1; bIdx >= 0; bIdx--) {
+              if (gravBadges[bIdx].y > maxGravY) {
+                gravBadges[bIdx].y = maxGravY;
+                if (bIdx > 0 && gravBadges[bIdx].y - gravBadges[bIdx - 1].y < 22) {
+                  gravBadges[bIdx - 1].y = gravBadges[bIdx].y - 22;
+                }
+              }
+            }
+
             return (
               <g key={`pick-${index}-${isPinned ? 'pinned' : 'hover'}`} className="correlation-group">
                 {/* 1. Full vertical correlation line */}
@@ -597,112 +624,56 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
                   {point.elevation.toFixed(1)} m
                 </text>
 
-                {/* 3. FAA Picked Anchor Dot & Value Tag */}
-                {yFaa !== null && (
-                  <>
+                {/* 3. Anti-Colliding Gravity Badges & Curve Anchors */}
+                {gravBadges.map((badge) => (
+                  <React.Fragment key={badge.key}>
+                    {/* Anchor dot on curve */}
                     <circle
                       cx={posX}
-                      cy={yFaa}
+                      cy={badge.anchorY}
                       r={isPinned ? 5.5 : 4}
-                      fill="#0284c7"
+                      fill={badge.dotColor}
                       stroke="#ffffff"
                       strokeWidth={2}
                     />
+                    {/* Connector line if displaced due to collision */}
+                    {Math.abs(badge.y - badge.anchorY) > 2 && (
+                      <line
+                        x1={posX}
+                        y1={badge.anchorY}
+                        x2={isRightSide ? posX - 8 : posX + 8}
+                        y2={badge.y}
+                        stroke={badge.border}
+                        strokeWidth={1}
+                        strokeDasharray="2 2"
+                      />
+                    )}
+                    {/* Non-overlapping Badge */}
                     <rect
                       x={isRightSide ? posX - 84 : posX + 8}
-                      y={yFaa - 10}
+                      y={badge.y - 10}
                       width={76}
                       height={20}
                       rx={4}
-                      fill="#f0f9ff"
-                      stroke="#bae6fd"
+                      fill={badge.bg}
+                      stroke={badge.border}
                       strokeWidth={1}
                     />
                     <text
                       x={posX + badgeOffset}
-                      y={yFaa + 4}
-                      fill="#0369a1"
+                      y={badge.y + 4}
+                      fill={badge.color}
                       fontSize="10.5"
                       fontWeight="bold"
                       textAnchor={badgeAnchor}
                       fontFamily="monospace"
                     >
-                      {point.freeAir?.toFixed(1)} mGal
+                      {badge.val}
                     </text>
-                  </>
-                )}
+                  </React.Fragment>
+                ))}
 
-                {/* 4. CBA Picked Anchor Dot & Value Tag */}
-                {yCba !== null && (
-                  <>
-                    <circle
-                      cx={posX}
-                      cy={yCba}
-                      r={isPinned ? 6 : 4.5}
-                      fill="#d97706"
-                      stroke="#ffffff"
-                      strokeWidth={2.5}
-                    />
-                    <rect
-                      x={isRightSide ? posX - 84 : posX + 8}
-                      y={yCba - 10}
-                      width={76}
-                      height={20}
-                      rx={4}
-                      fill="#fffbeb"
-                      stroke="#fde68a"
-                      strokeWidth={1}
-                    />
-                    <text
-                      x={posX + badgeOffset}
-                      y={yCba + 4}
-                      fill="#b45309"
-                      fontSize="10.5"
-                      fontWeight="bold"
-                      textAnchor={badgeAnchor}
-                      fontFamily="monospace"
-                    >
-                      {point.bouguer?.toFixed(1)} mGal
-                    </text>
-                  </>
-                )}
-
-                {/* 5. Residual Anomaly Picked Anchor Dot & Value Tag */}
-                {yRes !== null && (
-                  <>
-                    <circle
-                      cx={posX}
-                      cy={yRes}
-                      r={isPinned ? 6 : 4.5}
-                      fill="#8b5cf6"
-                      stroke="#ffffff"
-                      strokeWidth={2.5}
-                    />
-                    <rect
-                      x={isRightSide ? posX - 84 : posX + 8}
-                      y={yRes - 10}
-                      width={76}
-                      height={20}
-                      rx={4}
-                      fill="#f5f3ff"
-                      stroke="#ddd6fe"
-                      strokeWidth={1}
-                    />
-                    <text
-                      x={posX + badgeOffset}
-                      y={yRes + 4}
-                      fill="#6d28d9"
-                      fontSize="10.5"
-                      fontWeight="bold"
-                      textAnchor={badgeAnchor}
-                      fontFamily="monospace"
-                    >
-                      {point.residual?.toFixed(1)} mGal
-                    </text>
-                  </>
-                )}
-
-                {/* 6. Bottom Distance Callout Tag */}
+                {/* 4. Bottom Distance Callout Tag */}
                 <rect
                   x={posX - 38}
                   y={bottomY + 4}
@@ -728,7 +699,7 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
         </svg>
       </div>
 
-      {/* Legend & Hover Data Bar with Multi-Pin Clear Action */}
+      {/* Clean Legend & Pinned Picks Action Bar */}
       <div className="profile-footer-bar">
         <div className="profile-legends">
           <div className="legend-item">
@@ -749,46 +720,17 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
           </div>
         </div>
 
-        {activePoint && (
-          <div className="profile-probe-values">
-            {pinnedIndices.length > 0 && (
-              <span className="pin-indicator">
-                <Pin size={13} className="text-emerald" />
-                <strong>Picks: {pinnedIndices.length}</strong>
-              </span>
-            )}
-            <span className="probe-highlight-dist">
-              Dist: <strong>{activePoint.distanceKm.toFixed(1)} km</strong>
-            </span>
-            <span>
-              Coord: <strong>{activePoint.latitude.toFixed(3)}&deg;, {activePoint.longitude.toFixed(3)}&deg;</strong>
-            </span>
-            <span>
-              Topo: <strong className="text-emerald">{activePoint.elevation.toFixed(1)} m</strong>
-            </span>
-            <span>
-              FAA: <strong className="text-sky">{activePoint.freeAir?.toFixed(1) ?? 'N/A'} mGal</strong>
-            </span>
-            <span>
-              Bouguer: <strong className="text-amber">{activePoint.bouguer?.toFixed(1) ?? 'N/A'} mGal</strong>
-            </span>
-            {activePoint.residual !== undefined && (
-              <span>
-                Residual: <strong style={{ color: '#8b5cf6' }}>{activePoint.residual.toFixed(1)} mGal</strong>
-              </span>
-            )}
-
-            {pinnedIndices.length > 0 && (
-              <button
-                type="button"
-                className="btn-unpin"
-                onClick={() => setPinnedIndices([])}
-                title="Clear all pinned correlation picks"
-              >
-                <PinOff size={12} />
-                <span>Clear ({pinnedIndices.length})</span>
-              </button>
-            )}
+        {pinnedIndices.length > 0 && (
+          <div className="profile-footer-actions">
+            <button
+              type="button"
+              className="btn-unpin"
+              onClick={() => setPinnedIndices([])}
+              title="Clear all pinned correlation picks"
+            >
+              <PinOff size={13} />
+              <span>Clear Picks ({pinnedIndices.length})</span>
+            </button>
           </div>
         )}
       </div>

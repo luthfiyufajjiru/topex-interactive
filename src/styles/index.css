@@ -3105,13 +3105,30 @@ footer {
   border-radius: 2px;
 }
 
-.profile-probe-values {
+.profile-footer-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
-  font-size: 0.76rem;
-  color: #334155;
-  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.btn-unpin {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm, 6px);
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-unpin:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
 }
 
 /* ==========================================================================
