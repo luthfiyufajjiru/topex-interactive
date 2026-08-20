@@ -803,81 +803,92 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
 
       {/* Clean Interactive Legend & Channel Toggles */}
       <div className="profile-footer-bar">
+        <div className="profile-legends-header">
+          <span className="profile-legends-title">Toggle Cross-Section Curves:</span>
+        </div>
         <div className="profile-legends">
           <button
             type="button"
-            className={`legend-item-btn ${visibleChannels.residual ? 'active' : 'inactive'}`}
+            className={`legend-item-btn legend-btn-res ${visibleChannels.residual ? 'active' : 'inactive'}`}
             onClick={() => toggleChannel('residual')}
             title="Toggle Residual Gravity Anomaly"
           >
-            <span className="legend-dot" style={{ background: '#8b5cf6' }} />
+            <span className="legend-indicator">{visibleChannels.residual ? '✓' : ''}</span>
+            <span className="legend-dot dot-res" />
             <span className="legend-label">Residual</span>
           </button>
           <button
             type="button"
-            className={`legend-item-btn ${visibleChannels.cba ? 'active' : 'inactive'}`}
+            className={`legend-item-btn legend-btn-cba ${visibleChannels.cba ? 'active' : 'inactive'}`}
             onClick={() => toggleChannel('cba')}
             title="Toggle Complete Bouguer Anomaly (CBA = SBA + TC)"
           >
-            <span className="legend-dot" style={{ background: '#d97706' }} />
+            <span className="legend-indicator">{visibleChannels.cba ? '✓' : ''}</span>
+            <span className="legend-dot dot-cba" />
             <span className="legend-label">Bouguer (CBA)</span>
           </button>
           <button
             type="button"
-            className={`legend-item-btn ${visibleChannels.sba ? 'active' : 'inactive'}`}
+            className={`legend-item-btn legend-btn-sba ${visibleChannels.sba ? 'active' : 'inactive'}`}
             onClick={() => toggleChannel('sba')}
             title="Toggle Simple Bouguer Anomaly (SBA = FAA - Slab)"
           >
-            <span className="legend-dot" style={{ background: '#b45309', border: '1px dashed #ffffff' }} />
+            <span className="legend-indicator">{visibleChannels.sba ? '✓' : ''}</span>
+            <span className="legend-dot dot-sba" />
             <span className="legend-label">Simple (SBA)</span>
           </button>
           <button
             type="button"
-            className={`legend-item-btn ${visibleChannels.faa ? 'active' : 'inactive'}`}
+            className={`legend-item-btn legend-btn-faa ${visibleChannels.faa ? 'active' : 'inactive'}`}
             onClick={() => toggleChannel('faa')}
             title="Toggle Free-Air Gravity Anomaly (FAA)"
           >
-            <span className="legend-dot" style={{ background: '#0284c7' }} />
+            <span className="legend-indicator">{visibleChannels.faa ? '✓' : ''}</span>
+            <span className="legend-dot dot-faa" />
             <span className="legend-label">Free-Air (FAA)</span>
           </button>
           <button
             type="button"
-            className={`legend-item-btn ${visibleChannels.fhd ? 'active' : 'inactive'}`}
+            className={`legend-item-btn legend-btn-fhd ${visibleChannels.fhd ? 'active' : 'inactive'}`}
             onClick={() => toggleChannel('fhd')}
             title="Toggle First Horizontal Derivative (FHD - Fault Edges)"
           >
-            <span className="legend-dot" style={{ background: '#e11d48' }} />
+            <span className="legend-indicator">{visibleChannels.fhd ? '✓' : ''}</span>
+            <span className="legend-dot dot-fhd" />
             <span className="legend-label">FHD (Faults)</span>
           </button>
           <button
             type="button"
-            className={`legend-item-btn ${visibleChannels.svd ? 'active' : 'inactive'}`}
+            className={`legend-item-btn legend-btn-svd ${visibleChannels.svd ? 'active' : 'inactive'}`}
             onClick={() => toggleChannel('svd')}
             title="Toggle Second Vertical Derivative (SVD - Zero Crossings)"
           >
-            <span className="legend-dot" style={{ background: '#0d9488' }} />
+            <span className="legend-indicator">{visibleChannels.svd ? '✓' : ''}</span>
+            <span className="legend-dot dot-svd" />
             <span className="legend-label">SVD (Laplace)</span>
           </button>
           <button
             type="button"
-            className={`legend-item-btn ${visibleChannels.tdr ? 'active' : 'inactive'}`}
+            className={`legend-item-btn legend-btn-tdr ${visibleChannels.tdr ? 'active' : 'inactive'}`}
             onClick={() => toggleChannel('tdr')}
             title="Toggle Tilt Angle Derivative (TDR)"
           >
-            <span className="legend-dot" style={{ background: '#f59e0b' }} />
+            <span className="legend-indicator">{visibleChannels.tdr ? '✓' : ''}</span>
+            <span className="legend-dot dot-tdr" />
             <span className="legend-label">Tilt (TDR)</span>
           </button>
           <button
             type="button"
-            className={`legend-item-btn ${visibleChannels.regional ? 'active' : 'inactive'}`}
+            className={`legend-item-btn legend-btn-reg ${visibleChannels.regional ? 'active' : 'inactive'}`}
             onClick={() => toggleChannel('regional')}
             title="Toggle Regional Trend"
           >
-            <span className="legend-dot" style={{ background: '#94a3b8' }} />
+            <span className="legend-indicator">{visibleChannels.regional ? '✓' : ''}</span>
+            <span className="legend-dot dot-reg" />
             <span className="legend-label">Regional</span>
           </button>
-          <div className="legend-item static">
-            <span className="legend-dot" style={{ background: '#059669' }} />
+          <div className="legend-item static legend-btn-topo">
+            <span className="legend-dot dot-topo" />
             <span className="legend-label">Topography</span>
           </div>
         </div>

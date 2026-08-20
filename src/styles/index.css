@@ -5481,3 +5481,227 @@ footer {
   color: #0f172a;
 }
 
+/* ==========================================================================
+   2D Cross-Section Profile Legend & Interactive Channel Toggles
+   ========================================================================== */
+.profile-footer-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  margin-top: 12px;
+}
+
+.profile-legends-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.profile-legends-title {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.profile-legends {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.legend-item-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.legend-item-btn .legend-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  height: 13px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  border-radius: 50%;
+  line-height: 1;
+}
+
+.legend-item-btn.inactive {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #94a3b8;
+  opacity: 0.55;
+}
+
+.legend-item-btn.inactive:hover {
+  opacity: 0.85;
+  border-color: #cbd5e1;
+  background: #e2e8f0;
+}
+
+.legend-item-btn.inactive .legend-dot {
+  opacity: 0.35;
+  filter: grayscale(80%);
+}
+
+.legend-item-btn.inactive .legend-indicator {
+  display: none;
+}
+
+/* Active Channel Pill Custom Colors */
+.legend-btn-res.active {
+  background: #f5f3ff;
+  border-color: #c4b5fd;
+  color: #6d28d9;
+  box-shadow: 0 1px 3px rgba(139, 92, 246, 0.15);
+}
+.legend-btn-res.active .legend-indicator {
+  background: #8b5cf6;
+  color: #ffffff;
+}
+
+.legend-btn-cba.active {
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #b45309;
+  box-shadow: 0 1px 3px rgba(217, 119, 6, 0.15);
+}
+.legend-btn-cba.active .legend-indicator {
+  background: #d97706;
+  color: #ffffff;
+}
+
+.legend-btn-sba.active {
+  background: #fff7ed;
+  border-color: #fed7aa;
+  color: #c2410c;
+  box-shadow: 0 1px 3px rgba(180, 83, 9, 0.15);
+}
+.legend-btn-sba.active .legend-indicator {
+  background: #b45309;
+  color: #ffffff;
+}
+
+.legend-btn-faa.active {
+  background: #f0f9ff;
+  border-color: #bae6fd;
+  color: #0369a1;
+  box-shadow: 0 1px 3px rgba(2, 132, 199, 0.15);
+}
+.legend-btn-faa.active .legend-indicator {
+  background: #0284c7;
+  color: #ffffff;
+}
+
+.legend-btn-fhd.active {
+  background: #fff1f2;
+  border-color: #fecdd3;
+  color: #be123c;
+  box-shadow: 0 1px 3px rgba(225, 29, 72, 0.15);
+}
+.legend-btn-fhd.active .legend-indicator {
+  background: #e11d48;
+  color: #ffffff;
+}
+
+.legend-btn-svd.active {
+  background: #f0fdfa;
+  border-color: #99f6e4;
+  color: #0f766e;
+  box-shadow: 0 1px 3px rgba(13, 148, 136, 0.15);
+}
+.legend-btn-svd.active .legend-indicator {
+  background: #0d9488;
+  color: #ffffff;
+}
+
+.legend-btn-tdr.active {
+  background: #fefce8;
+  border-color: #fef08a;
+  color: #a16207;
+  box-shadow: 0 1px 3px rgba(245, 158, 11, 0.15);
+}
+.legend-btn-tdr.active .legend-indicator {
+  background: #f59e0b;
+  color: #ffffff;
+}
+
+.legend-btn-reg.active {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #475569;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.legend-btn-reg.active .legend-indicator {
+  background: #64748b;
+  color: #ffffff;
+}
+
+.legend-item.static {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  background: #ecfdf5;
+  border: 1.5px solid #a7f3d0;
+  color: #047857;
+}
+
+.legend-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dot-res { background: #8b5cf6; }
+.dot-cba { background: #d97706; }
+.dot-sba { background: #b45309; border: 1px dashed #ffffff; }
+.dot-faa { background: #0284c7; }
+.dot-fhd { background: #e11d48; }
+.dot-svd { background: #0d9488; }
+.dot-tdr { background: #f59e0b; }
+.dot-reg { background: #94a3b8; }
+.dot-topo { background: #059669; }
+
+.btn-unpin {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.btn-unpin:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+
