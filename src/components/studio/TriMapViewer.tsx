@@ -13,7 +13,23 @@ import { exportToOasisMontajXYZ, exportToGeosoftGXF } from '@/utils/exporters/ge
 import { exportMapToPng } from '@/utils/exporters/mapImage';
 import { exportCompositeReportImage } from '@/utils/exporters/compositeReport';
 import { ExportSuiteModal } from './ExportSuiteModal';
-import { FileCode, Image, Crosshair, SlidersHorizontal, Pin, PinOff, Move, LayoutGrid, PackageCheck, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { CitationsModal } from '../modals/CitationsModal';
+import {
+  FileCode,
+  Image,
+  Crosshair,
+  SlidersHorizontal,
+  Pin,
+  PinOff,
+  Move,
+  LayoutGrid,
+  PackageCheck,
+  ChevronDown,
+  ChevronUp,
+  Loader2,
+  Info,
+  BookOpen,
+} from 'lucide-react';
 
 interface SatelliteGravityStudioProps {
   records: ProcessedRecord[];
@@ -64,6 +80,34 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
     method: 'gaussian',
     radiusKm: 35,
   });
+
+  // Local temporary slider values to update UI instantly without calculating heavy math on every micro-drag
+  const [tempRadiusKm, setTempRadiusKm] = useState<number>(residualConfig.radiusKm ?? 35);
+  const [tempGridWindow, setTempGridWindow] = useState<number>(residualConfig.gridWindowCells ?? 3);
+
+  // Sync temp values if residualConfig changes from presets or external triggers
+  useEffect(() => {
+    if (residualConfig.radiusKm !== undefined) {
+      setTempRadiusKm(residualConfig.radiusKm);
+    }
+    if (residualConfig.gridWindowCells !== undefined) {
+      setTempGridWindow(residualConfig.gridWindowCells);
+    }
+  }, [residualConfig]);
+
+  const commitRadius = (val: number) => {
+    setResidualConfig((prev) => {
+      if (prev.radiusKm === val) return prev;
+      return { ...prev, radiusKm: val };
+    });
+  };
+
+  const commitGridWindow = (val: number) => {
+    setResidualConfig((prev) => {
+      if (prev.gridWindowCells === val) return prev;
+      return { ...prev, gridWindowCells: val };
+    });
+  };
 
   // Asynchronous processed records & 2D regular grids state to prevent main thread blocking
   const [processedWithResidual, setProcessedWithResidual] = useState<ProcessedRecord[]>(records);
@@ -593,6 +637,25 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
   }, [bounds, lines, activeLineId, hoveredProfilePoint, profilePoints, activeRecord]);
 
   // Synchronously update all 3 overlay layers on mouse move / hover / draw
+  const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
+  const [isInfoPopupOpen, setIsInfoPopupOpen] = useState(false);
+  const [isCitationsModalOpen, setIsCitationsModalOpen] = useState(false);
+  const exportDropdownRef = useRef<HTMLDivElement | null>(null);
+
+  // Close export dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (exportDropdownRef.current && !exportDropdownRef.current.contains(e.target as Node)) {
+        setIsExportDropdownOpen(false);
+      }
+    };
+    if (isExportDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isExportDropdownOpen]);
+
+  // Synchronously update all 3 overlay layers on mouse move / hover / draw
   const updateAllOverlays = useCallback(() => {
     drawOverlayElements(canvasTopoOverlayRef.current);
     drawOverlayElements(canvasFaaOverlayRef.current);
@@ -603,42 +666,32 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
     updateAllOverlays();
   }, [updateAllOverlays]);
 
-  // Render Raster Heatmaps on WebGL 2.0 GPU Context (with CPU 2D Fallback)
-  // Strictly decoupled from mouse moves and hover events!
-  const renderAllCanvases = useCallback(() => {
-    if (isMapsCollapsed) return;
-
-    // 1. Topography Map
-    if (canvasTopoWebglRef.current && gridTopo) {
-      const renderedOnGpu = renderWebGL2Raster(canvasTopoWebglRef.current, gridTopo, 'gebco', interpolationMethod);
-      if (!renderedOnGpu && canvasTopoOverlayRef.current) {
-        renderInterpolatedRasterToCanvas(canvasTopoOverlayRef.current, gridTopo, 'gebco', interpolationMethod);
-      }
-    }
-
-    // 2. Free-Air Gravity Anomaly Map
-    if (canvasFaaWebglRef.current && gridFaa) {
-      const renderedOnGpu = renderWebGL2Raster(canvasFaaWebglRef.current, gridFaa, 'coolwarm', interpolationMethod);
-      if (!renderedOnGpu && canvasFaaOverlayRef.current) {
-        renderInterpolatedRasterToCanvas(canvasFaaOverlayRef.current, gridFaa, 'coolwarm', interpolationMethod);
-      }
-    }
-
-    // 3. Bouguer / Residual Anomaly Map
-    if (canvasBgWebglRef.current && activeMap3Grid) {
-      const renderedOnGpu = renderWebGL2Raster(canvasBgWebglRef.current, activeMap3Grid, activeMap3Colormap, interpolationMethod);
-      if (!renderedOnGpu && canvasBgOverlayRef.current) {
-        renderInterpolatedRasterToCanvas(canvasBgOverlayRef.current, activeMap3Grid, activeMap3Colormap, interpolationMethod);
-      }
-    }
-  }, [gridTopo, gridFaa, activeMap3Grid, activeMap3Colormap, interpolationMethod, isMapsCollapsed]);
-
-  // Trigger WebGL rasterization strictly when datasets, grids, or render modes change
+  // 1. Render Map 1: Topography / Bathymetry (Runs ONLY when topo grid or method changes)
   useEffect(() => {
-    if (!isMapsCollapsed) {
-      renderAllCanvases();
+    if (isMapsCollapsed || !canvasTopoWebglRef.current || !gridTopo) return;
+    const rendered = renderWebGL2Raster(canvasTopoWebglRef.current, gridTopo, 'gebco', interpolationMethod);
+    if (!rendered && canvasTopoOverlayRef.current) {
+      renderInterpolatedRasterToCanvas(canvasTopoOverlayRef.current, gridTopo, 'gebco', interpolationMethod);
     }
-  }, [renderAllCanvases, isMapsCollapsed]);
+  }, [gridTopo, interpolationMethod, isMapsCollapsed]);
+
+  // 2. Render Map 2: Free-Air Gravity Anomaly (Runs ONLY when FAA grid or method changes)
+  useEffect(() => {
+    if (isMapsCollapsed || !canvasFaaWebglRef.current || !gridFaa) return;
+    const rendered = renderWebGL2Raster(canvasFaaWebglRef.current, gridFaa, 'coolwarm', interpolationMethod);
+    if (!rendered && canvasFaaOverlayRef.current) {
+      renderInterpolatedRasterToCanvas(canvasFaaOverlayRef.current, gridFaa, 'coolwarm', interpolationMethod);
+    }
+  }, [gridFaa, interpolationMethod, isMapsCollapsed]);
+
+  // 3. Render Map 3: Bouguer / Residual / Regional (Runs when active Anomaly grid, colormap or method changes)
+  useEffect(() => {
+    if (isMapsCollapsed || !canvasBgWebglRef.current || !activeMap3Grid) return;
+    const rendered = renderWebGL2Raster(canvasBgWebglRef.current, activeMap3Grid, activeMap3Colormap, interpolationMethod);
+    if (!rendered && canvasBgOverlayRef.current) {
+      renderInterpolatedRasterToCanvas(canvasBgOverlayRef.current, activeMap3Grid, activeMap3Colormap, interpolationMethod);
+    }
+  }, [activeMap3Grid, activeMap3Colormap, interpolationMethod, isMapsCollapsed]);
 
   const handleExportMap = (cfg: MapConfig) => {
     exportMapToPng(
@@ -711,60 +764,114 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
     <div className="trimap-studio-container">
       {/* Studio Header & Global Exporters */}
       <div className="studio-header">
-        <div>
-          <h2 className="studio-title">Satellite Gravity Studio</h2>
-          <p className="studio-desc">
-            Multi-field comparative analysis of Topography, Free-Air, and Complete Bouguer anomalies with real-time spatial interpolation, freely drawable 2D cross-section profiling, and full export suites.
-          </p>
+        <div className="studio-title-block">
+          <div className="studio-title-row">
+            <h2 className="studio-title">Satellite Gravity Studio</h2>
+            <button
+              type="button"
+              className="btn-info-icon"
+              onClick={() => setIsInfoPopupOpen((prev) => !prev)}
+              title="Toggle Studio Information"
+              aria-label="Studio Info"
+            >
+              <Info size={15} />
+            </button>
+            <button
+              type="button"
+              className="citation-chip-badge"
+              onClick={() => setIsCitationsModalOpen(true)}
+              title="Open Geophysical Methodology & Citations"
+            >
+              <BookOpen size={12} />
+              <span>Citations</span>
+            </button>
+          </div>
+          {isInfoPopupOpen && (
+            <div className="studio-info-popover">
+              Multi-field comparative analysis of Topography, Free-Air, and Complete Bouguer anomalies with real-time WebGL 2.0 GPU gridding, freely draggable 2D cross-section profiling, and full geodetic export suites.
+            </div>
+          )}
         </div>
 
-        {/* Oasis Montaj & High-Res Export Suite */}
-        <div className="studio-export-suite">
-          {/* Checkbox Package Center Dialog Button */}
+        {/* Unified Export Suite Dropdown */}
+        <div className="studio-export-dropdown-wrapper" ref={exportDropdownRef}>
           <button
             type="button"
-            className="btn-export-suite-modal"
-            onClick={() => setIsExportModalOpen(true)}
+            className="btn-export-suite-main"
+            onClick={() => setIsExportDropdownOpen((prev) => !prev)}
             disabled={isRendering}
-            title="Open Geophysical Suite Export Center to pick datasets, grids, and reports"
+            title="Download geophysical datasets, maps, and reports"
           >
             <PackageCheck size={16} />
-            <span>Export Suite (.ZIP)...</span>
+            <span>Export Suite</span>
+            <ChevronDown size={14} className={isExportDropdownOpen ? 'rotate-180' : ''} />
           </button>
 
-          {/* Full Suite Composite Single Image Report Button */}
-          <button
-            type="button"
-            className="btn-export-full-suite"
-            onClick={handleExportFullSuiteImage}
-            disabled={isRendering}
-            title="Download complete single-image geophysical report plate (3 Maps + 2D Profile + Metadata in 1 Picture)"
-          >
-            <LayoutGrid size={16} />
-            <span>Full Report (PNG)</span>
-          </button>
+          {isExportDropdownOpen && (
+            <div className="studio-export-dropdown-menu">
+              <button
+                type="button"
+                className="export-dropdown-item"
+                onClick={() => {
+                  setIsExportDropdownOpen(false);
+                  setIsExportModalOpen(true);
+                }}
+              >
+                <PackageCheck size={16} className="text-primary-blue" />
+                <div className="export-item-text">
+                  <strong>Export Package (.ZIP)...</strong>
+                  <span>Custom bundle with grids, metadata & profiles</span>
+                </div>
+              </button>
 
-          <button
-            type="button"
-            className="btn-export-oasis"
-            onClick={() => exportToOasisMontajXYZ(processedWithResidual)}
-            disabled={isRendering}
-            title="Download Oasis Montaj Geosoft XYZ File"
-          >
-            <FileCode size={16} />
-            <span>Oasis Montaj (.XYZ)</span>
-          </button>
+              <button
+                type="button"
+                className="export-dropdown-item"
+                onClick={() => {
+                  setIsExportDropdownOpen(false);
+                  handleExportFullSuiteImage();
+                }}
+              >
+                <LayoutGrid size={16} className="text-emerald-500" />
+                <div className="export-item-text">
+                  <strong>Full Report Plate (PNG)</strong>
+                  <span>3 Maps + 2D Profile Composite</span>
+                </div>
+              </button>
 
-          <button
-            type="button"
-            className="btn-export-gxf"
-            onClick={() => exportToGeosoftGXF(processedWithResidual, bounds, 'bouguer')}
-            disabled={isRendering}
-            title="Download Geosoft Grid File (.gxf)"
-          >
-            <FileCode size={16} />
-            <span>Geosoft Grid (.GXF)</span>
-          </button>
+              <div className="export-dropdown-divider" />
+
+              <button
+                type="button"
+                className="export-dropdown-item"
+                onClick={() => {
+                  setIsExportDropdownOpen(false);
+                  exportToOasisMontajXYZ(processedWithResidual);
+                }}
+              >
+                <FileCode size={16} className="text-amber-500" />
+                <div className="export-item-text">
+                  <strong>Oasis Montaj (.XYZ)</strong>
+                  <span>Industry-standard Geosoft ASCII table</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                className="export-dropdown-item"
+                onClick={() => {
+                  setIsExportDropdownOpen(false);
+                  exportToGeosoftGXF(processedWithResidual, bounds, 'bouguer');
+                }}
+              >
+                <FileCode size={16} className="text-purple-500" />
+                <div className="export-item-text">
+                  <strong>Geosoft Grid (.GXF)</strong>
+                  <span>Standard 2D raster grid format</span>
+                </div>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -833,18 +940,17 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
                 min="10"
                 max="150"
                 step="5"
-                value={residualConfig.radiusKm ?? 35}
-                onChange={(e) =>
-                  setResidualConfig((prev) => ({
-                    ...prev,
-                    radiusKm: parseInt(e.target.value, 10) || 35,
-                  }))
-                }
+                value={tempRadiusKm}
+                onChange={(e) => setTempRadiusKm(parseInt(e.target.value, 10) || 35)}
+                onPointerUp={(e) => commitRadius(parseInt((e.target as HTMLInputElement).value, 10) || 35)}
+                onMouseUp={(e) => commitRadius(parseInt((e.target as HTMLInputElement).value, 10) || 35)}
+                onTouchEnd={(e) => commitRadius(parseInt((e.target as HTMLInputElement).value, 10) || 35)}
+                onKeyUp={(e) => commitRadius(parseInt((e.target as HTMLInputElement).value, 10) || 35)}
                 disabled={isRendering}
                 className="density-slider radius-slider-bar"
-                title={`Gaussian filter radius: ${residualConfig.radiusKm ?? 35} km`}
+                title={`Gaussian filter radius: ${tempRadiusKm} km (drag to adjust, release to apply)`}
               />
-              <span className="radius-value-pill">{residualConfig.radiusKm ?? 35} km</span>
+              <span className="radius-value-pill">{tempRadiusKm} km</span>
             </div>
           )}
 
@@ -857,19 +963,18 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
                 min="1"
                 max="12"
                 step="1"
-                value={residualConfig.gridWindowCells ?? 3}
-                onChange={(e) =>
-                  setResidualConfig((prev) => ({
-                    ...prev,
-                    gridWindowCells: parseInt(e.target.value, 10) || 1,
-                  }))
-                }
+                value={tempGridWindow}
+                onChange={(e) => setTempGridWindow(parseInt(e.target.value, 10) || 1)}
+                onPointerUp={(e) => commitGridWindow(parseInt((e.target as HTMLInputElement).value, 10) || 1)}
+                onMouseUp={(e) => commitGridWindow(parseInt((e.target as HTMLInputElement).value, 10) || 1)}
+                onTouchEnd={(e) => commitGridWindow(parseInt((e.target as HTMLInputElement).value, 10) || 1)}
+                onKeyUp={(e) => commitGridWindow(parseInt((e.target as HTMLInputElement).value, 10) || 1)}
                 disabled={isRendering}
                 className="density-slider radius-slider-bar"
-                title={`Moving average grid box size: ${2 * (residualConfig.gridWindowCells ?? 3) + 1}×${2 * (residualConfig.gridWindowCells ?? 3) + 1} cells`}
+                title={`Moving average grid box size: ${2 * tempGridWindow + 1}×${2 * tempGridWindow + 1} cells`}
               />
               <span className="radius-value-pill">
-                {2 * (residualConfig.gridWindowCells ?? 3) + 1}×{2 * (residualConfig.gridWindowCells ?? 3) + 1} (k={residualConfig.gridWindowCells ?? 3})
+                {2 * tempGridWindow + 1}×{2 * tempGridWindow + 1} (k={tempGridWindow})
               </span>
             </div>
           )}
@@ -984,6 +1089,15 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
             </button>
           </div>
           <div className="canvas-wrapper">
+            {(!gridTopo || isRendering) && (
+              <div className="map-skeleton-overlay">
+                <div className="skeleton-shimmer" />
+                <div className="skeleton-content">
+                  <Loader2 className="skeleton-spinner animate-spin" size={24} />
+                  <span className="skeleton-label">Rendering Topography...</span>
+                </div>
+              </div>
+            )}
             <canvas
               ref={canvasTopoWebglRef}
               width={480}
@@ -1036,6 +1150,15 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
             </button>
           </div>
           <div className="canvas-wrapper">
+            {(!gridFaa || isRendering) && (
+              <div className="map-skeleton-overlay">
+                <div className="skeleton-shimmer" />
+                <div className="skeleton-content">
+                  <Loader2 className="skeleton-spinner animate-spin" size={24} />
+                  <span className="skeleton-label">Rendering Free-Air Field...</span>
+                </div>
+              </div>
+            )}
             <canvas
               ref={canvasFaaWebglRef}
               width={480}
@@ -1122,6 +1245,21 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
             </button>
           </div>
           <div className="canvas-wrapper">
+            {(!activeMap3Grid || isRendering) && (
+              <div className="map-skeleton-overlay">
+                <div className="skeleton-shimmer" />
+                <div className="skeleton-content">
+                  <Loader2 className="skeleton-spinner animate-spin" size={24} />
+                  <span className="skeleton-label">
+                    {bouguerViewMode === 'residual'
+                      ? 'Rendering Residual Anomaly...'
+                      : bouguerViewMode === 'regional'
+                      ? 'Rendering Regional Field...'
+                      : 'Rendering Bouguer Anomaly...'}
+                  </span>
+                </div>
+              </div>
+            )}
             <canvas
               ref={canvasBgWebglRef}
               width={480}
@@ -1184,7 +1322,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
       <ExportSuiteModal
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
-        records={records}
+        records={processedWithResidual}
         bounds={bounds}
         params={bouguerParams}
         lines={lines}
@@ -1192,6 +1330,12 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
         profilePoints={profilePoints}
         activePoint={hoveredProfilePoint || (profilePoints.length > 0 ? profilePoints[Math.floor(profilePoints.length / 2)] : null)}
         interpolationMethod={interpolationMethod}
+      />
+
+      {/* Geophysical Methodology & Scientific Citations Modal */}
+      <CitationsModal
+        isOpen={isCitationsModalOpen}
+        onClose={() => setIsCitationsModalOpen(false)}
       />
     </div>
   );

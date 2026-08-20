@@ -1,8 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { ProfilePoint, NamedProfileLine } from '@/types';
 import { exportProfileToCsv } from '@/utils/geophysics/profile';
 import { exportProfileGraphToPng } from '@/utils/exporters/profileImage';
-import { Download, TrendingUp, Compass, Plus, Trash2, Image, Pin, PinOff } from 'lucide-react';
+import { Download, TrendingUp, Plus, Trash2, Image, Pin, PinOff, MoreVertical } from 'lucide-react';
 
 interface ProfileGraphProps {
   lines: NamedProfileLine[];
@@ -14,7 +14,7 @@ interface ProfileGraphProps {
   activeLine: NamedProfileLine;
   onHoverPoint: (point: ProfilePoint | null) => void;
   hoveredPoint: ProfilePoint | null;
-  onSetPresetLine: (preset: 'we' | 'ns' | 'diag1' | 'diag2') => void;
+  onSetPresetLine?: (preset: 'we' | 'ns' | 'diag1' | 'diag2') => void;
 }
 
 export const ProfileGraph: React.FC<ProfileGraphProps> = ({
@@ -27,11 +27,25 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
   activeLine,
   onHoverPoint,
   hoveredPoint,
-  onSetPresetLine,
 }) => {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const [pinnedIndices, setPinnedIndices] = useState<number[]>([]);
+  const [isKebabOpen, setIsKebabOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const kebabRef = useRef<HTMLDivElement | null>(null);
+
+  // Close kebab menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (kebabRef.current && !kebabRef.current.contains(e.target as Node)) {
+        setIsKebabOpen(false);
+      }
+    };
+    if (isKebabOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isKebabOpen]);
 
   if (points.length === 0) return null;
 
@@ -286,64 +300,47 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
           </div>
         </div>
 
-        {/* Quick Preset Buttons & Exporters */}
-        <div className="profile-actions-group">
-          <div className="preset-buttons-group">
-            <button
-              type="button"
-              className="btn-preset"
-              onClick={() => onSetPresetLine('we')}
-              title="Align transect West to East (W → E)"
-            >
-              <Compass size={12} />
-              <span>W &rarr; E</span>
-            </button>
-            <button
-              type="button"
-              className="btn-preset"
-              onClick={() => onSetPresetLine('ns')}
-              title="Align transect North to South (N → S)"
-            >
-              <Compass size={12} />
-              <span>N &rarr; S</span>
-            </button>
-            <button
-              type="button"
-              className="btn-preset"
-              onClick={() => onSetPresetLine('diag1')}
-              title="Align transect NW to SE"
-            >
-              <span>NW &rarr; SE</span>
-            </button>
-            <button
-              type="button"
-              className="btn-preset"
-              onClick={() => onSetPresetLine('diag2')}
-              title="Align transect SW to NE"
-            >
-              <span>SW &rarr; NE</span>
-            </button>
-          </div>
-
+        {/* Kebab 3-Dot Export Dropdown Menu */}
+        <div className="profile-actions-group" ref={kebabRef} style={{ position: 'relative' }}>
           <button
             type="button"
-            className="btn-export-profile-img"
-            onClick={() => exportProfileGraphToPng({ points, line: activeLine, activePoint })}
-            title="Download high-resolution PNG image of this 2D profile"
+            className="btn-kebab-menu"
+            onClick={() => setIsKebabOpen((prev) => !prev)}
+            title="Profile export options (PNG / CSV)"
+            aria-label="Profile actions"
           >
-            <Image size={13} />
-            <span>Profile PNG</span>
+            <MoreVertical size={16} />
           </button>
 
-          <button
-            type="button"
-            className="btn-export-csv"
-            onClick={() => exportProfileToCsv(points, `profile_${activeLine.name.toLowerCase().replace(/\s+/g, '_')}.csv`)}
-            title="Export this transect profile soundings to CSV"
-          >
-            <Download size={13} />
-            <span>Export CSV</span>
-          </button>
+          {isKebabOpen && (
+            <div className="kebab-dropdown-menu">
+              <button
+                type="button"
+                className="kebab-dropdown-item"
+                onClick={() => {
+                  setIsKebabOpen(false);
+                  exportProfileGraphToPng({ points, line: activeLine, activePoint });
+                }}
+              >
+                <Image size={14} />
+                <span>Save Profile Image (PNG)</span>
+              </button>
+              <button
+                type="button"
+                className="kebab-dropdown-item"
+                onClick={() => {
+                  setIsKebabOpen(false);
+                  exportProfileToCsv(
+                    points,
+                    `profile_${activeLine.name.toLowerCase().replace(/\s+/g, '_')}.csv`
+                  );
+                }}
+              >
+                <Download size={14} />
+                <span>Export Profile Data (CSV)</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

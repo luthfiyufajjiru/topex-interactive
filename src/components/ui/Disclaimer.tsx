@@ -1,23 +1,44 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { BookOpen, ExternalLink } from 'lucide-react';
+import { CitationsModal } from '../modals/CitationsModal';
 
 export const Disclaimer: React.FC = () => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   return (
-    <div className="disclaimer">
-      <strong>Scientific Methodology & Citations</strong>
-      <div style={{ marginTop: '6px', lineHeight: '1.6' }}>
-        <strong>Data Source:</strong> Scripps Institution of Oceanography, UC San Diego (Smith & Sandwell, 1997; Sandwell et al., 2014). Odd elevation values indicate ship sonar soundings; even values are satellite-predicted. Original CGI extractor:{' '}
-        <a target="_blank" rel="noopener noreferrer" href="https://topex.ucsd.edu/cgi-bin/get_data.cgi">
-          topex.ucsd.edu
-        </a>.
-      </div>
-      <div style={{ marginTop: '8px', fontSize: '0.82rem', color: '#64748b', lineHeight: '1.5' }}>
-        <strong>Geophysical Reduction & Separation Citations:</strong>
-        <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
-          <li><strong>Complete Bouguer Anomaly:</strong> Blakely, R. J. (1995). <em>Potential Theory in Gravity and Magnetic Applications</em>. Cambridge University Press; Telford, W. M., et al. (1990). <em>Applied Geophysics</em>.</li>
-          <li><strong>Density Determination:</strong> Parasnis, D. S. (1962). <em>Principles of Applied Geophysics</em>. Chapman & Hall; Nettleton, L. L. (1939). Determination of density for reduction of gravimeter observations. <em>Geophysics</em>, 4(3), 176–183.</li>
-          <li><strong>Regional-Residual Separation:</strong> Griffin, W. R. (1949). Residual gravity in theory and practice. <em>Geophysics</em>, 14(1), 39–56; Nettleton, L. L. (1954). Regionals, residuals, and structures. <em>Geophysics</em>, 19(1), 1–22.</li>
-        </ul>
-      </div>
-    </div>
+    <>
+      <footer className="footer-disclaimer">
+        <div className="footer-disclaimer-inner">
+          <div className="footer-citation-brief">
+            <span>Data Source: </span>
+            <strong>Scripps Institution of Oceanography, UC San Diego</strong>
+            <span className="text-muted"> (Sandwell et al., 2014 &bull; SIO V24.1/V18.1)</span>
+          </div>
+          <div className="footer-citation-actions">
+            <button
+              type="button"
+              className="btn-footer-citations"
+              onClick={() => setIsModalOpen(true)}
+              title="View full scientific citations, formulas, and references"
+            >
+              <BookOpen size={13} />
+              <span>Citations & References</span>
+            </button>
+            <a
+              target="_blank"
+              rel="noopener noreferrer"
+              href="https://topex.ucsd.edu/cgi-bin/get_data.cgi"
+              className="footer-external-link"
+              title="Official Scripps TOPEX CGI Portal"
+            >
+              <span>UCSD Portal</span>
+              <ExternalLink size={12} />
+            </a>
+          </div>
+        </div>
+      </footer>
+
+      <CitationsModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+    </>
   );
 };
