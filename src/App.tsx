@@ -3,6 +3,7 @@ import type { BoundingBox, TopexRecord, WorkflowStep, BouguerParams } from '@/ty
 import { fetchLargeGridInChunks, ChunkProgress } from '@/api/parallelFetcher';
 import { parseUrlParams } from '@/utils/coordinateParser';
 import { calculateBouguerAnomaly, computeGeophysicsStats } from '@/utils/geophysics/bouguer';
+import { separateRegionalResidual } from '@/utils/geophysics/regionalResidual';
 import { Header } from '@/components/ui/Header';
 import { Disclaimer } from '@/components/ui/Disclaimer';
 import { Toast } from '@/components/ui/Toast';
@@ -35,10 +36,11 @@ export const App: React.FC = () => {
     includeCurvatureBullardB: false,
   });
 
-  // Calculate Processed Records with Complete Bouguer Anomaly
+  // Calculate Processed Records with Complete Bouguer Anomaly & 2D Polynomial Regional-Residual Separation
   const processedRecords = useMemo(() => {
     if (records.length === 0) return [];
-    return calculateBouguerAnomaly(records, bouguerParams);
+    const withBouguer = calculateBouguerAnomaly(records, bouguerParams);
+    return separateRegionalResidual(withBouguer, { method: 'poly2' });
   }, [records, bouguerParams]);
 
   // Compute Complete Geophysics Summary Statistics

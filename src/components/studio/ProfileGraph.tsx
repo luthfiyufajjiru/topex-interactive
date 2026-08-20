@@ -93,6 +93,8 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
   // Build SVG Path strings
   let faaPath = '';
   let bgPath = '';
+  let residualPath = '';
+  let regionalPath = '';
   let topoLinePath = '';
   let topoAreaPath = '';
 
@@ -108,6 +110,16 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
     if (p.bouguer !== undefined) {
       const yBg = scaleYGrav(p.bouguer);
       bgPath += (i === 0 ? `M ${x} ${yBg}` : ` L ${x} ${yBg}`);
+    }
+
+    if (p.residual !== undefined) {
+      const yRes = scaleYGrav(p.residual);
+      residualPath += (i === 0 ? `M ${x} ${yRes}` : ` L ${x} ${yRes}`);
+    }
+
+    if (p.regional !== undefined) {
+      const yReg = scaleYGrav(p.regional);
+      regionalPath += (i === 0 ? `M ${x} ${yReg}` : ` L ${x} ${yReg}`);
     }
 
     const yTopo = scaleYTopo(p.elevation);
@@ -406,10 +418,18 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
           {/* Gravity Anomaly Curves */}
           {hasGravity && (
             <>
+              {/* Regional Trend (Slate Grey Dashed) */}
+              {regionalPath && (
+                <path d={regionalPath} fill="none" stroke="#94a3b8" strokeWidth={1.8} strokeDasharray="5 3" />
+              )}
               {/* Free Air Curve (Royal Sky Blue) */}
-              <path d={faaPath} fill="none" stroke="#0284c7" strokeWidth={2.2} />
+              <path d={faaPath} fill="none" stroke="#0284c7" strokeWidth={2.0} />
               {/* Bouguer Curve (Rich Amber Orange) */}
-              <path d={bgPath} fill="none" stroke="#d97706" strokeWidth={2.5} />
+              <path d={bgPath} fill="none" stroke="#d97706" strokeWidth={2.4} />
+              {/* Residual Anomaly Curve (Vibrant Violet/Purple) */}
+              {residualPath && (
+                <path d={residualPath} fill="none" stroke="#8b5cf6" strokeWidth={2.6} />
+              )}
             </>
           )}
 
@@ -674,6 +694,10 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
       <div className="profile-footer-bar">
         <div className="profile-legends">
           <div className="legend-item">
+            <span className="legend-dot" style={{ background: '#8b5cf6' }} />
+            <span className="legend-label">Residual Gravity Anomaly</span>
+          </div>
+          <div className="legend-item">
             <span className="legend-dot" style={{ background: '#d97706' }} />
             <span className="legend-label">Complete Bouguer Anomaly (CBA)</span>
           </div>
@@ -710,6 +734,11 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
             <span>
               Bouguer: <strong className="text-amber">{activePoint.bouguer?.toFixed(1) ?? 'N/A'} mGal</strong>
             </span>
+            {activePoint.residual !== undefined && (
+              <span>
+                Residual: <strong style={{ color: '#8b5cf6' }}>{activePoint.residual.toFixed(1)} mGal</strong>
+              </span>
+            )}
 
             {pinnedIndex !== null && (
               <button

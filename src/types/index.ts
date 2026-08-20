@@ -20,9 +20,13 @@ export interface BouguerParams {
   includeCurvatureBullardB: boolean; // default: false
 }
 
+export type RegionalResidualMethod = 'none' | 'poly1' | 'poly2';
+
 export interface ProcessedRecord extends TopexRecord {
   bouguer?: number;
   slabCorrection?: number;
+  regional?: number;
+  residual?: number;
 }
 
 export interface ProfilePoint {
@@ -34,6 +38,8 @@ export interface ProfilePoint {
   freeAir?: number;
   bouguer?: number;
   slabCorrection?: number;
+  regional?: number;
+  residual?: number;
 }
 
 export interface ProfileLine {

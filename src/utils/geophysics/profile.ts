@@ -26,6 +26,8 @@ export function extractProfilePoints(
   gridTopo: RegularGrid2D | null,
   gridFaa: RegularGrid2D | null,
   gridBg: RegularGrid2D | null,
+  gridResidual: RegularGrid2D | null = null,
+  gridRegional: RegularGrid2D | null = null,
   bounds: BoundingBox,
   method: InterpolationMethod = 'bicubic',
   numSamples = 100
@@ -50,6 +52,8 @@ export function extractProfilePoints(
     const elev = sampleInterpolatedValue(gridTopo, u, v, method);
     const faa = gridFaa ? sampleInterpolatedValue(gridFaa, u, v, method) : undefined;
     const bg = gridBg ? sampleInterpolatedValue(gridBg, u, v, method) : undefined;
+    const residual = gridResidual ? sampleInterpolatedValue(gridResidual, u, v, method) : undefined;
+    const regional = gridRegional ? sampleInterpolatedValue(gridRegional, u, v, method) : undefined;
 
     points.push({
       index: i,
@@ -59,6 +63,8 @@ export function extractProfilePoints(
       elevation: Number(elev.toFixed(1)),
       freeAir: faa !== undefined ? Number(faa.toFixed(2)) : undefined,
       bouguer: bg !== undefined ? Number(bg.toFixed(2)) : undefined,
+      residual: residual !== undefined ? Number(residual.toFixed(2)) : undefined,
+      regional: regional !== undefined ? Number(regional.toFixed(2)) : undefined,
     });
   }
 
@@ -71,7 +77,7 @@ export function extractProfilePoints(
 export function exportProfileToCsv(points: ProfilePoint[], filename = 'topex_cross_section_profile.csv'): void {
   if (points.length === 0) return;
 
-  const headers = ['Index', 'Distance_km', 'Latitude', 'Longitude', 'Topography_m', 'FreeAir_mGal', 'Bouguer_mGal'];
+  const headers = ['Index', 'Distance_km', 'Latitude', 'Longitude', 'Topography_m', 'FreeAir_mGal', 'Bouguer_mGal', 'Residual_mGal', 'Regional_mGal'];
   const rows = points.map((p) => [
     p.index,
     p.distanceKm,
@@ -80,14 +86,16 @@ export function exportProfileToCsv(points: ProfilePoint[], filename = 'topex_cro
     p.elevation,
     p.freeAir ?? '',
     p.bouguer ?? '',
+    p.residual ?? '',
+    p.regional ?? '',
   ]);
 
-  const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
+  const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
+  link.setAttribute('href', url);
+  link.setAttribute('download', filename);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

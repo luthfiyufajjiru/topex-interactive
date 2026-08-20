@@ -4,7 +4,7 @@ import { buildRegularGrid, sampleInterpolatedValue } from '@/utils/geophysics/in
 
 export interface MapExportOptions {
   title: string;
-  variable: 'topography' | 'freeAir' | 'bouguer';
+  variable: 'topography' | 'freeAir' | 'bouguer' | 'residual' | 'regional';
   unit: string;
   colormap: ColormapName;
   interpolationMethod?: InterpolationMethod;
@@ -39,7 +39,15 @@ export function exportMapToPng(options: MapExportOptions, filename = 'topex_map.
 
   // Build regular grid for smooth interpolation
   const getValue = (r: ProcessedRecord) =>
-    variable === 'bouguer' ? r.bouguer : variable === 'freeAir' ? r.gravity : r.elevation;
+    variable === 'residual'
+      ? (r.residual ?? r.bouguer)
+      : variable === 'regional'
+      ? (r.regional ?? r.bouguer)
+      : variable === 'bouguer'
+      ? r.bouguer
+      : variable === 'freeAir'
+      ? r.gravity
+      : r.elevation;
 
   const grid = buildRegularGrid(records, bounds, getValue);
   if (!grid) return;

@@ -9,7 +9,7 @@ import { exportToOasisMontajXYZ, exportToGeosoftGXF } from '@/utils/exporters/ge
 import { exportMapToPng } from '@/utils/exporters/mapImage';
 import { exportCompositeReportImage } from '@/utils/exporters/compositeReport';
 import { ExportSuiteModal } from './ExportSuiteModal';
-import { FileCode, Image, Crosshair, SlidersHorizontal, Pin, PinOff, Move, LayoutGrid, PackageCheck, ChevronDown, ChevronUp } from 'lucide-react';
+import { FileCode, Image, Crosshair, SlidersHorizontal, Pin, PinOff, Move, LayoutGrid, PackageCheck, ChevronDown, ChevronUp, Maximize2, Minimize2 } from 'lucide-react';
 
 interface SatelliteGravityStudioProps {
   records: ProcessedRecord[];
@@ -18,11 +18,11 @@ interface SatelliteGravityStudioProps {
 }
 
 interface MapConfig {
-  id: 'topography' | 'freeAir' | 'bouguer';
+  id: 'topography' | 'freeAir' | 'bouguer' | 'residual' | 'regional';
   title: string;
   unit: string;
   colormap: ColormapName;
-  getValue: (r: ProcessedRecord) => number | undefined;
+  getValue?: (r: ProcessedRecord) => number | undefined;
 }
 
 const LINE_COLORS = ['#f59e0b', '#10b981', '#0284c7', '#8b5cf6', '#ec4899', '#f97316'];
@@ -98,6 +98,20 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
     () => buildRegularGrid(records, bounds, (r) => r.bouguer),
     [records, bounds]
   );
+  const gridResidual = useMemo(
+    () => buildRegularGrid(records, bounds, (r) => r.residual ?? r.bouguer),
+    [records, bounds]
+  );
+  const gridRegional = useMemo(
+    () => buildRegularGrid(records, bounds, (r) => r.regional ?? r.bouguer),
+    [records, bounds]
+  );
+
+  // Map 3 Anomaly Display Mode: 'residual' | 'bouguer' | 'regional'
+  const [bouguerViewMode, setBouguerViewMode] = useState<'residual' | 'bouguer' | 'regional'>('residual');
+
+  const activeMap3Grid = bouguerViewMode === 'residual' ? gridResidual : bouguerViewMode === 'regional' ? gridRegional : gridBg;
+  const activeMap3Colormap: ColormapName = bouguerViewMode === 'residual' ? 'coolwarm' : 'viridis';
 
   // Extract Profile Points for active line
   const profilePoints = useMemo(() => {
@@ -106,11 +120,13 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
       gridTopo,
       gridFaa,
       gridBg,
+      gridResidual,
+      gridRegional,
       bounds,
       interpolationMethod,
       120
     );
-  }, [activeLine, gridTopo, gridFaa, gridBg, bounds, interpolationMethod]);
+  }, [activeLine, gridTopo, gridFaa, gridBg, gridResidual, gridRegional, bounds, interpolationMethod]);
 
   // Add new Profile Line
   const handleAddLine = () => {
@@ -757,8 +773,19 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
             )}
           </div>
         ) : (
-          <div className="probe-placeholder">
-            Click on any of the 3 maps to pin a sounding coordinate or drag to draw a cross-section line.
+          <div className="studio-metric-hud default-state">
+            <div className="hud-hint">
+              <span>💡 Hover over any map or 2D profile to probe sounding metrics &bull; Click anywhere to lock/pin a target</span>
+            </div>
+            <button
+              type="button"
+              className="btn-collapse-maps-toggle"
+              onClick={() => setIsMapsCollapsed(!isMapsCollapsed)}
+              title={isMapsCollapsed ? 'Expand 3 Map Views' : 'Collapse Maps to Maximize Profile Workspace'}
+            >
+              {isMapsCollapsed ? <Maximize2 size={13} /> : <Minimize2 size={13} />}
+              <span>{isMapsCollapsed ? 'Show Maps' : 'Collapse Maps'}</span>
+            </button>
           </div>
         )}
       </div>
@@ -860,15 +887,49 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
           )}
         </div>
 
-        {/* Map 3: Bouguer Anomaly */}
+        {/* Map 3: Bouguer / Residual Anomaly */}
         <div className="map-view-card highlight-border">
           <div className="map-view-header">
-            <div className="map-view-title text-primary-blue">Complete Bouguer Anomaly</div>
+            <div className="map-view-title-group">
+              <div className="map-view-title text-primary-blue">
+                {bouguerViewMode === 'residual'
+                  ? 'Residual Gravity Anomaly'
+                  : bouguerViewMode === 'regional'
+                  ? 'Regional Gravity Field'
+                  : 'Complete Bouguer Anomaly'}
+              </div>
+              <div className="bouguer-mode-pill-group">
+                <button
+                  type="button"
+                  className={`btn-mode-pill ${bouguerViewMode === 'residual' ? 'active' : ''}`}
+                  onClick={() => setBouguerViewMode('residual')}
+                  title="Residual Anomaly: 2D polynomial trend removed to isolate shallow targets & faults"
+                >
+                  Residual
+                </button>
+                <button
+                  type="button"
+                  className={`btn-mode-pill ${bouguerViewMode === 'bouguer' ? 'active' : ''}`}
+                  onClick={() => setBouguerViewMode('bouguer')}
+                  title="Total Complete Bouguer Anomaly"
+                >
+                  Total Bouguer
+                </button>
+                <button
+                  type="button"
+                  className={`btn-mode-pill ${bouguerViewMode === 'regional' ? 'active' : ''}`}
+                  onClick={() => setBouguerViewMode('regional')}
+                  title="Regional Trend: Deep background crust/Moho field"
+                >
+                  Regional
+                </button>
+              </div>
+            </div>
             <button
               type="button"
               className="btn-map-save-png"
               onClick={() => handleExportMap(mapConfigs[2])}
-              title="Export Bouguer Map as PNG with Attribution & Transect"
+              title="Export Anomaly Map as PNG with Attribution & Transect"
             >
               <Image size={14} />
               <span>Save PNG</span>
@@ -895,13 +956,19 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
               }}
             />
           </div>
-          {gridBg && (
+          {activeMap3Grid && (
             <MapColorbar
-              colormap="viridis"
-              min={gridBg.minVal}
-              max={gridBg.maxVal}
+              colormap={activeMap3Colormap}
+              min={activeMap3Grid.minVal}
+              max={activeMap3Grid.maxVal}
               unit="mGal"
-              label="Bouguer"
+              label={
+                bouguerViewMode === 'residual'
+                  ? 'Residual'
+                  : bouguerViewMode === 'regional'
+                  ? 'Regional'
+                  : 'Bouguer'
+              }
             />
           )}
         </div>
