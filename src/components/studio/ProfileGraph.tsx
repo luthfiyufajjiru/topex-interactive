@@ -757,47 +757,47 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
             );
           })}
 
-          {/* Unified Hover HUD Readout Box in the Top Graph Corner */}
+          {/* Unified Hover HUD Readout Box in the Top Graph Corner (Clean Light Theme) */}
           {hoverIndex !== null && points[hoverIndex] && (
-            <g className="unified-profile-hud" transform={`translate(${graphWidth + margin.left - 240}, ${margin.top + 8})`}>
+            <g className="unified-profile-hud" transform={`translate(${graphWidth + margin.left - 245}, ${margin.top + 8})`}>
               <rect
-                width={230}
-                height={125}
+                width={235}
+                height={126}
                 rx={6}
-                fill="rgba(15, 23, 42, 0.92)"
-                stroke="#334155"
-                strokeWidth={1}
+                fill="rgba(255, 255, 255, 0.96)"
+                stroke="#cbd5e1"
+                strokeWidth={1.5}
               />
-              <text x={10} y={18} fill="#38bdf8" fontSize="11" fontWeight="bold" fontFamily="Inter, sans-serif">
+              <text x={10} y={18} fill="#0284c7" fontSize="11" fontWeight="bold" fontFamily="Inter, sans-serif">
                 Distance: {points[hoverIndex].distanceKm.toFixed(1)} km &bull; Elev: {points[hoverIndex].elevation.toFixed(0)} m
               </text>
-              <line x1={10} y1={25} x2={220} y2={25} stroke="#334155" strokeWidth={1} />
+              <line x1={10} y1={25} x2={225} y2={25} stroke="#e2e8f0" strokeWidth={1} />
               
-              <text x={10} y={42} fill="#c4b5fd" fontSize="10" fontFamily="monospace">
-                Residual: <tspan fontWeight="bold" fill="#ffffff">{points[hoverIndex].residual?.toFixed(1) ?? '--'} mGal</tspan>
+              <text x={10} y={42} fill="#6d28d9" fontSize="10" fontWeight="600" fontFamily="monospace">
+                Residual: <tspan fontWeight="bold" fill="#0f172a">{points[hoverIndex].residual?.toFixed(1) ?? '--'} mGal</tspan>
               </text>
-              <text x={120} y={42} fill="#fde68a" fontSize="10" fontFamily="monospace">
-                CBA: <tspan fontWeight="bold" fill="#ffffff">{points[hoverIndex].bouguer?.toFixed(1) ?? '--'} mGal</tspan>
-              </text>
-
-              <text x={10} y={60} fill="#bae6fd" fontSize="10" fontFamily="monospace">
-                Free-Air: <tspan fontWeight="bold" fill="#ffffff">{points[hoverIndex].freeAir?.toFixed(1) ?? '--'} mGal</tspan>
-              </text>
-              <text x={120} y={60} fill="#fed7aa" fontSize="10" fontFamily="monospace">
-                SBA: <tspan fontWeight="bold" fill="#ffffff">{points[hoverIndex].simpleBouguer?.toFixed(1) ?? '--'} mGal</tspan>
+              <text x={122} y={42} fill="#b45309" fontSize="10" fontWeight="600" fontFamily="monospace">
+                CBA: <tspan fontWeight="bold" fill="#0f172a">{points[hoverIndex].bouguer?.toFixed(1) ?? '--'} mGal</tspan>
               </text>
 
-              <text x={10} y={78} fill="#fecdd3" fontSize="10" fontFamily="monospace">
-                FHD (Fault): <tspan fontWeight="bold" fill="#ffffff">{points[hoverIndex].fhd?.toFixed(2) ?? '--'} mGal/km</tspan>
+              <text x={10} y={60} fill="#0369a1" fontSize="10" fontWeight="600" fontFamily="monospace">
+                Free-Air: <tspan fontWeight="bold" fill="#0f172a">{points[hoverIndex].freeAir?.toFixed(1) ?? '--'} mGal</tspan>
               </text>
-              <text x={10} y={96} fill="#99f6e4" fontSize="10" fontFamily="monospace">
-                SVD: <tspan fontWeight="bold" fill="#ffffff">{points[hoverIndex].svd?.toFixed(3) ?? '--'} mGal/km²</tspan>
+              <text x={122} y={60} fill="#c2410c" fontSize="10" fontWeight="600" fontFamily="monospace">
+                SBA: <tspan fontWeight="bold" fill="#0f172a">{points[hoverIndex].simpleBouguer?.toFixed(1) ?? '--'} mGal</tspan>
               </text>
-              <text x={120} y={96} fill="#fef08a" fontSize="10" fontFamily="monospace">
-                Tilt: <tspan fontWeight="bold" fill="#ffffff">{points[hoverIndex].tdr?.toFixed(1) ?? '--'}°</tspan>
+
+              <text x={10} y={78} fill="#be123c" fontSize="10" fontWeight="600" fontFamily="monospace">
+                FHD: <tspan fontWeight="bold" fill="#0f172a">{points[hoverIndex].fhd?.toFixed(2) ?? '--'} mGal/km</tspan>
               </text>
-              <text x={10} y={115} fill="#94a3b8" fontSize="8.5" fontFamily="Inter, sans-serif">
-                Lat: {points[hoverIndex].latitude.toFixed(3)}&deg; Lon: {points[hoverIndex].longitude.toFixed(3)}&deg;
+              <text x={10} y={96} fill="#0f766e" fontSize="10" fontWeight="600" fontFamily="monospace">
+                SVD: <tspan fontWeight="bold" fill="#0f172a">{points[hoverIndex].svd?.toFixed(3) ?? '--'} mGal/km²</tspan>
+              </text>
+              <text x={122} y={96} fill="#a16207" fontSize="10" fontWeight="600" fontFamily="monospace">
+                Tilt: <tspan fontWeight="bold" fill="#0f172a">{points[hoverIndex].tdr?.toFixed(1) ?? '--'}°</tspan>
+              </text>
+              <text x={10} y={115} fill="#64748b" fontSize="8.5" fontFamily="Inter, sans-serif">
+                Coord: {points[hoverIndex].latitude.toFixed(3)}&deg;N, {points[hoverIndex].longitude.toFixed(3)}&deg;E
               </text>
             </g>
           )}
