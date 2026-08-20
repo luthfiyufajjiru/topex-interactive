@@ -10,7 +10,7 @@ import { exportToOasisMontajXYZ, exportToGeosoftGXF } from '@/utils/exporters/ge
 import { exportMapToPng } from '@/utils/exporters/mapImage';
 import { exportCompositeReportImage } from '@/utils/exporters/compositeReport';
 import { ExportSuiteModal } from './ExportSuiteModal';
-import { FileCode, Image, Crosshair, SlidersHorizontal, Pin, PinOff, Move, LayoutGrid, PackageCheck, ChevronDown, ChevronUp, Maximize2, Minimize2 } from 'lucide-react';
+import { FileCode, Image, Crosshair, SlidersHorizontal, Pin, PinOff, Move, LayoutGrid, PackageCheck, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface SatelliteGravityStudioProps {
   records: ProcessedRecord[];
@@ -570,11 +570,11 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
       renderInterpolatedRasterToCanvas(canvasFaaRef.current, gridFaa, 'coolwarm', interpolationMethod);
       drawOverlayElements(canvasFaaRef.current);
     }
-    if (canvasBgRef.current && gridBg) {
-      renderInterpolatedRasterToCanvas(canvasBgRef.current, gridBg, 'viridis', interpolationMethod);
+    if (canvasBgRef.current && activeMap3Grid) {
+      renderInterpolatedRasterToCanvas(canvasBgRef.current, activeMap3Grid, activeMap3Colormap, interpolationMethod);
       drawOverlayElements(canvasBgRef.current);
     }
-  }, [gridTopo, gridFaa, gridBg, interpolationMethod, activeRecord, lines, activeLineId, hoveredProfilePoint, draggingMode]);
+  }, [gridTopo, gridFaa, activeMap3Grid, activeMap3Colormap, interpolationMethod, activeRecord, lines, activeLineId, hoveredProfilePoint, draggingMode]);
 
   useEffect(() => {
     if (!isMapsCollapsed) {
@@ -818,6 +818,12 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
               <span className="probe-key">Bouguer:</span>
               <strong className="text-amber">{activeRecord.bouguer?.toFixed(1) ?? 'N/A'} mGal</strong>
             </div>
+            {activeRecord.residual !== undefined && (
+              <div className="probe-val-item">
+                <span className="probe-key">Residual:</span>
+                <strong style={{ color: '#8b5cf6' }}>{activeRecord.residual.toFixed(1)} mGal</strong>
+              </div>
+            )}
             <div className="probe-val-item">
               <span className="probe-key">Slab Correction:</span>
               <span style={{ color: '#64748b' }}>{activeRecord.slabCorrection?.toFixed(1) ?? 'N/A'} mGal</span>
@@ -836,19 +842,8 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
             )}
           </div>
         ) : (
-          <div className="studio-metric-hud default-state">
-            <div className="hud-hint">
-              <span>Hover over any map or 2D profile to probe sounding metrics &bull; Click anywhere to lock/pin a target</span>
-            </div>
-            <button
-              type="button"
-              className="btn-collapse-maps-toggle"
-              onClick={() => setIsMapsCollapsed(!isMapsCollapsed)}
-              title={isMapsCollapsed ? 'Expand 3 Map Views' : 'Collapse Maps to Maximize Profile Workspace'}
-            >
-              {isMapsCollapsed ? <Maximize2 size={13} /> : <Minimize2 size={13} />}
-              <span>{isMapsCollapsed ? 'Show Maps' : 'Collapse Maps'}</span>
-            </button>
+          <div className="probe-placeholder">
+            <span>Hover over any map or 2D profile to probe sounding metrics &bull; Click anywhere to lock/pin a target</span>
           </div>
         )}
       </div>
