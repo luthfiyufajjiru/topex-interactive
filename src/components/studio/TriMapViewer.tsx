@@ -313,7 +313,10 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
   };
 
   // Proximity check for line endpoints (pixel radius)
-  const getEndpointProximity = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>): 'start' | 'end' | null => {
+  const getEndpointProximity = (
+    e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>,
+    isTouch = false
+  ): 'start' | 'end' | null => {
     const canvas = e.currentTarget;
     const rect = canvas.getBoundingClientRect();
     let clientX = 0;
@@ -325,6 +328,8 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
     } else if ('clientX' in e) {
       clientX = (e as React.MouseEvent).clientX;
       clientY = (e as React.MouseEvent).clientY;
+    } else {
+      return null;
     }
 
     const mouseX = clientX - rect.left;
@@ -342,15 +347,15 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
     const distStart = Math.hypot(mouseX - startX, mouseY - startY);
     const distEnd = Math.hypot(mouseX - endX, mouseY - endY);
 
-    const HIT_RADIUS = 18;
+    const HIT_RADIUS = isTouch ? 28 : 18;
 
     if (distStart <= HIT_RADIUS) return 'start';
     if (distEnd <= HIT_RADIUS) return 'end';
     return null;
   };
 
-  // Mouse Down: Start dragging endpoint or start freehand drawing
-  const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  // Mouse Down: Start dragging endpoint if clicked on handle A or A', or probe sounding
+  const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>, mapId: string) => {
     const endpoint = getEndpointProximity(e);
     if (endpoint === 'start') {
       setDraggingMode('start');
@@ -359,16 +364,16 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
       setDraggingMode('end');
       setCursorStyle('grabbing');
     } else {
+      // Probing sounding: does NOT mutate the transect line!
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
       const { lat, lon } = getLatLonFromEvent(e);
-      setDraggingMode('draw');
-      setCursorStyle('crosshair');
-      setLines(
-        lines.map((l) =>
-          l.id === activeLineId
-            ? { ...l, start: { lat, lon }, end: { lat, lon } }
-            : l
-        )
-      );
+      const nearest = findNearestSounding(lat, lon);
+      if (nearest) {
+        setHoveredRecord(nearest);
+        setHoverPos({ x, y, mapId });
+      }
     }
   };
 
@@ -384,7 +389,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
         lines.map((l) => (l.id === activeLineId ? { ...l, start: { lat, lon } } : l))
       );
       return;
-    } else if (draggingMode === 'end' || draggingMode === 'draw') {
+    } else if (draggingMode === 'end') {
       setLines(
         lines.map((l) => (l.id === activeLineId ? { ...l, end: { lat, lon } } : l))
       );
@@ -411,10 +416,10 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
     setCursorStyle('crosshair');
   };
 
-  // Touch Events for Mobile PWA & Touchscreens
-  const handleCanvasTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
+  // Touch Events for Mobile PWA & Touchscreens (Probing soundings safely without mutating transect lines)
+  const handleCanvasTouchStart = (e: React.TouchEvent<HTMLCanvasElement>, mapId: string) => {
     if (e.touches.length !== 1) return;
-    const endpoint = getEndpointProximity(e);
+    const endpoint = getEndpointProximity(e, true);
 
     if (endpoint === 'start') {
       setDraggingMode('start');
@@ -422,10 +427,22 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
     } else if (endpoint === 'end') {
       setDraggingMode('end');
       setCursorStyle('grabbing');
+    } else {
+      // Touch probe sounding
+      const rect = e.currentTarget.getBoundingClientRect();
+      const touch = e.touches[0];
+      const x = touch.clientX - rect.left;
+      const y = touch.clientY - rect.top;
+      const { lat, lon } = getLatLonFromEvent(e);
+      const nearest = findNearestSounding(lat, lon);
+      if (nearest) {
+        setHoveredRecord(nearest);
+        setHoverPos({ x, y, mapId });
+      }
     }
   };
 
-  const handleCanvasTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
+  const handleCanvasTouchMove = (e: React.TouchEvent<HTMLCanvasElement>, mapId: string) => {
     if (e.touches.length !== 1) return;
     const { lat, lon } = getLatLonFromEvent(e);
 
@@ -439,6 +456,17 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
         lines.map((l) => (l.id === activeLineId ? { ...l, end: { lat, lon } } : l))
       );
       return;
+    } else {
+      // Drag touch probe along map without changing transect line
+      const rect = e.currentTarget.getBoundingClientRect();
+      const touch = e.touches[0];
+      const x = touch.clientX - rect.left;
+      const y = touch.clientY - rect.top;
+      const nearest = findNearestSounding(lat, lon);
+      if (nearest) {
+        setHoveredRecord(nearest);
+        setHoverPos({ x, y, mapId });
+      }
     }
   };
 
@@ -1046,11 +1074,11 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
               height={360}
               className="raster-overlay-canvas"
               style={{ cursor: cursorStyle, touchAction: 'none' }}
-              onMouseDown={handleCanvasMouseDown}
+              onMouseDown={(e) => handleCanvasMouseDown(e, 'topo')}
               onMouseMove={(e) => handleCanvasMouseMove(e, 'topo')}
               onMouseUp={handleCanvasMouseUp}
-              onTouchStart={handleCanvasTouchStart}
-              onTouchMove={handleCanvasTouchMove}
+              onTouchStart={(e) => handleCanvasTouchStart(e, 'topo')}
+              onTouchMove={(e) => handleCanvasTouchMove(e, 'topo')}
               onTouchEnd={handleCanvasTouchEnd}
               onTouchCancel={handleCanvasTouchEnd}
               onMouseLeave={() => {
@@ -1140,11 +1168,11 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
               height={360}
               className="raster-overlay-canvas"
               style={{ cursor: cursorStyle, touchAction: 'none' }}
-              onMouseDown={handleCanvasMouseDown}
+              onMouseDown={(e) => handleCanvasMouseDown(e, 'faa')}
               onMouseMove={(e) => handleCanvasMouseMove(e, 'faa')}
               onMouseUp={handleCanvasMouseUp}
-              onTouchStart={handleCanvasTouchStart}
-              onTouchMove={handleCanvasTouchMove}
+              onTouchStart={(e) => handleCanvasTouchStart(e, 'faa')}
+              onTouchMove={(e) => handleCanvasTouchMove(e, 'faa')}
               onTouchEnd={handleCanvasTouchEnd}
               onTouchCancel={handleCanvasTouchEnd}
               onMouseLeave={() => {
@@ -1274,11 +1302,11 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
               height={360}
               className="raster-overlay-canvas"
               style={{ cursor: cursorStyle, touchAction: 'none' }}
-              onMouseDown={handleCanvasMouseDown}
+              onMouseDown={(e) => handleCanvasMouseDown(e, 'bouguer')}
               onMouseMove={(e) => handleCanvasMouseMove(e, 'bouguer')}
               onMouseUp={handleCanvasMouseUp}
-              onTouchStart={handleCanvasTouchStart}
-              onTouchMove={handleCanvasTouchMove}
+              onTouchStart={(e) => handleCanvasTouchStart(e, 'bouguer')}
+              onTouchMove={(e) => handleCanvasTouchMove(e, 'bouguer')}
               onTouchEnd={handleCanvasTouchEnd}
               onTouchCancel={handleCanvasTouchEnd}
               onMouseLeave={() => {
