@@ -939,39 +939,147 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
       </div>
 
       {/* Sounding Picks Inspection & Comparison Table */}
-      {pinnedIndices.length > 0 && (
-        <div className="profile-picks-table-card">
-          <div className="picks-table-header">
-            <div className="picks-title-group">
-              <span className="picks-table-title">Sounding Picks Inspection Table ({pinnedIndices.length} points)</span>
-              <span className="picks-table-subtitle">Compare anomalies, derivative gradients, and fault contacts across survey picks</span>
-            </div>
-            <div className="picks-table-actions">
-              <button
-                type="button"
-                className="btn-picks-export"
-                onClick={() => {
-                  const pinnedPts = pinnedIndices.map((idx) => points[idx]).filter(Boolean);
-                  exportProfileToCsv(pinnedPts, `picks_${activeLine.name.toLowerCase().replace(/\s+/g, '_')}.csv`);
-                }}
-                title="Export selected picks to CSV"
-              >
-                <Download size={13} />
-                <span>Export Picks (CSV)</span>
-              </button>
-              <button
-                type="button"
-                className="btn-unpin-all"
-                onClick={() => setPinnedIndices([])}
-                title="Clear all pinned picks"
-              >
-                <PinOff size={13} />
-                <span>Clear All</span>
-              </button>
-            </div>
-          </div>
+      {pinnedIndices.length > 0 && (() => {
+        // Calculate Elkins (1951) structural verdict summary when SVD / FHD is active
+        const showElkinsSummary = (visibleChannels.svd || visibleChannels.fhd) && pinnedIndices.length >= 1;
+        let elkinsSummary: {
+          label: string;
+          className: string;
+          description: string;
+          svdMax: number;
+          svdMin: number;
+          maxFhd: number;
+          formulaText: string;
+        } | null = null;
 
-          <div className="picks-table-scroll-container">
+        if (showElkinsSummary) {
+          const pinnedSvdVals = pinnedIndices
+            .map((idx) => points[idx]?.svd)
+            .filter((v): v is number => v !== undefined);
+          const pinnedFhdVals = pinnedIndices
+            .map((idx) => points[idx]?.fhd)
+            .filter((v): v is number => v !== undefined);
+
+          let maxSvd = 0;
+          let minSvd = 0;
+
+          if (pinnedSvdVals.some((v) => v > 0) && pinnedSvdVals.some((v) => v < 0)) {
+            maxSvd = Math.max(...pinnedSvdVals.filter((v) => v > 0));
+            minSvd = Math.min(...pinnedSvdVals.filter((v) => v < 0));
+          } else {
+            // Find local extrema around pinned soundings (+/- 8 samples)
+            for (const idx of pinnedIndices) {
+              for (let w = Math.max(0, idx - 8); w <= Math.min(points.length - 1, idx + 8); w++) {
+                const v = points[w]?.svd;
+                if (v !== undefined) {
+                  if (v > maxSvd) maxSvd = v;
+                  if (v < minSvd) minSvd = v;
+                }
+              }
+            }
+          }
+
+          const absMax = Math.max(0, maxSvd);
+          const absMin = Math.abs(Math.min(0, minSvd));
+          const svdDiff = Math.abs(absMax - absMin);
+          const maxMag = Math.max(absMax, absMin, 1e-6);
+          const symRatio = svdDiff / maxMag;
+          const peakFhd = pinnedFhdVals.length > 0 ? Math.max(...pinnedFhdVals) : 0;
+
+          let label = 'Homogeneous Basement';
+          let className = 'verdict-stable';
+          let description = 'Quiescent regional gradient with minimal curvature.';
+          let formulaText = `|SVD|max = ${absMax.toFixed(3)}, |SVD|min = ${absMin.toFixed(3)}`;
+
+          if (maxMag < 0.004) {
+            label = 'Stable Basement';
+            className = 'verdict-stable';
+            description = 'Minimal vertical derivative curvature indicates an undisturbed basement block.';
+            formulaText = `|SVD|max (${absMax.toFixed(3)}) & |SVD|min (${absMin.toFixed(3)}) ≈ 0`;
+          } else if (symRatio <= 0.03) {
+            label = 'Strike-Slip Fault';
+            className = 'verdict-strike-slip';
+            description = 'Symmetric inflection curve indicating a near-vertical contact or strike-slip dislocation.';
+            formulaText = `|SVD|min (${absMin.toFixed(3)}) ≈ |SVD|max (${absMax.toFixed(3)})`;
+          } else if (absMin < absMax) {
+            label = 'Normal Fault';
+            className = 'verdict-normal';
+            description = 'Dominant positive crest over hanging block characteristic of extensional normal faulting.';
+            formulaText = `|SVD|min (${absMin.toFixed(3)}) < |SVD|max (${absMax.toFixed(3)})`;
+          } else {
+            label = 'Thrust Fault';
+            className = 'verdict-thrust';
+            description = 'Dominant negative trough over underthrust footwall characteristic of compressional reverse faulting.';
+            formulaText = `|SVD|min (${absMin.toFixed(3)}) > |SVD|max (${absMax.toFixed(3)})`;
+          }
+
+          elkinsSummary = {
+            label,
+            className,
+            description,
+            svdMax: absMax,
+            svdMin: absMin,
+            maxFhd: peakFhd,
+            formulaText,
+          };
+        }
+
+        return (
+          <div className="profile-picks-table-card">
+            <div className="picks-table-header">
+              <div className="picks-title-group">
+                <span className="picks-table-title">Sounding Picks Inspection Table ({pinnedIndices.length} points)</span>
+                <span className="picks-table-subtitle">Compare anomalies, derivative gradients, and structural values across survey picks</span>
+              </div>
+              <div className="picks-table-actions">
+                <button
+                  type="button"
+                  className="btn-picks-export"
+                  onClick={() => {
+                    const pinnedPts = pinnedIndices.map((idx) => points[idx]).filter(Boolean);
+                    exportProfileToCsv(pinnedPts, `picks_${activeLine.name.toLowerCase().replace(/\s+/g, '_')}.csv`);
+                  }}
+                  title="Export selected picks to CSV"
+                >
+                  <Download size={13} />
+                  <span>Export Picks (CSV)</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn-unpin-all"
+                  onClick={() => setPinnedIndices([])}
+                  title="Clear all pinned picks"
+                >
+                  <PinOff size={13} />
+                  <span>Clear All</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Elkins (1951) Structural Analysis Summary Card (Active when SVD/FHD curves are enabled) */}
+            {elkinsSummary && (
+              <div className="elkins-summary-banner">
+                <div className="elkins-banner-left">
+                  <span className="elkins-title-label">Elkins (1951) Fault Analysis:</span>
+                  <span className={`verdict-badge ${elkinsSummary.className}`}>
+                    {elkinsSummary.label}
+                  </span>
+                  <span className="elkins-desc">{elkinsSummary.description}</span>
+                </div>
+                <div className="elkins-metrics-row">
+                  <span className="elkins-chip" title="Laplace vertical derivative inflection ratio">
+                    <strong>Criteria:</strong> {elkinsSummary.formulaText}
+                  </span>
+                  {visibleChannels.fhd && elkinsSummary.maxFhd > 0 && (
+                    <span className="elkins-chip" title="First Horizontal Derivative peak contact gradient">
+                      <strong>Peak FHD:</strong> {elkinsSummary.maxFhd.toFixed(2)} mGal/km
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="picks-table-scroll-container">
             <table className="picks-data-table">
               <thead>
                 <tr>
@@ -1042,7 +1150,8 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
             </table>
           </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 };
