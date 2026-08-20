@@ -5,6 +5,7 @@ import { buildAllRegularGrids, renderInterpolatedRasterToCanvas } from '@/utils/
 import { extractProfilePoints } from '@/utils/geophysics/profile';
 import { separateRegionalResidual } from '@/utils/geophysics/regionalResidual';
 import { checkWebGLSupport } from '@/utils/webgl/webglDetector';
+import { renderWebGL2Raster } from '@/utils/webgl/webglRenderer';
 import { WebGLFallbackView } from './WebGLFallbackView';
 import { MapColorbar } from './MapColorbar';
 import { ProfileGraph } from './ProfileGraph';
@@ -101,10 +102,15 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
   const [draggingMode, setDraggingMode] = useState<'start' | 'end' | 'draw' | null>(null);
   const [cursorStyle, setCursorStyle] = useState<string>('crosshair');
 
-  // Canvas Refs for Map 1, 2, 3
-  const canvasTopoRef = useRef<HTMLCanvasElement | null>(null);
-  const canvasFaaRef = useRef<HTMLCanvasElement | null>(null);
-  const canvasBgRef = useRef<HTMLCanvasElement | null>(null);
+  // Canvas Refs for Map 1, 2, 3 (Dual Layer: WebGL 2.0 Base + 2D Overlay)
+  const canvasTopoWebglRef = useRef<HTMLCanvasElement | null>(null);
+  const canvasTopoOverlayRef = useRef<HTMLCanvasElement | null>(null);
+
+  const canvasFaaWebglRef = useRef<HTMLCanvasElement | null>(null);
+  const canvasFaaOverlayRef = useRef<HTMLCanvasElement | null>(null);
+
+  const canvasBgWebglRef = useRef<HTMLCanvasElement | null>(null);
+  const canvasBgOverlayRef = useRef<HTMLCanvasElement | null>(null);
 
   // Build Regular Grids for all fields in a single vectorized pass
   const regularGrids = useMemo(() => {
@@ -409,14 +415,17 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
     }
   };
 
-  // Draw Overlay Elements on Canvas
-  const drawOverlayElements = (canvas: HTMLCanvasElement | null) => {
+  // Draw Overlay Elements on 2D Annotation Canvas
+  const drawOverlayElements = useCallback((canvas: HTMLCanvasElement | null) => {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     const w = canvas.width;
     const h = canvas.height;
+
+    // Clear transparent overlay without affecting underlying WebGL canvas
+    ctx.clearRect(0, 0, w, h);
 
     const lonRange = bounds.east - bounds.west || 1;
     const latRange = bounds.north - bounds.south || 1;
@@ -555,34 +564,59 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
     }
 
     ctx.restore();
-  };
+  }, [bounds, lines, activeLineId, hoveredProfilePoint, profilePoints, activeRecord]);
 
-  // Render Raster Heatmaps on Canvas
+  // Synchronously update all 3 overlay layers on mouse move / hover / draw
+  const updateAllOverlays = useCallback(() => {
+    drawOverlayElements(canvasTopoOverlayRef.current);
+    drawOverlayElements(canvasFaaOverlayRef.current);
+    drawOverlayElements(canvasBgOverlayRef.current);
+  }, [drawOverlayElements]);
+
+  useEffect(() => {
+    updateAllOverlays();
+  }, [updateAllOverlays]);
+
+  // Render Raster Heatmaps on WebGL 2.0 GPU Context (with CPU 2D Fallback)
   const renderAllCanvases = useCallback(() => {
     if (isMapsCollapsed) return;
     setIsRendering(true);
 
     const timer = setTimeout(() => {
       try {
-        if (canvasTopoRef.current && gridTopo) {
-          renderInterpolatedRasterToCanvas(canvasTopoRef.current, gridTopo, 'gebco', interpolationMethod);
-          drawOverlayElements(canvasTopoRef.current);
+        // 1. Topography Map
+        if (canvasTopoWebglRef.current && gridTopo) {
+          const renderedOnGpu = renderWebGL2Raster(canvasTopoWebglRef.current, gridTopo, 'gebco', interpolationMethod);
+          if (!renderedOnGpu && canvasTopoOverlayRef.current) {
+            renderInterpolatedRasterToCanvas(canvasTopoOverlayRef.current, gridTopo, 'gebco', interpolationMethod);
+          }
         }
-        if (canvasFaaRef.current && gridFaa) {
-          renderInterpolatedRasterToCanvas(canvasFaaRef.current, gridFaa, 'coolwarm', interpolationMethod);
-          drawOverlayElements(canvasFaaRef.current);
+
+        // 2. Free-Air Gravity Anomaly Map
+        if (canvasFaaWebglRef.current && gridFaa) {
+          const renderedOnGpu = renderWebGL2Raster(canvasFaaWebglRef.current, gridFaa, 'coolwarm', interpolationMethod);
+          if (!renderedOnGpu && canvasFaaOverlayRef.current) {
+            renderInterpolatedRasterToCanvas(canvasFaaOverlayRef.current, gridFaa, 'coolwarm', interpolationMethod);
+          }
         }
-        if (canvasBgRef.current && activeMap3Grid) {
-          renderInterpolatedRasterToCanvas(canvasBgRef.current, activeMap3Grid, activeMap3Colormap, interpolationMethod);
-          drawOverlayElements(canvasBgRef.current);
+
+        // 3. Bouguer / Residual Anomaly Map
+        if (canvasBgWebglRef.current && activeMap3Grid) {
+          const renderedOnGpu = renderWebGL2Raster(canvasBgWebglRef.current, activeMap3Grid, activeMap3Colormap, interpolationMethod);
+          if (!renderedOnGpu && canvasBgOverlayRef.current) {
+            renderInterpolatedRasterToCanvas(canvasBgOverlayRef.current, activeMap3Grid, activeMap3Colormap, interpolationMethod);
+          }
         }
+
+        // 4. Update overlay annotations
+        updateAllOverlays();
       } finally {
         setIsRendering(false);
       }
-    }, 20);
+    }, 16);
 
     return () => clearTimeout(timer);
-  }, [gridTopo, gridFaa, activeMap3Grid, activeMap3Colormap, interpolationMethod, isMapsCollapsed]);
+  }, [gridTopo, gridFaa, activeMap3Grid, activeMap3Colormap, interpolationMethod, isMapsCollapsed, updateAllOverlays]);
 
   useEffect(() => {
     if (!isMapsCollapsed) {
@@ -936,10 +970,16 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
           </div>
           <div className="canvas-wrapper">
             <canvas
-              ref={canvasTopoRef}
+              ref={canvasTopoWebglRef}
               width={480}
               height={360}
-              className="raster-canvas"
+              className="raster-webgl-canvas"
+            />
+            <canvas
+              ref={canvasTopoOverlayRef}
+              width={480}
+              height={360}
+              className="raster-overlay-canvas"
               style={{ cursor: cursorStyle, touchAction: 'none' }}
               onMouseDown={handleCanvasMouseDown}
               onMouseMove={handleCanvasMouseMove}
@@ -982,10 +1022,16 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
           </div>
           <div className="canvas-wrapper">
             <canvas
-              ref={canvasFaaRef}
+              ref={canvasFaaWebglRef}
               width={480}
               height={360}
-              className="raster-canvas"
+              className="raster-webgl-canvas"
+            />
+            <canvas
+              ref={canvasFaaOverlayRef}
+              width={480}
+              height={360}
+              className="raster-overlay-canvas"
               style={{ cursor: cursorStyle, touchAction: 'none' }}
               onMouseDown={handleCanvasMouseDown}
               onMouseMove={handleCanvasMouseMove}
@@ -1062,10 +1108,16 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
           </div>
           <div className="canvas-wrapper">
             <canvas
-              ref={canvasBgRef}
+              ref={canvasBgWebglRef}
               width={480}
               height={360}
-              className="raster-canvas"
+              className="raster-webgl-canvas"
+            />
+            <canvas
+              ref={canvasBgOverlayRef}
+              width={480}
+              height={360}
+              className="raster-overlay-canvas"
               style={{ cursor: cursorStyle, touchAction: 'none' }}
               onMouseDown={handleCanvasMouseDown}
               onMouseMove={handleCanvasMouseMove}

@@ -2412,6 +2412,27 @@ footer {
   cursor: crosshair;
 }
 
+.raster-webgl-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  z-index: 1;
+}
+
+.raster-overlay-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: crosshair;
+  z-index: 2;
+}
+
 /* ==========================================================================
    Map Colorbar Widget
    ========================================================================== */
