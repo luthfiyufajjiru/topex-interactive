@@ -302,10 +302,10 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
   };
 
   // Touch Events for Mobile PWA & Touchscreens
+  // On touch, ONLY allow dragging existing endpoints (no freehand draw to prevent accidental shifts)
   const handleCanvasTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
     if (e.touches.length !== 1) return;
     const endpoint = getEndpointProximity(e);
-    const { lat, lon } = getLatLonFromEvent(e);
 
     if (endpoint === 'start') {
       setDraggingMode('start');
@@ -313,17 +313,8 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
     } else if (endpoint === 'end') {
       setDraggingMode('end');
       setCursorStyle('grabbing');
-    } else {
-      setDraggingMode('draw');
-      setCursorStyle('crosshair');
-      setLines(
-        lines.map((l) =>
-          l.id === activeLineId
-            ? { ...l, start: { lat, lon }, end: { lat, lon } }
-            : l
-        )
-      );
     }
+    // else: do nothing — don't start freehand draw on mobile to prevent accidental shifts
   };
 
   const handleCanvasTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
@@ -335,38 +326,26 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
         lines.map((l) => (l.id === activeLineId ? { ...l, start: { lat, lon } } : l))
       );
       return;
-    } else if (draggingMode === 'end' || draggingMode === 'draw') {
+    } else if (draggingMode === 'end') {
       setLines(
         lines.map((l) => (l.id === activeLineId ? { ...l, end: { lat, lon } } : l))
       );
       return;
     }
-
-    if (!pinnedRecord) {
-      const nearest = findNearestSounding(lat, lon);
-      setHoveredRecord(nearest);
-    }
   };
 
   const handleCanvasTouchEnd = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    if (draggingMode === 'draw') {
-      const active = lines.find((l) => l.id === activeLineId);
-      if (active) {
-        const dLat = Math.abs(active.start.lat - active.end.lat);
-        const dLon = Math.abs(active.start.lon - active.end.lon);
-        // If single tap without drag, pin/unpin nearest sounding
-        if (dLat < 0.002 && dLon < 0.002) {
-          const { lat, lon } = getLatLonFromEvent(e);
-          const nearest = findNearestSounding(lat, lon);
-          if (nearest) {
-            setPinnedRecord(
-              pinnedRecord?.latitude === nearest.latitude &&
-              pinnedRecord?.longitude === nearest.longitude
-                ? null
-                : nearest
-            );
-          }
-        }
+    // If no endpoint was being dragged, treat as a tap → pin/unpin nearest sounding
+    if (!draggingMode) {
+      const { lat, lon } = getLatLonFromEvent(e);
+      const nearest = findNearestSounding(lat, lon);
+      if (nearest) {
+        setPinnedRecord(
+          pinnedRecord?.latitude === nearest.latitude &&
+          pinnedRecord?.longitude === nearest.longitude
+            ? null
+            : nearest
+        );
       }
     }
     setDraggingMode(null);

@@ -872,11 +872,14 @@ body {
   overflow: hidden;
   max-height: 440px;
   overflow-y: auto;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 .classic-table {
   width: 100%;
+  min-width: 520px;
   border-collapse: collapse;
   font-size: 0.88rem;
 }
@@ -901,6 +904,7 @@ body {
   font-family: var(--font-mono);
   font-size: 0.85rem;
   color: #1e293b;
+  white-space: nowrap;
 }
 
 .classic-table tr:nth-child(even) {
