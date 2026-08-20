@@ -9,6 +9,9 @@ import {
   setToLocalCache,
 } from '../services/cacheService';
 
+// In-flight single-flight promise deduplication to prevent cache stampedes
+const inFlightRequests = new Map<string, Promise<TopexApiResponse>>();
+
 export const topexRoute = new Hono()
   // Apply edge rate limiter: max 300 requests per minute per IP
   .use('/extract', createRateLimiter({ windowMs: 60000, maxRequests: 300 }))
@@ -56,25 +59,39 @@ export const topexRoute = new Hono()
         return c.json(cached);
       }
 
-      try {
+      // 2. Single-Flight Deduplication: if another request is currently fetching this exact key, await it
+      if (inFlightRequests.has(cacheKey)) {
+        try {
+          const res = await inFlightRequests.get(cacheKey)!;
+          c.header('X-Cache', 'HIT-SINGLEFLIGHT');
+          c.header('Cache-Control', 'public, max-age=86400, s-maxage=604800, immutable');
+          return c.json(res);
+        } catch {
+          // fallback to fresh execution if in-flight failed
+        }
+      }
+
+      const fetchPromise = (async (): Promise<TopexApiResponse> => {
         if (params.includeGravity) {
-          // Fetch Elevation and Free Air Gravity in parallel
-          const [topoPoints, gravityPoints] = await Promise.all([
-            fetchUcsdGrid({
-              north: params.north,
-              south: params.south,
-              west: params.west,
-              east: params.east,
-              mag: '1',
-            }),
-            fetchUcsdGrid({
-              north: params.north,
-              south: params.south,
-              west: params.west,
-              east: params.east,
-              mag: '0.1',
-            }),
-          ]);
+          // Fetch Elevation first, then Free Air Gravity with small stagger
+          const topoPoints = await fetchUcsdGrid({
+            north: params.north,
+            south: params.south,
+            west: params.west,
+            east: params.east,
+            mag: '1',
+          });
+
+          // 40ms gentle stagger to prevent concurrent socket collisions on upstream CGI
+          await new Promise((r) => setTimeout(r, 40));
+
+          const gravityPoints = await fetchUcsdGrid({
+            north: params.north,
+            south: params.south,
+            west: params.west,
+            east: params.east,
+            mag: '0.1',
+          });
 
           // Build merged records
           const gravityMap = new Map<string, number>();
@@ -115,10 +132,7 @@ export const topexRoute = new Hono()
 
           // Save to edge cache
           setToLocalCache(cacheKey, response);
-
-          c.header('X-Cache', 'MISS');
-          c.header('Cache-Control', 'public, max-age=86400, s-maxage=604800, immutable');
-          return c.json(response);
+          return response;
         } else {
           // Topography only or Gravity only based on mag param
           const points = await fetchUcsdGrid({
@@ -154,11 +168,17 @@ export const topexRoute = new Hono()
 
           // Save to edge cache
           setToLocalCache(cacheKey, response);
-
-          c.header('X-Cache', 'MISS');
-          c.header('Cache-Control', 'public, max-age=86400, s-maxage=604800, immutable');
-          return c.json(response);
+          return response;
         }
+      })();
+
+      inFlightRequests.set(cacheKey, fetchPromise);
+
+      try {
+        const response = await fetchPromise;
+        c.header('X-Cache', 'MISS');
+        c.header('Cache-Control', 'public, max-age=86400, s-maxage=604800, immutable');
+        return c.json(response);
       } catch (err: unknown) {
         const errorMsg = err instanceof Error ? err.message : 'Unknown upstream error';
         const executionTimeMs = Math.round(performance.now() - startTime);
@@ -180,6 +200,8 @@ export const topexRoute = new Hono()
           },
           502
         );
+      } finally {
+        inFlightRequests.delete(cacheKey);
       }
     }
   )
