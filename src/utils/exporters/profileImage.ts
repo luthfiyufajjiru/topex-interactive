@@ -39,9 +39,13 @@ export function exportProfileGraphToPng(options: ProfileImageExportOptions): voi
 
   if (points.length === 0) return;
 
-  const canvas = document.createElement('canvas');
   const width = 1600;
-  const height = 920;
+  const tableRowH = 26;
+  const tableHeaderH = 34;
+  const tableCardH = pinnedPoints.length > 0 ? 44 + tableHeaderH + pinnedPoints.length * tableRowH : 0;
+  const height = 920 + tableCardH;
+
+  const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
 
@@ -52,7 +56,7 @@ export function exportProfileGraphToPng(options: ProfileImageExportOptions): voi
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, width, height);
 
-  const margin = { top: 90, right: 80, bottom: 90, left: 110 };
+  const margin = { top: 90, right: 80, bottom: 90 + tableCardH, left: 110 };
   const graphWidth = width - margin.left - margin.right;
   const totalDist = points[points.length - 1].distanceKm;
 
@@ -60,7 +64,7 @@ export function exportProfileGraphToPng(options: ProfileImageExportOptions): voi
   const splitY = 460;
   const gravHeight = splitY - margin.top;
   const topoTopY = splitY + 40;
-  const topoHeight = height - margin.bottom - topoTopY;
+  const topoHeight = 920 - 90 - topoTopY;
 
   // Compute min/max for gravity & derivatives based ONLY on active visible channels
   let minGrav = 0, maxGrav = 0, hasGravity = false;
@@ -488,7 +492,7 @@ export function exportProfileGraphToPng(options: ProfileImageExportOptions): voi
 
   // Legends Suite - ONLY ACTIVE SELECTED CURVES
   const legX = margin.left;
-  const legY = height - 55;
+  const legY = (pinnedPoints.length > 0 ? 920 - 55 : height - 55);
   ctx.font = 'bold 11px Inter, sans-serif';
   ctx.textAlign = 'left';
 
@@ -520,6 +524,131 @@ export function exportProfileGraphToPng(options: ProfileImageExportOptions): voi
     currentLegX += ctx.measureText(item.label).width + 28;
   }
 
+  // Render Sounding Picks Inspection Table on Exported PNG if multi-picks exist
+  if (pinnedPoints.length > 0) {
+    const tableStartY = 920 - 32;
+    const tableW = graphWidth;
+    const tableX = margin.left;
+
+    // Header Card Box
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(tableX, tableStartY, tableW, tableCardH - 12);
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(tableX, tableStartY, tableW, tableCardH - 12);
+
+    // Title
+    ctx.fillStyle = '#0f172a';
+    ctx.font = 'bold 12px Inter, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Sounding Picks Inspection Table (${pinnedPoints.length} points)`, tableX + 14, tableStartY + 20);
+
+    // Dynamic Columns
+    const cols = [
+      { label: '#', w: 45 },
+      { label: 'Distance', w: 105 },
+      { label: 'Coordinates', w: 145 },
+      { label: 'Topography', w: 110 },
+      { label: 'Residual', w: 110 },
+      { label: 'Bouguer (CBA)', w: 125 },
+      ...(visibleChannels.sba ? [{ label: 'Simple (SBA)', w: 115 }] : []),
+      ...(visibleChannels.faa ? [{ label: 'Free-Air (FAA)', w: 115 }] : []),
+      ...(visibleChannels.fhd ? [{ label: 'FHD (Faults)', w: 115 }] : []),
+      ...(visibleChannels.svd ? [{ label: 'SVD (Laplace)', w: 120 }] : []),
+      ...(visibleChannels.tdr ? [{ label: 'Tilt (TDR)', w: 95 }] : []),
+      ...(visibleChannels.regional ? [{ label: 'Regional', w: 105 }] : []),
+    ];
+
+    // Table Header
+    const thY = tableStartY + 30;
+    ctx.fillStyle = '#f1f5f9';
+    ctx.fillRect(tableX, thY, tableW, tableHeaderH);
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.strokeRect(tableX, thY, tableW, tableHeaderH);
+
+    ctx.fillStyle = '#475569';
+    ctx.font = 'bold 11px Inter, sans-serif';
+    let curThX = tableX + 14;
+    for (const c of cols) {
+      ctx.fillText(c.label, curThX, thY + 21);
+      curThX += c.w;
+    }
+
+    // Rows
+    ctx.font = '11px "JetBrains Mono", monospace';
+    pinnedPoints.forEach((p, rIdx) => {
+      const rowY = thY + tableHeaderH + rIdx * tableRowH;
+      ctx.fillStyle = rIdx % 2 === 0 ? '#ffffff' : '#f8fafc';
+      ctx.fillRect(tableX, rowY, tableW, tableRowH);
+      ctx.strokeStyle = '#f1f5f9';
+      ctx.strokeRect(tableX, rowY, tableW, tableRowH);
+
+      let colX = tableX + 14;
+
+      // # Pin badge
+      ctx.fillStyle = '#d97706';
+      ctx.fillText(`#${rIdx + 1}`, colX, rowY + 18);
+      colX += cols[0].w;
+
+      // Dist
+      ctx.fillStyle = '#0f172a';
+      ctx.fillText(`${p.distanceKm.toFixed(1)} km`, colX, rowY + 18);
+      colX += cols[1].w;
+
+      // Coords
+      ctx.fillStyle = '#64748b';
+      ctx.fillText(`${p.latitude.toFixed(3)}°, ${p.longitude.toFixed(3)}°`, colX, rowY + 18);
+      colX += cols[2].w;
+
+      // Topo
+      ctx.fillStyle = '#047857';
+      ctx.fillText(`${p.elevation.toFixed(1)} m`, colX, rowY + 18);
+      colX += cols[3].w;
+
+      // Residual
+      ctx.fillStyle = '#6d28d9';
+      ctx.fillText(p.residual !== undefined ? `${p.residual.toFixed(1)} mGal` : '--', colX, rowY + 18);
+      colX += cols[4].w;
+
+      // CBA
+      ctx.fillStyle = '#b45309';
+      ctx.fillText(p.bouguer !== undefined ? `${p.bouguer.toFixed(1)} mGal` : '--', colX, rowY + 18);
+      colX += cols[5].w;
+
+      let cIdx = 6;
+      if (visibleChannels.sba) {
+        ctx.fillStyle = '#c2410c';
+        ctx.fillText(p.simpleBouguer !== undefined ? `${p.simpleBouguer.toFixed(1)} mGal` : '--', colX, rowY + 18);
+        colX += cols[cIdx++].w;
+      }
+      if (visibleChannels.faa) {
+        ctx.fillStyle = '#0369a1';
+        ctx.fillText(p.freeAir !== undefined ? `${p.freeAir.toFixed(1)} mGal` : '--', colX, rowY + 18);
+        colX += cols[cIdx++].w;
+      }
+      if (visibleChannels.fhd) {
+        ctx.fillStyle = '#be123c';
+        ctx.fillText(p.fhd !== undefined ? `${p.fhd.toFixed(2)} mGal/km` : '--', colX, rowY + 18);
+        colX += cols[cIdx++].w;
+      }
+      if (visibleChannels.svd) {
+        ctx.fillStyle = '#0f766e';
+        ctx.fillText(p.svd !== undefined ? `${p.svd.toFixed(3)} mGal/km²` : '--', colX, rowY + 18);
+        colX += cols[cIdx++].w;
+      }
+      if (visibleChannels.tdr) {
+        ctx.fillStyle = '#a16207';
+        ctx.fillText(p.tdr !== undefined ? `${p.tdr.toFixed(1)}°` : '--', colX, rowY + 18);
+        colX += cols[cIdx++].w;
+      }
+      if (visibleChannels.regional) {
+        ctx.fillStyle = '#64748b';
+        ctx.fillText(p.regional !== undefined ? `${p.regional.toFixed(1)} mGal` : '--', colX, rowY + 18);
+        colX += cols[cIdx++].w;
+      }
+    });
+  }
+
   // Prominent Attribution Footer
   ctx.font = '11px Inter, sans-serif';
   ctx.fillStyle = '#64748b';
@@ -527,7 +656,7 @@ export function exportProfileGraphToPng(options: ProfileImageExportOptions): voi
   ctx.fillText(
     'TOPEX Interactive Downloader • Scripps Institution of Oceanography (SIO/UCSD)',
     width - margin.right,
-    height - 25
+    height - 20
   );
 
   // Download Trigger

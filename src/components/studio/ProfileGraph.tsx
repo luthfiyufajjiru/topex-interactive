@@ -978,15 +978,15 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
                   <th style={{ width: 45 }}>#</th>
                   <th>Distance</th>
                   <th>Coordinates</th>
-                  <th>Elevation</th>
+                  <th>Topography</th>
                   <th>Residual</th>
                   <th>Bouguer (CBA)</th>
-                  <th>Simple (SBA)</th>
-                  <th>Free-Air (FAA)</th>
-                  <th>FHD (Faults)</th>
-                  <th>SVD (Laplace)</th>
-                  <th>Tilt (TDR)</th>
-                  <th>Elkins (1951) Verdict</th>
+                  {visibleChannels.sba && <th>Simple (SBA)</th>}
+                  {visibleChannels.faa && <th>Free-Air (FAA)</th>}
+                  {visibleChannels.fhd && <th>FHD (Faults)</th>}
+                  {visibleChannels.svd && <th>SVD (Laplace)</th>}
+                  {visibleChannels.tdr && <th>Tilt (TDR)</th>}
+                  {visibleChannels.regional && <th>Regional</th>}
                   <th style={{ width: 40 }}></th>
                 </tr>
               </thead>
@@ -994,77 +994,6 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
                 {pinnedIndices.map((ptIdx, rowIdx) => {
                   const p = points[ptIdx];
                   if (!p) return null;
-
-                  // Evaluate Elkins (1951) Fault Classification via SVD Amplitude Ratio (|SVD|min vs |SVD|max)
-                  let localSvdMax = p.svd !== undefined && p.svd > 0 ? p.svd : 0;
-                  let localSvdMin = p.svd !== undefined && p.svd < 0 ? p.svd : 0;
-
-                  // 1. If multiple sounding picks are pinned, prioritize the user's explicit pinned pair
-                  const pinnedSvdVals = pinnedIndices
-                    .map((idx) => points[idx]?.svd)
-                    .filter((v): v is number => v !== undefined);
-                  
-                  const hasPinnedPeakTrough =
-                    pinnedSvdVals.some((v) => v > 0) && pinnedSvdVals.some((v) => v < 0);
-
-                  if (hasPinnedPeakTrough) {
-                    localSvdMax = Math.max(...pinnedSvdVals.filter((v) => v > 0));
-                    localSvdMin = Math.min(...pinnedSvdVals.filter((v) => v < 0));
-                  } else {
-                    // 2. Otherwise search immediate local inflection window (+/- 8 samples)
-                    const searchRadius = 8;
-                    const startIdx = Math.max(0, ptIdx - searchRadius);
-                    const endIdx = Math.min(points.length - 1, ptIdx + searchRadius);
-
-                    for (let w = startIdx; w <= endIdx; w++) {
-                      const ptVal = points[w];
-                      if (ptVal?.svd !== undefined) {
-                        if (ptVal.svd > localSvdMax) localSvdMax = ptVal.svd;
-                        if (ptVal.svd < localSvdMin) localSvdMin = ptVal.svd;
-                      }
-                    }
-                  }
-
-                  const absSvdMax = Math.max(0, localSvdMax);
-                  const absSvdMin = Math.abs(Math.min(0, localSvdMin));
-                  const svdDiff = Math.abs(absSvdMax - absSvdMin);
-                  const maxMagnitude = Math.max(absSvdMax, absSvdMin, 1e-6);
-                  const symmetryRatio = svdDiff / maxMagnitude;
-
-                  let verdict = {
-                    label: 'Homogeneous Basement',
-                    className: 'verdict-stable',
-                    tooltip: 'Elkins (1951): Low gradient, quiescent regional basement',
-                  };
-
-                  if (maxMagnitude < 0.004) {
-                    verdict = {
-                      label: 'Stable Basement',
-                      className: 'verdict-stable',
-                      tooltip: `Elkins (1951): |SVD|max (${absSvdMax.toFixed(3)}) & |SVD|min (${absSvdMin.toFixed(3)}) are near zero (Stable Basement)`,
-                    };
-                  } else if (symmetryRatio <= 0.03) {
-                    // |SVD|min ≈ |SVD|max (Within strict 3% symmetry)
-                    verdict = {
-                      label: 'Strike-Slip Fault',
-                      className: 'verdict-strike-slip',
-                      tooltip: `Elkins (1951): |SVD|min (${absSvdMin.toFixed(3)}) ≈ |SVD|max (${absSvdMax.toFixed(3)}) → Strike-Slip / Vertical Fault Step`,
-                    };
-                  } else if (absSvdMin < absSvdMax) {
-                    // |SVD|min < |SVD|max
-                    verdict = {
-                      label: 'Normal Fault',
-                      className: 'verdict-normal',
-                      tooltip: `Elkins (1951): |SVD|min (${absSvdMin.toFixed(3)}) < |SVD|max (${absSvdMax.toFixed(3)}) → Normal Fault (Extensional)`,
-                    };
-                  } else {
-                    // |SVD|min > |SVD|max
-                    verdict = {
-                      label: 'Thrust Fault',
-                      className: 'verdict-thrust',
-                      tooltip: `Elkins (1951): |SVD|min (${absSvdMin.toFixed(3)}) > |SVD|max (${absSvdMax.toFixed(3)}) → Thrust / Reverse Fault (Compressional)`,
-                    };
-                  }
 
                   return (
                     <tr key={`pick-row-${ptIdx}`}>
@@ -1078,16 +1007,24 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
                       <td style={{ fontFamily: 'monospace', fontWeight: 700, color: '#047857' }}>{p.elevation.toFixed(1)} m</td>
                       <td style={{ fontFamily: 'monospace', color: '#6d28d9', fontWeight: 600 }}>{p.residual !== undefined ? `${p.residual.toFixed(1)} mGal` : '--'}</td>
                       <td style={{ fontFamily: 'monospace', color: '#b45309', fontWeight: 600 }}>{p.bouguer !== undefined ? `${p.bouguer.toFixed(1)} mGal` : '--'}</td>
-                      <td style={{ fontFamily: 'monospace', color: '#c2410c' }}>{p.simpleBouguer !== undefined ? `${p.simpleBouguer.toFixed(1)} mGal` : '--'}</td>
-                      <td style={{ fontFamily: 'monospace', color: '#0369a1' }}>{p.freeAir !== undefined ? `${p.freeAir.toFixed(1)} mGal` : '--'}</td>
-                      <td style={{ fontFamily: 'monospace', color: '#be123c', fontWeight: 700 }}>{p.fhd !== undefined ? `${p.fhd.toFixed(2)} mGal/km` : '--'}</td>
-                      <td style={{ fontFamily: 'monospace', color: '#0f766e' }}>{p.svd !== undefined ? `${p.svd.toFixed(3)} mGal/km²` : '--'}</td>
-                      <td style={{ fontFamily: 'monospace', color: '#a16207' }}>{p.tdr !== undefined ? `${p.tdr.toFixed(1)}°` : '--'}</td>
-                      <td>
-                        <span className={`verdict-badge ${verdict.className}`} title={verdict.tooltip}>
-                          {verdict.label}
-                        </span>
-                      </td>
+                      {visibleChannels.sba && (
+                        <td style={{ fontFamily: 'monospace', color: '#c2410c' }}>{p.simpleBouguer !== undefined ? `${p.simpleBouguer.toFixed(1)} mGal` : '--'}</td>
+                      )}
+                      {visibleChannels.faa && (
+                        <td style={{ fontFamily: 'monospace', color: '#0369a1' }}>{p.freeAir !== undefined ? `${p.freeAir.toFixed(1)} mGal` : '--'}</td>
+                      )}
+                      {visibleChannels.fhd && (
+                        <td style={{ fontFamily: 'monospace', color: '#be123c', fontWeight: 700 }}>{p.fhd !== undefined ? `${p.fhd.toFixed(2)} mGal/km` : '--'}</td>
+                      )}
+                      {visibleChannels.svd && (
+                        <td style={{ fontFamily: 'monospace', color: '#0f766e' }}>{p.svd !== undefined ? `${p.svd.toFixed(3)} mGal/km²` : '--'}</td>
+                      )}
+                      {visibleChannels.tdr && (
+                        <td style={{ fontFamily: 'monospace', color: '#a16207' }}>{p.tdr !== undefined ? `${p.tdr.toFixed(1)}°` : '--'}</td>
+                      )}
+                      {visibleChannels.regional && (
+                        <td style={{ fontFamily: 'monospace', color: '#64748b' }}>{p.regional !== undefined ? `${p.regional.toFixed(1)} mGal` : '--'}</td>
+                      )}
                       <td>
                         <button
                           type="button"
