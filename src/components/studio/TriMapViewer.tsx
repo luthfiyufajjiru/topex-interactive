@@ -604,50 +604,39 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
   }, [updateAllOverlays]);
 
   // Render Raster Heatmaps on WebGL 2.0 GPU Context (with CPU 2D Fallback)
+  // Strictly decoupled from mouse moves and hover events!
   const renderAllCanvases = useCallback(() => {
     if (isMapsCollapsed) return;
-    setIsRendering(true);
 
-    const timer = setTimeout(() => {
-      try {
-        // 1. Topography Map
-        if (canvasTopoWebglRef.current && gridTopo) {
-          const renderedOnGpu = renderWebGL2Raster(canvasTopoWebglRef.current, gridTopo, 'gebco', interpolationMethod);
-          if (!renderedOnGpu && canvasTopoOverlayRef.current) {
-            renderInterpolatedRasterToCanvas(canvasTopoOverlayRef.current, gridTopo, 'gebco', interpolationMethod);
-          }
-        }
-
-        // 2. Free-Air Gravity Anomaly Map
-        if (canvasFaaWebglRef.current && gridFaa) {
-          const renderedOnGpu = renderWebGL2Raster(canvasFaaWebglRef.current, gridFaa, 'coolwarm', interpolationMethod);
-          if (!renderedOnGpu && canvasFaaOverlayRef.current) {
-            renderInterpolatedRasterToCanvas(canvasFaaOverlayRef.current, gridFaa, 'coolwarm', interpolationMethod);
-          }
-        }
-
-        // 3. Bouguer / Residual Anomaly Map
-        if (canvasBgWebglRef.current && activeMap3Grid) {
-          const renderedOnGpu = renderWebGL2Raster(canvasBgWebglRef.current, activeMap3Grid, activeMap3Colormap, interpolationMethod);
-          if (!renderedOnGpu && canvasBgOverlayRef.current) {
-            renderInterpolatedRasterToCanvas(canvasBgOverlayRef.current, activeMap3Grid, activeMap3Colormap, interpolationMethod);
-          }
-        }
-
-        // 4. Update overlay annotations
-        updateAllOverlays();
-      } finally {
-        setIsRendering(false);
+    // 1. Topography Map
+    if (canvasTopoWebglRef.current && gridTopo) {
+      const renderedOnGpu = renderWebGL2Raster(canvasTopoWebglRef.current, gridTopo, 'gebco', interpolationMethod);
+      if (!renderedOnGpu && canvasTopoOverlayRef.current) {
+        renderInterpolatedRasterToCanvas(canvasTopoOverlayRef.current, gridTopo, 'gebco', interpolationMethod);
       }
-    }, 16);
+    }
 
-    return () => clearTimeout(timer);
-  }, [gridTopo, gridFaa, activeMap3Grid, activeMap3Colormap, interpolationMethod, isMapsCollapsed, updateAllOverlays]);
+    // 2. Free-Air Gravity Anomaly Map
+    if (canvasFaaWebglRef.current && gridFaa) {
+      const renderedOnGpu = renderWebGL2Raster(canvasFaaWebglRef.current, gridFaa, 'coolwarm', interpolationMethod);
+      if (!renderedOnGpu && canvasFaaOverlayRef.current) {
+        renderInterpolatedRasterToCanvas(canvasFaaOverlayRef.current, gridFaa, 'coolwarm', interpolationMethod);
+      }
+    }
 
+    // 3. Bouguer / Residual Anomaly Map
+    if (canvasBgWebglRef.current && activeMap3Grid) {
+      const renderedOnGpu = renderWebGL2Raster(canvasBgWebglRef.current, activeMap3Grid, activeMap3Colormap, interpolationMethod);
+      if (!renderedOnGpu && canvasBgOverlayRef.current) {
+        renderInterpolatedRasterToCanvas(canvasBgOverlayRef.current, activeMap3Grid, activeMap3Colormap, interpolationMethod);
+      }
+    }
+  }, [gridTopo, gridFaa, activeMap3Grid, activeMap3Colormap, interpolationMethod, isMapsCollapsed]);
+
+  // Trigger WebGL rasterization strictly when datasets, grids, or render modes change
   useEffect(() => {
     if (!isMapsCollapsed) {
-      const cleanup = renderAllCanvases();
-      return cleanup;
+      renderAllCanvases();
     }
   }, [renderAllCanvases, isMapsCollapsed]);
 
