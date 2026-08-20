@@ -959,6 +959,7 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
                   <th>FHD (Faults)</th>
                   <th>SVD (Laplace)</th>
                   <th>Tilt (TDR)</th>
+                  <th>Elkins (1951) Verdict</th>
                   <th style={{ width: 40 }}></th>
                 </tr>
               </thead>
@@ -966,6 +967,42 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
                 {pinnedIndices.map((ptIdx, rowIdx) => {
                   const p = points[ptIdx];
                   if (!p) return null;
+
+                  // Evaluate Elkins (1951) Structural Boundary & Curvature Rule
+                  const fhd = p.fhd ?? 0;
+                  const svd = p.svd ?? 0;
+                  const tdr = p.tdr ?? 0;
+                  const validFhds = points.map((pt) => pt.fhd || 0).filter((v) => v > 0);
+                  const avgFhd = validFhds.length > 0 ? validFhds.reduce((a, b) => a + b, 0) / validFhds.length : 0.05;
+                  const isHighGradient = fhd >= avgFhd * 1.15 || fhd > 0.08;
+                  const isZeroCrossing = Math.abs(tdr) <= 18 || Math.abs(svd) <= 0.005;
+
+                  let verdict = {
+                    label: 'Homogeneous Basement',
+                    className: 'verdict-stable',
+                    tooltip: 'Elkins (1951): Low gradient, quiescent regional basement',
+                  };
+
+                  if (isHighGradient && isZeroCrossing) {
+                    verdict = {
+                      label: '⚡ Fault Contact / Edge',
+                      className: 'verdict-fault',
+                      tooltip: 'Elkins (1951): SVD/TDR Zero-Crossing with Peak FHD (Fault Plane)',
+                    };
+                  } else if (tdr > 20 || (svd > 0.005 && (p.residual ?? 0) > 0)) {
+                    verdict = {
+                      label: '▲ Upthrown / Dense Block',
+                      className: 'verdict-upthrown',
+                      tooltip: 'Elkins (1951): Positive curvature over mass excess (Hanging Wall / Horst)',
+                    };
+                  } else if (tdr < -20 || (svd < -0.005 && (p.residual ?? 0) < 0)) {
+                    verdict = {
+                      label: '▼ Downthrown / Graben',
+                      className: 'verdict-downthrown',
+                      tooltip: 'Elkins (1951): Negative curvature over mass deficit (Footwall / Basin)',
+                    };
+                  }
+
                   return (
                     <tr key={`pick-row-${ptIdx}`}>
                       <td>
@@ -983,6 +1020,11 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
                       <td style={{ fontFamily: 'monospace', color: '#be123c', fontWeight: 700 }}>{p.fhd !== undefined ? `${p.fhd.toFixed(2)} mGal/km` : '--'}</td>
                       <td style={{ fontFamily: 'monospace', color: '#0f766e' }}>{p.svd !== undefined ? `${p.svd.toFixed(3)} mGal/km²` : '--'}</td>
                       <td style={{ fontFamily: 'monospace', color: '#a16207' }}>{p.tdr !== undefined ? `${p.tdr.toFixed(1)}°` : '--'}</td>
+                      <td>
+                        <span className={`verdict-badge ${verdict.className}`} title={verdict.tooltip}>
+                          {verdict.label}
+                        </span>
+                      </td>
                       <td>
                         <button
                           type="button"
