@@ -697,51 +697,55 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
       {/* Interpolation Control Dropdown Toolbar & Interactive Drawing Hint */}
       <div className="interpolation-toolbar-card">
         <div className="interp-left-group">
-          <div className="interp-label-group">
-            <SlidersHorizontal size={16} className="text-primary-blue" />
-            <span className="interp-title">Gridding:</span>
-          </div>
-
-          <div className="interp-select-wrapper">
-            <select
-              id="interp-method-select"
-              className="form-control interp-select"
-              value={interpolationMethod}
-              onChange={(e) => setInterpolationMethod(e.target.value as InterpolationMethod)}
-              title="2D Potential field interpolation algorithm"
-            >
-              <option value="bicubic">Bicubic Spline (Potential Field Standard)</option>
-              <option value="spline">Thin Plate Spline (Minimum Curvature)</option>
-              <option value="bilinear">Bilinear (Linear Mesh)</option>
-              <option value="idw">IDW (Inverse Distance Power 2)</option>
-              <option value="nearest">Nearest (Raw Discrete)</option>
-            </select>
+          {/* Gridding Algorithm */}
+          <div className="interp-control-item">
+            <div className="interp-label-group">
+              <SlidersHorizontal size={15} className="text-primary-blue" />
+              <span className="interp-title">Gridding:</span>
+            </div>
+            <div className="interp-select-wrapper">
+              <select
+                id="interp-method-select"
+                className="form-control interp-select"
+                value={interpolationMethod}
+                onChange={(e) => setInterpolationMethod(e.target.value as InterpolationMethod)}
+                title="2D Potential field interpolation algorithm"
+              >
+                <option value="bicubic">Bicubic Spline (Potential Field Standard)</option>
+                <option value="spline">Thin Plate Spline (Minimum Curvature)</option>
+                <option value="bilinear">Bilinear (Linear Mesh)</option>
+                <option value="idw">IDW (Inverse Distance Power 2)</option>
+                <option value="nearest">Nearest (Raw Discrete)</option>
+              </select>
+            </div>
           </div>
 
           <div className="interp-divider" />
 
           {/* Regional Separation Method */}
-          <div className="interp-label-group">
-            <span className="interp-title">Regional Filter:</span>
-          </div>
-          <div className="interp-select-wrapper">
-            <select
-              className="form-control interp-select"
-              value={residualConfig.method}
-              onChange={(e) =>
-                setResidualConfig((prev) => ({
-                  ...prev,
-                  method: e.target.value as RegionalResidualConfig['method'],
-                }))
-              }
-              title="Regional-Residual separation algorithm (Griffin 1949 / Gaussian filter / Polynomial)"
-            >
-              <option value="gaussian">Gaussian Low-Pass Filter (Smooth Regional)</option>
-              <option value="moving_avg">Moving Average Window (Griffin Boxcar)</option>
-              <option value="poly2">2nd-Order Polynomial (Paraboloid Surface)</option>
-              <option value="poly1">1st-Order Polynomial (Planar Trend)</option>
-              <option value="none">None (Total Bouguer Only)</option>
-            </select>
+          <div className="interp-control-item">
+            <div className="interp-label-group">
+              <span className="interp-title">Regional Filter:</span>
+            </div>
+            <div className="interp-select-wrapper">
+              <select
+                className="form-control interp-select"
+                value={residualConfig.method}
+                onChange={(e) =>
+                  setResidualConfig((prev) => ({
+                    ...prev,
+                    method: e.target.value as RegionalResidualConfig['method'],
+                  }))
+                }
+                title="Regional-Residual separation algorithm (Griffin 1949 / Gaussian filter / Polynomial)"
+              >
+                <option value="gaussian">Gaussian Low-Pass Filter (Smooth Regional)</option>
+                <option value="moving_avg">Moving Average Window (Griffin Boxcar)</option>
+                <option value="poly2">2nd-Order Polynomial (Paraboloid Surface)</option>
+                <option value="poly1">1st-Order Polynomial (Planar Trend)</option>
+                <option value="none">None (Total Bouguer Only)</option>
+              </select>
+            </div>
           </div>
 
           {/* Gaussian Filter Window Radius Slider (in km) */}
@@ -786,7 +790,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
                 className="density-slider radius-slider-bar"
                 title={`Moving average grid box size: ${2 * (residualConfig.gridWindowCells ?? 3) + 1}×${2 * (residualConfig.gridWindowCells ?? 3) + 1} cells`}
               />
-              <span className="radius-value-pill" style={{ minWidth: '78px' }}>
+              <span className="radius-value-pill">
                 {2 * (residualConfig.gridWindowCells ?? 3) + 1}×{2 * (residualConfig.gridWindowCells ?? 3) + 1} (k={residualConfig.gridWindowCells ?? 3})
               </span>
             </div>

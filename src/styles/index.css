@@ -1382,30 +1382,319 @@ footer {
   margin-bottom: 20px;
 }
 
+/* ==========================================================================
+   Parasnis / Nettleton Regression Scatter Plot & Citations Card
+   ========================================================================== */
+.regression-card {
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  margin-top: 24px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-sm);
+}
+
+.regression-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.regression-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.icon-badge-teal {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: #ecfdf5;
+  color: #059669;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.regression-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 2px;
+}
+
+.regression-subtitle {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.btn-apply-regression {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 0.84rem;
+  font-weight: 600;
+  border: 1px solid #10b981;
+  background: #f0fdf4;
+  color: #059669;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-apply-regression:hover {
+  background: #dcfce7;
+}
+
+.btn-apply-regression.is-active {
+  background: #10b981;
+  color: #ffffff;
+  border-color: #059669;
+}
+
+.regression-summary-bar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-md);
+  padding: 12px 18px;
+  margin-bottom: 18px;
+}
+
+.reg-stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.reg-stat-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.reg-stat-val {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.regression-svg-container {
+  position: relative;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-md);
+  padding: 10px;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+
+.regression-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.regression-hover-tooltip {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: rgba(15, 23, 42, 0.9);
+  color: #ffffff;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.regression-legend-bar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  font-size: 0.78rem;
+  color: #475569;
+  margin-bottom: 20px;
+}
+
+.reg-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-dot-teal {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #0284c7;
+}
+
+.legend-line-dashed-green {
+  width: 18px;
+  height: 0;
+  border-top: 2.5px dashed #10b981;
+}
+
+.legend-line-solid-blue {
+  width: 18px;
+  height: 0;
+  border-top: 2.5px solid #0284c7;
+}
+
+/* Citations Collapsible Card */
+.citations-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-top: 18px;
+}
+
+.citations-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #f1f5f9;
+  cursor: pointer;
+  user-select: none;
+}
+
+.citations-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.citations-toggle-hint {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.citations-body {
+  padding: 16px;
+}
+
+.formula-explanation-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+
+.formula-item {
+  font-size: 0.8rem;
+  color: var(--text-main);
+  line-height: 1.5;
+}
+
+.formula-tag {
+  font-weight: 700;
+  color: #0369a1;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.formula-item code {
+  background: #f1f5f9;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: #0f172a;
+}
+
+.citations-list-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 8px;
+}
+
+.academic-references {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: #475569;
+  line-height: 1.5;
+}
+
 .processing-action-bar {
+  margin-top: 24px;
+  margin-bottom: 24px;
+  padding: 18px 24px;
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
   display: flex;
   justify-content: flex-end;
+  align-items: center;
 }
 
 .btn-proceed-studio {
   background: var(--primary-blue);
-  color: white;
+  color: #ffffff;
   border: none;
-  padding: 12px 24px;
+  padding: 14px 28px;
   border-radius: var(--radius-md);
-  font-size: 0.95rem;
+  font-size: 1rem;
   font-weight: 700;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  box-shadow: 0 4px 12px rgba(30, 136, 229, 0.25);
+  gap: 10px;
+  box-shadow: 0 4px 14px rgba(30, 136, 229, 0.3);
   transition: all 0.15s ease;
 }
 
 .btn-proceed-studio:hover {
   background: var(--primary-blue-hover);
   transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(30, 136, 229, 0.4);
+}
+
+@media (max-width: 768px) {
+  .processing-action-bar {
+    justify-content: stretch;
+    padding: 14px;
+  }
+
+  .btn-proceed-studio {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 /* ==========================================================================
@@ -1545,6 +1834,20 @@ footer {
   box-shadow: var(--shadow-sm);
   flex-wrap: wrap;
   gap: 12px;
+}
+
+.interp-left-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.interp-control-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .interp-label-group {
@@ -3202,12 +3505,38 @@ footer {
     padding: 7px 8px;
   }
 
-  /* Interpolation Toolbar */
+  /* Interpolation & Filter Toolbar on Mobile */
   .interpolation-toolbar-card {
     flex-direction: column;
     align-items: stretch;
-    gap: 10px;
+    gap: 12px;
     padding: 12px 14px;
+  }
+
+  .interp-left-group {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .interp-control-item {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    width: 100%;
+  }
+
+  .interp-label-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .interp-divider {
+    display: none;
   }
 
   .interp-select-wrapper {
@@ -3215,11 +3544,45 @@ footer {
     width: 100%;
   }
 
+  .interp-select {
+    width: 100%;
+    font-size: 0.85rem;
+    padding: 9px 12px;
+    background-color: #f8fafc;
+  }
+
+  .regional-radius-control-group {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: #f1f5f9;
+    border-radius: 6px;
+    box-sizing: border-box;
+  }
+
+  .radius-slider-bar {
+    flex: 1;
+    max-width: 170px;
+    margin: 0 10px;
+  }
+
+  .btn-toggle-maps-collapse {
+    width: 100%;
+    justify-content: center;
+    padding: 9px 12px;
+    font-size: 0.82rem;
+  }
+
   .transect-drag-hint {
     width: 100%;
     justify-content: center;
-    font-size: 0.72rem;
+    font-size: 0.74rem;
     text-align: center;
+    padding: 6px 10px;
+    background: #f8fafc;
+    border-radius: 6px;
   }
 
   /* Probe Sounding HUD */
