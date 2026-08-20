@@ -32,6 +32,29 @@ export function createRateLimiter(options: RateLimitOptions = { windowMs: 60000,
       c.req.header('x-real-ip') ||
       '127.0.0.1';
 
+    // 1. Cloudflare Native Worker Rate Limiting Binding (if configured)
+    const rateLimiterBinding = (c.env as any)?.RATE_LIMITER;
+    if (rateLimiterBinding && typeof rateLimiterBinding.limit === 'function') {
+      try {
+        const { success } = await rateLimiterBinding.limit({ key: ip });
+        if (!success) {
+          c.header('Retry-After', '60');
+          return c.json(
+            {
+              success: false,
+              error: 'Rate limit exceeded on Cloudflare Edge. Please wait a few seconds before requesting more soundings.',
+            },
+            429
+          );
+        }
+        await next();
+        return;
+      } catch {
+        // Fallback to local memory limiter on binding error
+      }
+    }
+
+    // 2. Fallback In-Memory Sliding Window Rate Limiter
     const now = Date.now();
     cleanupStaleRecords(now);
 

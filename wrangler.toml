@@ -16,6 +16,13 @@ ENVIRONMENT = "production"
 enabled = true
 head_sampling_rate = 1.0
 
+# Cloudflare Workers Native Rate Limiting Binding
+[[unsafe.bindings]]
+name = "RATE_LIMITER"
+type = "ratelimit"
+namespace_id = "1001"
+simple = { limit = 120, period = 60 }
+
 # Custom Domain Configuration
 [[routes]]
 pattern = "topex-interactive.yufajjiru.work"
