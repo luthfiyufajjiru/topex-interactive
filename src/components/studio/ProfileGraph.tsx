@@ -997,35 +997,35 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
                   let verdict = {
                     label: 'Homogeneous Basement',
                     className: 'verdict-stable',
-                    tooltip: 'Elkins (1951): Gradien rendah, anomali regional homogen',
+                    tooltip: 'Elkins (1951): Low gradient, quiescent regional basement',
                   };
 
                   if (maxMagnitude < 0.004 && localMaxFhd < 0.04) {
                     verdict = {
-                      label: 'Basement Stabil',
+                      label: 'Stable Basement',
                       className: 'verdict-stable',
-                      tooltip: 'Elkins (1951): Kurvatur SVD dan FHD sangat rendah (Batuan dasar stabil)',
+                      tooltip: 'Elkins (1951): Low SVD curvature and gradient (Stable Regional Basement)',
                     };
                   } else if (symmetryRatio <= 0.15) {
                     // |SVD|min ≈ |SVD|max
                     verdict = {
-                      label: 'Patahan Mendatar',
+                      label: 'Strike-Slip Fault',
                       className: 'verdict-strike-slip',
-                      tooltip: `Elkins (1951): |SVD|min (${absSvdMin.toFixed(3)}) ≈ |SVD|max (${absSvdMax.toFixed(3)}) → Patahan Mendatar / Sesar Vertikal (Strike-Slip)`,
+                      tooltip: `Elkins (1951): |SVD|min (${absSvdMin.toFixed(3)}) ≈ |SVD|max (${absSvdMax.toFixed(3)}) → Strike-Slip / Vertical Fault Step`,
                     };
                   } else if (absSvdMin < absSvdMax) {
                     // |SVD|min < |SVD|max
                     verdict = {
-                      label: 'Patahan Normal',
+                      label: 'Normal Fault',
                       className: 'verdict-normal',
-                      tooltip: `Elkins (1951): |SVD|min (${absSvdMin.toFixed(3)}) < |SVD|max (${absSvdMax.toFixed(3)}) → Patahan Normal (Ekstensional)`,
+                      tooltip: `Elkins (1951): |SVD|min (${absSvdMin.toFixed(3)}) < |SVD|max (${absSvdMax.toFixed(3)}) → Normal Fault (Extensional)`,
                     };
                   } else {
                     // |SVD|min > |SVD|max
                     verdict = {
-                      label: 'Patahan Naik',
+                      label: 'Thrust Fault',
                       className: 'verdict-thrust',
-                      tooltip: `Elkins (1951): |SVD|min (${absSvdMin.toFixed(3)}) > |SVD|max (${absSvdMax.toFixed(3)}) → Patahan Naik (Kompresional / Thrust)`,
+                      tooltip: `Elkins (1951): |SVD|min (${absSvdMin.toFixed(3)}) > |SVD|max (${absSvdMax.toFixed(3)}) → Thrust / Reverse Fault (Compressional)`,
                     };
                   }
 
