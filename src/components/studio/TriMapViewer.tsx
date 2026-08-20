@@ -447,13 +447,14 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
     setCursorStyle('crosshair');
   };
 
-  // Find nearest sounding to coordinate
+  // Find nearest sounding to coordinate (uses processedWithResidual to access live regional/residual values)
   const findNearestSounding = (lat: number, lon: number): ProcessedRecord | null => {
     let nearest: ProcessedRecord | null = null;
     let minDist = Infinity;
+    const sourceRecords = processedWithResidual.length > 0 ? processedWithResidual : records;
 
-    for (let i = 0; i < records.length; i++) {
-      const r = records[i];
+    for (let i = 0; i < sourceRecords.length; i++) {
+      const r = sourceRecords[i];
       const dist = (r.latitude - lat) ** 2 + (r.longitude - lon) ** 2;
       if (dist < minDist) {
         minDist = dist;
@@ -1044,8 +1045,8 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
               <div
                 className="map-cursor-tooltip"
                 style={{
-                  left: `${Math.min(Math.max(hoverPos.x + 14, 10), 480 - 185)}px`,
-                  top: `${Math.min(Math.max(hoverPos.y - 30, 20), 360 - 75)}px`,
+                  left: `${Math.min(Math.max(hoverPos.x + 14, 10), 480 - 215)}px`,
+                  top: `${Math.min(Math.max(hoverPos.y - 30, 20), 360 - 85)}px`,
                 }}
               >
                 <div className="tooltip-coord-row">
@@ -1064,12 +1065,18 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
                     <span className="tooltip-label">Bouguer:</span>
                     <span className="tooltip-val text-amber">{hoveredRecord.bouguer?.toFixed(1) ?? 'N/A'} mGal</span>
                   </div>
-                  {hoveredRecord.residual !== undefined && (
-                    <div className="tooltip-data-item">
-                      <span className="tooltip-label">Residual:</span>
-                      <span className="tooltip-val" style={{ color: '#c084fc' }}>{hoveredRecord.residual.toFixed(1)} mGal</span>
-                    </div>
-                  )}
+                  <div className="tooltip-data-item">
+                    <span className="tooltip-label">Regional:</span>
+                    <span className="tooltip-val" style={{ color: '#0284c7' }}>
+                      {hoveredRecord.regional !== undefined ? `${hoveredRecord.regional.toFixed(1)} mGal` : 'N/A'}
+                    </span>
+                  </div>
+                  <div className="tooltip-data-item">
+                    <span className="tooltip-label">Residual:</span>
+                    <span className="tooltip-val" style={{ color: '#7c3aed' }}>
+                      {hoveredRecord.residual !== undefined ? `${hoveredRecord.residual.toFixed(1)} mGal` : 'N/A'}
+                    </span>
+                  </div>
                 </div>
               </div>
             )}
@@ -1138,8 +1145,8 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
               <div
                 className="map-cursor-tooltip"
                 style={{
-                  left: `${Math.min(Math.max(hoverPos.x + 14, 10), 480 - 185)}px`,
-                  top: `${Math.min(Math.max(hoverPos.y - 30, 20), 360 - 75)}px`,
+                  left: `${Math.min(Math.max(hoverPos.x + 14, 10), 480 - 215)}px`,
+                  top: `${Math.min(Math.max(hoverPos.y - 30, 20), 360 - 85)}px`,
                 }}
               >
                 <div className="tooltip-coord-row">
@@ -1158,12 +1165,18 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
                     <span className="tooltip-label">Bouguer:</span>
                     <span className="tooltip-val text-amber">{hoveredRecord.bouguer?.toFixed(1) ?? 'N/A'} mGal</span>
                   </div>
-                  {hoveredRecord.residual !== undefined && (
-                    <div className="tooltip-data-item">
-                      <span className="tooltip-label">Residual:</span>
-                      <span className="tooltip-val" style={{ color: '#c084fc' }}>{hoveredRecord.residual.toFixed(1)} mGal</span>
-                    </div>
-                  )}
+                  <div className="tooltip-data-item">
+                    <span className="tooltip-label">Regional:</span>
+                    <span className="tooltip-val" style={{ color: '#0284c7' }}>
+                      {hoveredRecord.regional !== undefined ? `${hoveredRecord.regional.toFixed(1)} mGal` : 'N/A'}
+                    </span>
+                  </div>
+                  <div className="tooltip-data-item">
+                    <span className="tooltip-label">Residual:</span>
+                    <span className="tooltip-val" style={{ color: '#7c3aed' }}>
+                      {hoveredRecord.residual !== undefined ? `${hoveredRecord.residual.toFixed(1)} mGal` : 'N/A'}
+                    </span>
+                  </div>
                 </div>
               </div>
             )}
@@ -1272,8 +1285,8 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
               <div
                 className="map-cursor-tooltip"
                 style={{
-                  left: `${Math.min(Math.max(hoverPos.x + 14, 10), 480 - 185)}px`,
-                  top: `${Math.min(Math.max(hoverPos.y - 30, 20), 360 - 75)}px`,
+                  left: `${Math.min(Math.max(hoverPos.x + 14, 10), 480 - 215)}px`,
+                  top: `${Math.min(Math.max(hoverPos.y - 30, 20), 360 - 85)}px`,
                 }}
               >
                 <div className="tooltip-coord-row">
@@ -1292,12 +1305,18 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
                     <span className="tooltip-label">Bouguer:</span>
                     <span className="tooltip-val text-amber">{hoveredRecord.bouguer?.toFixed(1) ?? 'N/A'} mGal</span>
                   </div>
-                  {hoveredRecord.residual !== undefined && (
-                    <div className="tooltip-data-item">
-                      <span className="tooltip-label">Residual:</span>
-                      <span className="tooltip-val" style={{ color: '#c084fc' }}>{hoveredRecord.residual.toFixed(1)} mGal</span>
-                    </div>
-                  )}
+                  <div className="tooltip-data-item">
+                    <span className="tooltip-label">Regional:</span>
+                    <span className="tooltip-val" style={{ color: '#0284c7' }}>
+                      {hoveredRecord.regional !== undefined ? `${hoveredRecord.regional.toFixed(1)} mGal` : 'N/A'}
+                    </span>
+                  </div>
+                  <div className="tooltip-data-item">
+                    <span className="tooltip-label">Residual:</span>
+                    <span className="tooltip-val" style={{ color: '#7c3aed' }}>
+                      {hoveredRecord.residual !== undefined ? `${hoveredRecord.residual.toFixed(1)} mGal` : 'N/A'}
+                    </span>
+                  </div>
                 </div>
               </div>
             )}

@@ -2507,26 +2507,26 @@ footer {
 }
 
 /* ==========================================================================
-   Map Floating Cursor Probe Tooltip
+   Map Floating Cursor Probe Tooltip (Light Theme Glassmorphic)
    ========================================================================== */
 .map-cursor-tooltip {
   position: absolute;
   z-index: 30;
   pointer-events: none;
-  background: rgba(15, 23, 42, 0.92);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(56, 189, 248, 0.35);
-  border-radius: var(--radius-sm);
-  padding: 8px 10px;
-  color: #ffffff;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid #cbd5e1;
+  border-radius: var(--radius-md, 8px);
+  padding: 8px 12px;
+  color: #0f172a;
   font-size: 0.76rem;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 0 12px rgba(56, 189, 248, 0.2);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 4px 10px rgba(0, 0, 0, 0.05), 0 0 1px rgba(0, 0, 0, 0.2);
   transform: translate(12px, -50%);
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  min-width: 170px;
+  gap: 5px;
+  min-width: 205px;
   animation: popoverFadeIn 0.1s ease-out;
 }
 
@@ -2534,18 +2534,18 @@ footer {
   display: flex;
   align-items: center;
   gap: 6px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid #e2e8f0;
   padding-bottom: 4px;
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  color: #38bdf8;
-  font-weight: 600;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.74rem;
+  color: #0284c7;
+  font-weight: 700;
 }
 
 .tooltip-data-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 4px 8px;
+  gap: 4px 10px;
 }
 
 .tooltip-data-item {
@@ -2557,12 +2557,12 @@ footer {
 }
 
 .tooltip-label {
-  color: #94a3b8;
-  font-weight: 500;
+  color: #64748b;
+  font-weight: 600;
 }
 
 .tooltip-val {
-  font-family: var(--font-mono);
+  font-family: var(--font-mono, monospace);
   font-weight: 700;
 }
 
