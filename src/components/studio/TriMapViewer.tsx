@@ -17,10 +17,7 @@ import { CitationsModal } from '../modals/CitationsModal';
 import {
   FileCode,
   Image,
-  Crosshair,
   SlidersHorizontal,
-  Pin,
-  PinOff,
   Move,
   LayoutGrid,
   PackageCheck,
@@ -68,7 +65,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
   const webglSupport = useMemo(() => checkWebGLSupport(), []);
 
   const [hoveredRecord, setHoveredRecord] = useState<ProcessedRecord | null>(null);
-  const [pinnedRecord, setPinnedRecord] = useState<ProcessedRecord | null>(null);
+  const [hoverPos, setHoverPos] = useState<{ x: number; y: number; mapId: string } | null>(null);
   const [hoveredProfilePoint, setHoveredProfilePoint] = useState<ProfilePoint | null>(null);
   const [interpolationMethod, setInterpolationMethod] = useState<InterpolationMethod>('bicubic');
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -149,8 +146,8 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
     };
   }, [records, residualConfig, baseGrids]);
 
-  // Active sounding record: priority to pinned, fallback to hover
-  const activeRecord = pinnedRecord || hoveredRecord;
+  // Active sounding record: hover probe
+  const activeRecord = hoveredRecord;
 
   // Single default profile line A -> A' across the center
   const [lines, setLines] = useState<NamedProfileLine[]>(() => {
@@ -257,99 +254,104 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
     }
   };
 
-  // Set Profile Line Presets on Active Line
+  // Quick preset alignments
   const handleSetPresetLine = (preset: 'we' | 'ns' | 'diag1' | 'diag2') => {
+    const lonSpan = bounds.east - bounds.west;
+    const latSpan = bounds.north - bounds.south;
     const midLat = (bounds.north + bounds.south) / 2;
     const midLon = (bounds.west + bounds.east) / 2;
-    const padLat = (bounds.north - bounds.south) * 0.1;
-    const padLon = (bounds.east - bounds.west) * 0.1;
 
-    let newStart = { lat: midLat, lon: bounds.west + padLon };
-    let newEnd = { lat: midLat, lon: bounds.east - padLon };
+    let newStart = { ...activeLine.start };
+    let newEnd = { ...activeLine.end };
 
-    switch (preset) {
-      case 'we':
-        newStart = { lat: midLat, lon: bounds.west + padLon };
-        newEnd = { lat: midLat, lon: bounds.east - padLon };
-        break;
-      case 'ns':
-        newStart = { lat: bounds.north - padLat, lon: midLon };
-        newEnd = { lat: bounds.south + padLat, lon: midLon };
-        break;
-      case 'diag1':
-        newStart = { lat: bounds.south + padLat, lon: bounds.west + padLon };
-        newEnd = { lat: bounds.north - padLat, lon: bounds.east - padLon };
-        break;
-      case 'diag2':
-        newStart = { lat: bounds.north - padLat, lon: bounds.west + padLon };
-        newEnd = { lat: bounds.south + padLat, lon: bounds.east - padLon };
-        break;
+    if (preset === 'we') {
+      newStart = { lat: midLat, lon: bounds.west + lonSpan * 0.1 };
+      newEnd = { lat: midLat, lon: bounds.east - lonSpan * 0.1 };
+    } else if (preset === 'ns') {
+      newStart = { lat: bounds.north - latSpan * 0.1, lon: midLon };
+      newEnd = { lat: bounds.south + latSpan * 0.1, lon: midLon };
+    } else if (preset === 'diag1') {
+      newStart = { lat: bounds.north - latSpan * 0.1, lon: bounds.west + lonSpan * 0.1 };
+      newEnd = { lat: bounds.south + latSpan * 0.1, lon: bounds.east - lonSpan * 0.1 };
+    } else if (preset === 'diag2') {
+      newStart = { lat: bounds.south + latSpan * 0.1, lon: bounds.west + lonSpan * 0.1 };
+      newEnd = { lat: bounds.north - latSpan * 0.1, lon: bounds.east - lonSpan * 0.1 };
     }
 
     setLines(
-      lines.map((l) => (l.id === activeLineId ? { ...l, start: newStart, end: newEnd } : l))
+      lines.map((l) =>
+        l.id === activeLineId ? { ...l, start: newStart, end: newEnd } : l
+      )
     );
   };
 
-  // Convert client mouse or touch event to Lat/Lon
-  const getLatLonFromEvent = (
-    e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>
-  ) => {
+  // Convert screen coordinates to geographic coordinates
+  const getLatLonFromEvent = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     const canvas = e.currentTarget;
     const rect = canvas.getBoundingClientRect();
-
     let clientX = 0;
     let clientY = 0;
-    const isTouch = 'touches' in e || 'changedTouches' in e;
+
     if ('touches' in e && e.touches.length > 0) {
       clientX = e.touches[0].clientX;
       clientY = e.touches[0].clientY;
-    } else if ('changedTouches' in e && e.changedTouches.length > 0) {
-      clientX = e.changedTouches[0].clientX;
-      clientY = e.changedTouches[0].clientY;
     } else if ('clientX' in e) {
       clientX = (e as React.MouseEvent).clientX;
       clientY = (e as React.MouseEvent).clientY;
     }
 
-    const xNorm = Math.max(0, Math.min(1, (clientX - rect.left) / (rect.width || 1)));
-    const yNorm = Math.max(0, Math.min(1, (clientY - rect.top) / (rect.height || 1)));
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
 
-    const lon = bounds.west + xNorm * (bounds.east - bounds.west);
-    const lat = bounds.north - yNorm * (bounds.north - bounds.south);
-    return { lat, lon, xNorm, yNorm, rect, isTouch };
-  };
-
-  // Check proximity to endpoints (generous hit target for touch screens)
-  const getEndpointProximity = (
-    e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>
-  ) => {
-    const { xNorm, yNorm, rect, isTouch } = getLatLonFromEvent(e);
     const lonRange = bounds.east - bounds.west || 1;
     const latRange = bounds.north - bounds.south || 1;
 
-    const px = xNorm * rect.width;
-    const py = yNorm * rect.height;
+    const lon = bounds.west + (x / rect.width) * lonRange;
+    const lat = bounds.north - (y / rect.height) * latRange;
 
-    const xA = ((activeLine.start.lon - bounds.west) / lonRange) * rect.width;
-    const yA = ((bounds.north - activeLine.start.lat) / latRange) * rect.height;
-    const distA = Math.sqrt((px - xA) ** 2 + (py - yA) ** 2);
+    return { lat, lon, x, y };
+  };
 
-    const xB = ((activeLine.end.lon - bounds.west) / lonRange) * rect.width;
-    const yB = ((bounds.north - activeLine.end.lat) / latRange) * rect.height;
-    const distB = Math.sqrt((px - xB) ** 2 + (py - yB) ** 2);
+  // Proximity check for line endpoints (pixel radius)
+  const getEndpointProximity = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>): 'start' | 'end' | null => {
+    const canvas = e.currentTarget;
+    const rect = canvas.getBoundingClientRect();
+    let clientX = 0;
+    let clientY = 0;
 
-    const hitRadius = isTouch ? 30 : 18;
-    if (distA <= hitRadius) return 'start';
-    if (distB <= hitRadius) return 'end';
+    if ('touches' in e && e.touches.length > 0) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else if ('clientX' in e) {
+      clientX = (e as React.MouseEvent).clientX;
+      clientY = (e as React.MouseEvent).clientY;
+    }
+
+    const mouseX = clientX - rect.left;
+    const mouseY = clientY - rect.top;
+
+    const lonRange = bounds.east - bounds.west || 1;
+    const latRange = bounds.north - bounds.south || 1;
+
+    const startX = ((activeLine.start.lon - bounds.west) / lonRange) * rect.width;
+    const startY = ((bounds.north - activeLine.start.lat) / latRange) * rect.height;
+
+    const endX = ((activeLine.end.lon - bounds.west) / lonRange) * rect.width;
+    const endY = ((bounds.north - activeLine.end.lat) / latRange) * rect.height;
+
+    const distStart = Math.hypot(mouseX - startX, mouseY - startY);
+    const distEnd = Math.hypot(mouseX - endX, mouseY - endY);
+
+    const HIT_RADIUS = 18;
+
+    if (distStart <= HIT_RADIUS) return 'start';
+    if (distEnd <= HIT_RADIUS) return 'end';
     return null;
   };
 
-  // Interactive Mouse Down on Map Canvas (Drag Endpoint or Freehand Draw)
+  // Mouse Down: Start dragging endpoint or start freehand drawing
   const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const endpoint = getEndpointProximity(e);
-    const { lat, lon } = getLatLonFromEvent(e);
-
     if (endpoint === 'start') {
       setDraggingMode('start');
       setCursorStyle('grabbing');
@@ -357,7 +359,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
       setDraggingMode('end');
       setCursorStyle('grabbing');
     } else {
-      // Click-and-drag to freely draw a new line transect from this location
+      const { lat, lon } = getLatLonFromEvent(e);
       setDraggingMode('draw');
       setCursorStyle('crosshair');
       setLines(
@@ -371,7 +373,10 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
   };
 
   // Interactive Mouse Move on Map Canvas
-  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>, mapId: string) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
     const { lat, lon } = getLatLonFromEvent(e);
 
     if (draggingMode === 'start') {
@@ -395,10 +400,9 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
     }
 
     // Sounding Probe
-    if (!pinnedRecord) {
-      const nearest = findNearestSounding(lat, lon);
-      setHoveredRecord(nearest);
-    }
+    const nearest = findNearestSounding(lat, lon);
+    setHoveredRecord(nearest);
+    setHoverPos({ x, y, mapId });
   };
 
   // Mouse Up: Commit line
@@ -408,7 +412,6 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
   };
 
   // Touch Events for Mobile PWA & Touchscreens
-  // On touch, ONLY allow dragging existing endpoints (no freehand draw to prevent accidental shifts)
   const handleCanvasTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
     if (e.touches.length !== 1) return;
     const endpoint = getEndpointProximity(e);
@@ -420,7 +423,6 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
       setDraggingMode('end');
       setCursorStyle('grabbing');
     }
-    // else: do nothing — don't start freehand draw on mobile to prevent accidental shifts
   };
 
   const handleCanvasTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
@@ -440,20 +442,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
     }
   };
 
-  const handleCanvasTouchEnd = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    // If no endpoint was being dragged, treat as a tap → pin/unpin nearest sounding
-    if (!draggingMode) {
-      const { lat, lon } = getLatLonFromEvent(e);
-      const nearest = findNearestSounding(lat, lon);
-      if (nearest) {
-        setPinnedRecord(
-          pinnedRecord?.latitude === nearest.latitude &&
-          pinnedRecord?.longitude === nearest.longitude
-            ? null
-            : nearest
-        );
-      }
-    }
+  const handleCanvasTouchEnd = () => {
     setDraggingMode(null);
     setCursorStyle('crosshair');
   };
@@ -473,20 +462,6 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
     }
 
     return nearest;
-  };
-
-  // Interactive Click to Pin / Lock Sounding Point (only when not dragging line)
-  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (draggingMode) return;
-    const { lat, lon } = getLatLonFromEvent(e);
-    const nearest = findNearestSounding(lat, lon);
-    if (nearest) {
-      if (pinnedRecord && pinnedRecord.latitude === nearest.latitude && pinnedRecord.longitude === nearest.longitude) {
-        setPinnedRecord(null);
-      } else {
-        setPinnedRecord(nearest);
-      }
-    }
   };
 
   // Draw Overlay Elements on 2D Annotation Canvas
@@ -1011,70 +986,6 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
         </div>
       </div>
 
-      {/* Synchronized Probe HUD */}
-      <div className={`probe-hud-card ${pinnedRecord ? 'is-pinned' : ''}`}>
-        <div className="probe-icon-label">
-          {pinnedRecord ? (
-            <div className="pin-badge">
-              <Pin size={15} className="text-emerald animate-bounce" />
-              <span>Pinned Target:</span>
-            </div>
-          ) : (
-            <div className="probe-badge">
-              <Crosshair size={17} className="text-primary-blue animate-pulse" />
-              <span>Probe Sounding:</span>
-            </div>
-          )}
-        </div>
-
-        {activeRecord ? (
-          <div className="probe-values-row">
-            <div className="probe-val-item">
-              <span className="probe-key">Coordinate:</span>
-              <strong>{activeRecord.latitude.toFixed(4)}°, {activeRecord.longitude.toFixed(4)}°</strong>
-            </div>
-            <div className="probe-val-item">
-              <span className="probe-key">Topography:</span>
-              <strong className="text-emerald">{activeRecord.elevation?.toFixed(1) ?? 'N/A'} m</strong>
-            </div>
-            <div className="probe-val-item">
-              <span className="probe-key">Free-Air:</span>
-              <strong className="text-sky">{activeRecord.gravity?.toFixed(1) ?? 'N/A'} mGal</strong>
-            </div>
-            <div className="probe-val-item">
-              <span className="probe-key">Bouguer:</span>
-              <strong className="text-amber">{activeRecord.bouguer?.toFixed(1) ?? 'N/A'} mGal</strong>
-            </div>
-            {activeRecord.residual !== undefined && (
-              <div className="probe-val-item">
-                <span className="probe-key">Residual:</span>
-                <strong style={{ color: '#8b5cf6' }}>{activeRecord.residual.toFixed(1)} mGal</strong>
-              </div>
-            )}
-            <div className="probe-val-item">
-              <span className="probe-key">Slab Correction:</span>
-              <span style={{ color: '#64748b' }}>{activeRecord.slabCorrection?.toFixed(1) ?? 'N/A'} mGal</span>
-            </div>
-
-            {pinnedRecord && (
-              <button
-                type="button"
-                className="btn-unpin"
-                onClick={() => setPinnedRecord(null)}
-                title="Unpin target and resume hover probing"
-              >
-                <PinOff size={13} />
-                <span>Unpin</span>
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="probe-placeholder">
-            <span>Hover over any map or 2D profile to probe sounding metrics &bull; Click anywhere to lock/pin a target</span>
-          </div>
-        )}
-      </div>
-
       {/* 3 Map Viewports Grid (Collapsible via CSS) */}
       <div
         className={`trimap-grid ${isMapsCollapsed ? 'collapsed' : ''}`}
@@ -1117,18 +1028,51 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
               className="raster-overlay-canvas"
               style={{ cursor: cursorStyle, touchAction: 'none' }}
               onMouseDown={handleCanvasMouseDown}
-              onMouseMove={handleCanvasMouseMove}
+              onMouseMove={(e) => handleCanvasMouseMove(e, 'topo')}
               onMouseUp={handleCanvasMouseUp}
-              onClick={handleCanvasClick}
               onTouchStart={handleCanvasTouchStart}
               onTouchMove={handleCanvasTouchMove}
               onTouchEnd={handleCanvasTouchEnd}
               onTouchCancel={handleCanvasTouchEnd}
               onMouseLeave={() => {
                 handleCanvasMouseUp();
-                if (!pinnedRecord) setHoveredRecord(null);
+                setHoveredRecord(null);
+                setHoverPos(null);
               }}
             />
+            {hoverPos && hoverPos.mapId === 'topo' && hoveredRecord && (
+              <div
+                className="map-cursor-tooltip"
+                style={{
+                  left: `${Math.min(Math.max(hoverPos.x + 14, 10), 480 - 185)}px`,
+                  top: `${Math.min(Math.max(hoverPos.y - 30, 20), 360 - 75)}px`,
+                }}
+              >
+                <div className="tooltip-coord-row">
+                  <span>{hoveredRecord.latitude.toFixed(4)}°, {hoveredRecord.longitude.toFixed(4)}°</span>
+                </div>
+                <div className="tooltip-data-grid">
+                  <div className="tooltip-data-item">
+                    <span className="tooltip-label">Topo:</span>
+                    <span className="tooltip-val text-emerald">{hoveredRecord.elevation?.toFixed(1) ?? 'N/A'} m</span>
+                  </div>
+                  <div className="tooltip-data-item">
+                    <span className="tooltip-label">FAA:</span>
+                    <span className="tooltip-val text-sky">{hoveredRecord.gravity?.toFixed(1) ?? 'N/A'} mGal</span>
+                  </div>
+                  <div className="tooltip-data-item">
+                    <span className="tooltip-label">Bouguer:</span>
+                    <span className="tooltip-val text-amber">{hoveredRecord.bouguer?.toFixed(1) ?? 'N/A'} mGal</span>
+                  </div>
+                  {hoveredRecord.residual !== undefined && (
+                    <div className="tooltip-data-item">
+                      <span className="tooltip-label">Residual:</span>
+                      <span className="tooltip-val" style={{ color: '#c084fc' }}>{hoveredRecord.residual.toFixed(1)} mGal</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
           {gridTopo && (
             <MapColorbar
@@ -1178,18 +1122,51 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
               className="raster-overlay-canvas"
               style={{ cursor: cursorStyle, touchAction: 'none' }}
               onMouseDown={handleCanvasMouseDown}
-              onMouseMove={handleCanvasMouseMove}
+              onMouseMove={(e) => handleCanvasMouseMove(e, 'faa')}
               onMouseUp={handleCanvasMouseUp}
-              onClick={handleCanvasClick}
               onTouchStart={handleCanvasTouchStart}
               onTouchMove={handleCanvasTouchMove}
               onTouchEnd={handleCanvasTouchEnd}
               onTouchCancel={handleCanvasTouchEnd}
               onMouseLeave={() => {
                 handleCanvasMouseUp();
-                if (!pinnedRecord) setHoveredRecord(null);
+                setHoveredRecord(null);
+                setHoverPos(null);
               }}
             />
+            {hoverPos && hoverPos.mapId === 'faa' && hoveredRecord && (
+              <div
+                className="map-cursor-tooltip"
+                style={{
+                  left: `${Math.min(Math.max(hoverPos.x + 14, 10), 480 - 185)}px`,
+                  top: `${Math.min(Math.max(hoverPos.y - 30, 20), 360 - 75)}px`,
+                }}
+              >
+                <div className="tooltip-coord-row">
+                  <span>{hoveredRecord.latitude.toFixed(4)}°, {hoveredRecord.longitude.toFixed(4)}°</span>
+                </div>
+                <div className="tooltip-data-grid">
+                  <div className="tooltip-data-item">
+                    <span className="tooltip-label">Topo:</span>
+                    <span className="tooltip-val text-emerald">{hoveredRecord.elevation?.toFixed(1) ?? 'N/A'} m</span>
+                  </div>
+                  <div className="tooltip-data-item">
+                    <span className="tooltip-label">FAA:</span>
+                    <span className="tooltip-val text-sky">{hoveredRecord.gravity?.toFixed(1) ?? 'N/A'} mGal</span>
+                  </div>
+                  <div className="tooltip-data-item">
+                    <span className="tooltip-label">Bouguer:</span>
+                    <span className="tooltip-val text-amber">{hoveredRecord.bouguer?.toFixed(1) ?? 'N/A'} mGal</span>
+                  </div>
+                  {hoveredRecord.residual !== undefined && (
+                    <div className="tooltip-data-item">
+                      <span className="tooltip-label">Residual:</span>
+                      <span className="tooltip-val" style={{ color: '#c084fc' }}>{hoveredRecord.residual.toFixed(1)} mGal</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
           {gridFaa && (
             <MapColorbar
@@ -1279,18 +1256,51 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
               className="raster-overlay-canvas"
               style={{ cursor: cursorStyle, touchAction: 'none' }}
               onMouseDown={handleCanvasMouseDown}
-              onMouseMove={handleCanvasMouseMove}
+              onMouseMove={(e) => handleCanvasMouseMove(e, 'bouguer')}
               onMouseUp={handleCanvasMouseUp}
-              onClick={handleCanvasClick}
               onTouchStart={handleCanvasTouchStart}
               onTouchMove={handleCanvasTouchMove}
               onTouchEnd={handleCanvasTouchEnd}
               onTouchCancel={handleCanvasTouchEnd}
               onMouseLeave={() => {
                 handleCanvasMouseUp();
-                if (!pinnedRecord) setHoveredRecord(null);
+                setHoveredRecord(null);
+                setHoverPos(null);
               }}
             />
+            {hoverPos && hoverPos.mapId === 'bouguer' && hoveredRecord && (
+              <div
+                className="map-cursor-tooltip"
+                style={{
+                  left: `${Math.min(Math.max(hoverPos.x + 14, 10), 480 - 185)}px`,
+                  top: `${Math.min(Math.max(hoverPos.y - 30, 20), 360 - 75)}px`,
+                }}
+              >
+                <div className="tooltip-coord-row">
+                  <span>{hoveredRecord.latitude.toFixed(4)}°, {hoveredRecord.longitude.toFixed(4)}°</span>
+                </div>
+                <div className="tooltip-data-grid">
+                  <div className="tooltip-data-item">
+                    <span className="tooltip-label">Topo:</span>
+                    <span className="tooltip-val text-emerald">{hoveredRecord.elevation?.toFixed(1) ?? 'N/A'} m</span>
+                  </div>
+                  <div className="tooltip-data-item">
+                    <span className="tooltip-label">FAA:</span>
+                    <span className="tooltip-val text-sky">{hoveredRecord.gravity?.toFixed(1) ?? 'N/A'} mGal</span>
+                  </div>
+                  <div className="tooltip-data-item">
+                    <span className="tooltip-label">Bouguer:</span>
+                    <span className="tooltip-val text-amber">{hoveredRecord.bouguer?.toFixed(1) ?? 'N/A'} mGal</span>
+                  </div>
+                  {hoveredRecord.residual !== undefined && (
+                    <div className="tooltip-data-item">
+                      <span className="tooltip-label">Residual:</span>
+                      <span className="tooltip-val" style={{ color: '#c084fc' }}>{hoveredRecord.residual.toFixed(1)} mGal</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
           {activeMap3Grid && (
             <MapColorbar
