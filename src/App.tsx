@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import type { BoundingBox, TopexRecord, WorkflowStep, BouguerParams } from '@/types';
+import type { BoundingBox, TopexRecord, WorkflowStep, BouguerParams, GeophysicsSummaryStats } from '@/types';
 import { fetchLargeGridInChunks, ChunkProgress } from '@/api/parallelFetcher';
 import { parseUrlParams } from '@/utils/coordinateParser';
 import { calculateBouguerAnomaly, computeGeophysicsStats } from '@/utils/geophysics/bouguer';
@@ -39,14 +39,25 @@ export const App: React.FC = () => {
   });
 
   // Calculate Processed Records with Complete Bouguer Anomaly & 2D Polynomial Regional-Residual Separation
+  // Defer heavy matrix regression until user leaves Step 1 (or only compute lightweight Bouguer in Step 1)
   const processedRecords = useMemo(() => {
     if (records.length === 0) return [];
     const withBouguer = calculateBouguerAnomaly(records, bouguerParams);
+    // If still extracting in Step 1, avoid locking UI with 2D polynomial regressions on every chunk stream
+    if (currentStep === 'extract') {
+      return withBouguer;
+    }
     return separateRegionalResidual(withBouguer, { method: 'poly2' });
-  }, [records, bouguerParams]);
+  }, [records, bouguerParams, currentStep]);
 
-  // Compute Complete Geophysics Summary Statistics
-  const geophysicsStats = useMemo(() => {
+  // Compute Geophysics Summary Statistics lazily
+  const geophysicsStats = useMemo<GeophysicsSummaryStats>(() => {
+    if (processedRecords.length === 0) {
+      return {
+        count: 0,
+        topography: { min: 0, max: 0, mean: 0, stdDev: 0, rms: 0 },
+      };
+    }
     return computeGeophysicsStats(processedRecords);
   }, [processedRecords]);
 
@@ -332,7 +343,12 @@ export const App: React.FC = () => {
         {/* STEP 3: Satellite Gravity Studio & Exporters */}
         {currentStep === 'studio' && bounds && (
           <div className="step-fade-in">
-            <TriMapViewer records={processedRecords} bounds={bounds} bouguerParams={bouguerParams} />
+            <TriMapViewer
+              records={processedRecords}
+              bounds={bounds}
+              bouguerParams={bouguerParams}
+              onBackToExtract={() => setCurrentStep('extract')}
+            />
           </div>
         )}
 

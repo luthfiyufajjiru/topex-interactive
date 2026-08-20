@@ -2046,6 +2046,171 @@ footer {
   text-align: center;
 }
 
+.interp-rendering-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #0284c7;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
+.interpolation-toolbar-card.is-rendering-active {
+  opacity: 0.85;
+}
+
+/* WebGL Fallback View */
+.webgl-fallback-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 480px;
+  padding: 24px 16px;
+}
+
+.webgl-fallback-card {
+  max-width: 680px;
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  text-align: center;
+  box-shadow: var(--shadow-md);
+}
+
+.webgl-fallback-icon-wrapper {
+  display: inline-flex;
+  padding: 16px;
+  background: #fffbeb;
+  border-radius: 50%;
+  margin-bottom: 16px;
+  border: 1px solid #fef3c7;
+}
+
+.webgl-fallback-title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-bottom: 10px;
+}
+
+.webgl-fallback-desc {
+  font-size: 0.9rem;
+  color: #64748b;
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+.webgl-fallback-reason-box {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: #92400e;
+  margin-bottom: 18px;
+}
+
+.webgl-fallback-stats {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  color: #334155;
+  margin-bottom: 24px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.webgl-fallback-downloads-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 640px) {
+  .webgl-fallback-downloads-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.btn-fallback-download {
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-fallback-download:hover {
+  background: #f1f5f9;
+  border-color: var(--primary-blue);
+  transform: translateY(-1px);
+}
+
+.btn-fallback-download.primary {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #0284c7;
+}
+
+.btn-fallback-download.primary:hover {
+  background: #dbeafe;
+}
+
+.btn-dl-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.btn-dl-sub {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.webgl-fallback-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.btn-fallback-back {
+  background: transparent;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  padding: 9px 18px;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.btn-fallback-back:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
 .probe-hud-card {
   background: #ffffff;
   color: var(--text-main);

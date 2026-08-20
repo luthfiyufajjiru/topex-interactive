@@ -12,6 +12,155 @@ export interface RegularGrid2D {
 }
 
 /**
+ * Builds all 5 geophysical 2D regular grids (Topo, FAA, Bouguer, Residual, Regional)
+ * in a single high-performance vectorized pass.
+ */
+export interface AllGridsResult {
+  topo: RegularGrid2D | null;
+  faa: RegularGrid2D | null;
+  bouguer: RegularGrid2D | null;
+  residual: RegularGrid2D | null;
+  regional: RegularGrid2D | null;
+}
+
+export function buildAllRegularGrids(
+  records: ProcessedRecord[],
+  _bounds: BoundingBox
+): AllGridsResult {
+  if (records.length === 0) {
+    return { topo: null, faa: null, bouguer: null, residual: null, regional: null };
+  }
+
+  // 1. Single pass coordinate collection
+  const latSet = new Set<number>();
+  const lonSet = new Set<number>();
+
+  for (let i = 0; i < records.length; i++) {
+    latSet.add(Number(records[i].latitude.toFixed(4)));
+    lonSet.add(Number(records[i].longitude.toFixed(4)));
+  }
+
+  const lats = Array.from(latSet).sort((a, b) => b - a);
+  const lons = Array.from(lonSet).sort((a, b) => a - b);
+
+  const nrows = lats.length;
+  const ncols = lons.length;
+  if (nrows === 0 || ncols === 0) {
+    return { topo: null, faa: null, bouguer: null, residual: null, regional: null };
+  }
+
+  const totalCells = nrows * ncols;
+  const dataTopo = new Float32Array(totalCells).fill(NaN);
+  const dataFaa = new Float32Array(totalCells).fill(NaN);
+  const dataBg = new Float32Array(totalCells).fill(NaN);
+  const dataRes = new Float32Array(totalCells).fill(NaN);
+  const dataReg = new Float32Array(totalCells).fill(NaN);
+
+  const latMap = new Map<number, number>();
+  lats.forEach((lat, i) => latMap.set(lat, i));
+
+  const lonMap = new Map<number, number>();
+  lons.forEach((lon, j) => lonMap.set(lon, j));
+
+  let minTopo = Infinity, maxTopo = -Infinity;
+  let minFaa = Infinity, maxFaa = -Infinity;
+  let minBg = Infinity, maxBg = -Infinity;
+  let minRes = Infinity, maxRes = -Infinity;
+  let minReg = Infinity, maxReg = -Infinity;
+
+  for (let i = 0; i < records.length; i++) {
+    const r = records[i];
+    const latKey = Number(r.latitude.toFixed(4));
+    const lonKey = Number(r.longitude.toFixed(4));
+    const row = latMap.get(latKey);
+    const col = lonMap.get(lonKey);
+
+    if (row === undefined || col === undefined) continue;
+    const idx = row * ncols + col;
+
+    if (r.elevation !== undefined && !isNaN(r.elevation)) {
+      dataTopo[idx] = r.elevation;
+      if (r.elevation < minTopo) minTopo = r.elevation;
+      if (r.elevation > maxTopo) maxTopo = r.elevation;
+    }
+
+    if (r.gravity !== undefined && !isNaN(r.gravity)) {
+      dataFaa[idx] = r.gravity;
+      if (r.gravity < minFaa) minFaa = r.gravity;
+      if (r.gravity > maxFaa) maxFaa = r.gravity;
+    }
+
+    if (r.bouguer !== undefined && !isNaN(r.bouguer)) {
+      dataBg[idx] = r.bouguer;
+      if (r.bouguer < minBg) minBg = r.bouguer;
+      if (r.bouguer > maxBg) maxBg = r.bouguer;
+    }
+
+    const resVal = r.residual ?? r.bouguer;
+    if (resVal !== undefined && !isNaN(resVal)) {
+      dataRes[idx] = resVal;
+      if (resVal < minRes) minRes = resVal;
+      if (resVal > maxRes) maxRes = resVal;
+    }
+
+    const regVal = r.regional ?? r.bouguer;
+    if (regVal !== undefined && !isNaN(regVal)) {
+      dataReg[idx] = regVal;
+      if (regVal < minReg) minReg = regVal;
+      if (regVal > maxReg) maxReg = regVal;
+    }
+  }
+
+  return {
+    topo: {
+      lats,
+      lons,
+      nrows,
+      ncols,
+      data: dataTopo,
+      minVal: minTopo === Infinity ? -100 : minTopo,
+      maxVal: maxTopo === -Infinity ? 100 : maxTopo,
+    },
+    faa: {
+      lats,
+      lons,
+      nrows,
+      ncols,
+      data: dataFaa,
+      minVal: minFaa === Infinity ? -50 : minFaa,
+      maxVal: maxFaa === -Infinity ? 50 : maxFaa,
+    },
+    bouguer: {
+      lats,
+      lons,
+      nrows,
+      ncols,
+      data: dataBg,
+      minVal: minBg === Infinity ? -50 : minBg,
+      maxVal: maxBg === -Infinity ? 50 : maxBg,
+    },
+    residual: {
+      lats,
+      lons,
+      nrows,
+      ncols,
+      data: dataRes,
+      minVal: minRes === Infinity ? -30 : minRes,
+      maxVal: maxRes === -Infinity ? 30 : maxRes,
+    },
+    regional: {
+      lats,
+      lons,
+      nrows,
+      ncols,
+      data: dataReg,
+      minVal: minReg === Infinity ? -50 : minReg,
+      maxVal: maxReg === -Infinity ? 50 : maxReg,
+    },
+  };
+}
+
+/**
  * Builds a structured 2D matrix from irregular or regular sounding records.
  */
 export function buildRegularGrid(

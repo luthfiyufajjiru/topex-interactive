@@ -1,21 +1,24 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type { ProcessedRecord, BoundingBox, BouguerParams, InterpolationMethod, NamedProfileLine, ProfilePoint, RegionalResidualConfig } from '@/types';
 import { ColormapName } from '@/utils/geophysics/colormaps';
-import { buildRegularGrid, renderInterpolatedRasterToCanvas } from '@/utils/geophysics/interpolation';
+import { buildAllRegularGrids, renderInterpolatedRasterToCanvas } from '@/utils/geophysics/interpolation';
 import { extractProfilePoints } from '@/utils/geophysics/profile';
 import { separateRegionalResidual } from '@/utils/geophysics/regionalResidual';
+import { checkWebGLSupport } from '@/utils/webgl/webglDetector';
+import { WebGLFallbackView } from './WebGLFallbackView';
 import { MapColorbar } from './MapColorbar';
 import { ProfileGraph } from './ProfileGraph';
 import { exportToOasisMontajXYZ, exportToGeosoftGXF } from '@/utils/exporters/geosoft';
 import { exportMapToPng } from '@/utils/exporters/mapImage';
 import { exportCompositeReportImage } from '@/utils/exporters/compositeReport';
 import { ExportSuiteModal } from './ExportSuiteModal';
-import { FileCode, Image, Crosshair, SlidersHorizontal, Pin, PinOff, Move, LayoutGrid, PackageCheck, ChevronDown, ChevronUp } from 'lucide-react';
+import { FileCode, Image, Crosshair, SlidersHorizontal, Pin, PinOff, Move, LayoutGrid, PackageCheck, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 
 interface SatelliteGravityStudioProps {
   records: ProcessedRecord[];
   bounds: BoundingBox;
   bouguerParams?: BouguerParams;
+  onBackToExtract?: () => void;
 }
 
 interface MapConfig {
@@ -42,13 +45,18 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
   records,
   bounds,
   bouguerParams = { crustalDensity: 2.67, waterDensity: 1.03, includeCurvatureBullardB: false },
+  onBackToExtract,
 }) => {
+  // 1. WebGL Standard & Hardware Acceleration Check
+  const webglSupport = useMemo(() => checkWebGLSupport(), []);
+
   const [hoveredRecord, setHoveredRecord] = useState<ProcessedRecord | null>(null);
   const [pinnedRecord, setPinnedRecord] = useState<ProcessedRecord | null>(null);
   const [hoveredProfilePoint, setHoveredProfilePoint] = useState<ProfilePoint | null>(null);
   const [interpolationMethod, setInterpolationMethod] = useState<InterpolationMethod>('bicubic');
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isMapsCollapsed, setIsMapsCollapsed] = useState<boolean>(false);
+  const [isRendering, setIsRendering] = useState<boolean>(false);
 
   // Regional-Residual Separation Configuration
   const [residualConfig, setResidualConfig] = useState<RegionalResidualConfig>({
@@ -98,27 +106,16 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
   const canvasFaaRef = useRef<HTMLCanvasElement | null>(null);
   const canvasBgRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Build Regular Grids for all fields
-  const gridTopo = useMemo(
-    () => buildRegularGrid(processedWithResidual, bounds, (r) => r.elevation),
-    [processedWithResidual, bounds]
-  );
-  const gridFaa = useMemo(
-    () => buildRegularGrid(processedWithResidual, bounds, (r) => r.gravity),
-    [processedWithResidual, bounds]
-  );
-  const gridBg = useMemo(
-    () => buildRegularGrid(processedWithResidual, bounds, (r) => r.bouguer),
-    [processedWithResidual, bounds]
-  );
-  const gridResidual = useMemo(
-    () => buildRegularGrid(processedWithResidual, bounds, (r) => r.residual ?? r.bouguer),
-    [processedWithResidual, bounds]
-  );
-  const gridRegional = useMemo(
-    () => buildRegularGrid(processedWithResidual, bounds, (r) => r.regional ?? r.bouguer),
-    [processedWithResidual, bounds]
-  );
+  // Build Regular Grids for all fields in a single vectorized pass
+  const regularGrids = useMemo(() => {
+    return buildAllRegularGrids(processedWithResidual, bounds);
+  }, [processedWithResidual, bounds]);
+
+  const gridTopo = regularGrids.topo;
+  const gridFaa = regularGrids.faa;
+  const gridBg = regularGrids.bouguer;
+  const gridResidual = regularGrids.residual;
+  const gridRegional = regularGrids.regional;
 
   // Map 3 Anomaly Display Mode: 'residual' | 'bouguer' | 'regional'
   const [bouguerViewMode, setBouguerViewMode] = useState<'residual' | 'bouguer' | 'regional'>('residual');
@@ -562,23 +559,35 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
 
   // Render Raster Heatmaps on Canvas
   const renderAllCanvases = useCallback(() => {
-    if (canvasTopoRef.current && gridTopo) {
-      renderInterpolatedRasterToCanvas(canvasTopoRef.current, gridTopo, 'gebco', interpolationMethod);
-      drawOverlayElements(canvasTopoRef.current);
-    }
-    if (canvasFaaRef.current && gridFaa) {
-      renderInterpolatedRasterToCanvas(canvasFaaRef.current, gridFaa, 'coolwarm', interpolationMethod);
-      drawOverlayElements(canvasFaaRef.current);
-    }
-    if (canvasBgRef.current && activeMap3Grid) {
-      renderInterpolatedRasterToCanvas(canvasBgRef.current, activeMap3Grid, activeMap3Colormap, interpolationMethod);
-      drawOverlayElements(canvasBgRef.current);
-    }
-  }, [gridTopo, gridFaa, activeMap3Grid, activeMap3Colormap, interpolationMethod, activeRecord, lines, activeLineId, hoveredProfilePoint, draggingMode]);
+    if (isMapsCollapsed) return;
+    setIsRendering(true);
+
+    const timer = setTimeout(() => {
+      try {
+        if (canvasTopoRef.current && gridTopo) {
+          renderInterpolatedRasterToCanvas(canvasTopoRef.current, gridTopo, 'gebco', interpolationMethod);
+          drawOverlayElements(canvasTopoRef.current);
+        }
+        if (canvasFaaRef.current && gridFaa) {
+          renderInterpolatedRasterToCanvas(canvasFaaRef.current, gridFaa, 'coolwarm', interpolationMethod);
+          drawOverlayElements(canvasFaaRef.current);
+        }
+        if (canvasBgRef.current && activeMap3Grid) {
+          renderInterpolatedRasterToCanvas(canvasBgRef.current, activeMap3Grid, activeMap3Colormap, interpolationMethod);
+          drawOverlayElements(canvasBgRef.current);
+        }
+      } finally {
+        setIsRendering(false);
+      }
+    }, 20);
+
+    return () => clearTimeout(timer);
+  }, [gridTopo, gridFaa, activeMap3Grid, activeMap3Colormap, interpolationMethod, isMapsCollapsed]);
 
   useEffect(() => {
     if (!isMapsCollapsed) {
-      renderAllCanvases();
+      const cleanup = renderAllCanvases();
+      return cleanup;
     }
   }, [renderAllCanvases, isMapsCollapsed]);
 
@@ -612,6 +621,18 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
       interpolationMethod,
     });
   };
+
+  // If WebGL standard is not supported on this device/browser, show fallback download view
+  if (!webglSupport.isSupported) {
+    return (
+      <WebGLFallbackView
+        records={records}
+        bounds={bounds}
+        reason={webglSupport.reason}
+        onBackToExtract={onBackToExtract || (() => {})}
+      />
+    );
+  }
 
   const mapConfigs: MapConfig[] = [
     {
@@ -655,6 +676,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
             type="button"
             className="btn-export-suite-modal"
             onClick={() => setIsExportModalOpen(true)}
+            disabled={isRendering}
             title="Open Geophysical Suite Export Center to pick datasets, grids, and reports"
           >
             <PackageCheck size={16} />
@@ -666,6 +688,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
             type="button"
             className="btn-export-full-suite"
             onClick={handleExportFullSuiteImage}
+            disabled={isRendering}
             title="Download complete single-image geophysical report plate (3 Maps + 2D Profile + Metadata in 1 Picture)"
           >
             <LayoutGrid size={16} />
@@ -676,6 +699,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
             type="button"
             className="btn-export-oasis"
             onClick={() => exportToOasisMontajXYZ(records)}
+            disabled={isRendering}
             title="Download Oasis Montaj Geosoft XYZ File"
           >
             <FileCode size={16} />
@@ -686,6 +710,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
             type="button"
             className="btn-export-gxf"
             onClick={() => exportToGeosoftGXF(records, bounds, 'bouguer')}
+            disabled={isRendering}
             title="Download Geosoft Grid File (.gxf)"
           >
             <FileCode size={16} />
@@ -695,7 +720,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
       </div>
 
       {/* Interpolation Control Dropdown Toolbar & Interactive Drawing Hint */}
-      <div className="interpolation-toolbar-card">
+      <div className={`interpolation-toolbar-card ${isRendering ? 'is-rendering-active' : ''}`}>
         <div className="interp-left-group">
           {/* Gridding Algorithm */}
           <div className="interp-control-item">
@@ -709,6 +734,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
                 className="form-control interp-select"
                 value={interpolationMethod}
                 onChange={(e) => setInterpolationMethod(e.target.value as InterpolationMethod)}
+                disabled={isRendering}
                 title="2D Potential field interpolation algorithm"
               >
                 <option value="bicubic">Bicubic Spline (Potential Field Standard)</option>
@@ -737,6 +763,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
                     method: e.target.value as RegionalResidualConfig['method'],
                   }))
                 }
+                disabled={isRendering}
                 title="Regional-Residual separation algorithm (Griffin 1949 / Gaussian filter / Polynomial)"
               >
                 <option value="gaussian">Gaussian Low-Pass Filter (Smooth Regional)</option>
@@ -764,6 +791,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
                     radiusKm: parseInt(e.target.value, 10) || 35,
                   }))
                 }
+                disabled={isRendering}
                 className="density-slider radius-slider-bar"
                 title={`Gaussian filter radius: ${residualConfig.radiusKm ?? 35} km`}
               />
@@ -787,6 +815,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
                     gridWindowCells: parseInt(e.target.value, 10) || 1,
                   }))
                 }
+                disabled={isRendering}
                 className="density-slider radius-slider-bar"
                 title={`Moving average grid box size: ${2 * (residualConfig.gridWindowCells ?? 3) + 1}×${2 * (residualConfig.gridWindowCells ?? 3) + 1} cells`}
               />
@@ -796,10 +825,19 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
             </div>
           )}
 
+          {/* Rendering In-Progress Indicator Pill */}
+          {isRendering && (
+            <div className="interp-rendering-pill">
+              <Loader2 size={13} style={{ animation: 'rotate 1s linear infinite' }} />
+              <span>Rendering Grid...</span>
+            </div>
+          )}
+
           <button
             type="button"
             className={`btn-toggle-maps-collapse ${isMapsCollapsed ? 'is-collapsed' : ''}`}
             onClick={() => setIsMapsCollapsed(!isMapsCollapsed)}
+            disabled={isRendering}
             title={isMapsCollapsed ? "Expand Maps" : "Collapse Maps to maximize 2D profile workspace"}
           >
             {isMapsCollapsed ? <ChevronDown size={15} /> : <ChevronUp size={15} />}
