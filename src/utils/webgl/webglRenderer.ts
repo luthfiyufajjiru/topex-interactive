@@ -15,7 +15,7 @@ void main() {
 }
 `;
 
-// GLSL ES 3.00 Fragment Shader Source
+// GLSL ES 3.00 Fragment Shader Source using texelFetch for universal float texture compatibility
 const FRAGMENT_SHADER_SOURCE = `#version 300 es
 precision highp float;
 precision highp sampler2D;
@@ -27,8 +27,15 @@ uniform sampler2D u_gridTexture;
 uniform vec2 u_gridDimensions; // (ncols, nrows)
 uniform float u_minVal;
 uniform float u_maxVal;
-uniform int u_colormap;       // 0=gebco, 1=coolwarm, 2=viridis, 3=rainbow
+uniform int u_colormap;       // 0=gebco, 1=coolwarm, 2=viridis, 3=turbo
 uniform int u_interpMethod;   // 0=nearest, 1=bilinear, 2=bicubic, 3=spline, 4=idw
+
+// Robust texel fetch clamping to grid boundaries (bypasses float linear texture restrictions)
+float fetchGrid(int col, int row) {
+  int c = clamp(col, 0, int(u_gridDimensions.x) - 1);
+  int r = clamp(row, 0, int(u_gridDimensions.y) - 1);
+  return texelFetch(u_gridTexture, ivec2(c, r), 0).r;
+}
 
 // 1D Cubic Hermite / Catmull-Rom spline kernel
 float cubicHermite(float p0, float p1, float p2, float p3, float t) {
@@ -39,22 +46,61 @@ float cubicHermite(float p0, float p1, float p2, float p3, float t) {
   return a * t * t * t + b * t * t + c * t + d;
 }
 
-// 2D Bicubic Catmull-Rom Sampling on 4x4 Grid in GLSL
-float sampleBicubic(sampler2D tex, vec2 uv, vec2 texSize) {
-  vec2 texel = 1.0 / texSize;
+// 2D Nearest Neighbor
+float sampleNearest(vec2 uv, vec2 texSize) {
+  ivec2 iPos = ivec2(floor(uv * texSize));
+  return fetchGrid(iPos.x, iPos.y);
+}
+
+// 2D Bilinear Interpolation
+float sampleBilinear(vec2 uv, vec2 texSize) {
   vec2 pos = uv * texSize - 0.5;
+  ivec2 iPos = ivec2(floor(pos));
   vec2 f = fract(pos);
-  vec2 base = (floor(pos) + 0.5) * texel;
+
+  float c00 = fetchGrid(iPos.x, iPos.y);
+  float c10 = fetchGrid(iPos.x + 1, iPos.y);
+  float c01 = fetchGrid(iPos.x, iPos.y + 1);
+  float c11 = fetchGrid(iPos.x + 1, iPos.y + 1);
+
+  return mix(mix(c00, c10, f.x), mix(c01, c11, f.x), f.y);
+}
+
+// 2D Bicubic Catmull-Rom Sampling on 4x4 Grid in GLSL
+float sampleBicubic(vec2 uv, vec2 texSize) {
+  vec2 pos = uv * texSize - 0.5;
+  ivec2 iPos = ivec2(floor(pos));
+  vec2 f = fract(pos);
 
   float rows[4];
   for (int j = -1; j <= 2; j++) {
-    float c0 = texture(tex, base + vec2(-1.0, float(j)) * texel).r;
-    float c1 = texture(tex, base + vec2(0.0, float(j)) * texel).r;
-    float c2 = texture(tex, base + vec2(1.0, float(j)) * texel).r;
-    float c3 = texture(tex, base + vec2(2.0, float(j)) * texel).r;
+    float c0 = fetchGrid(iPos.x - 1, iPos.y + j);
+    float c1 = fetchGrid(iPos.x + 0, iPos.y + j);
+    float c2 = fetchGrid(iPos.x + 1, iPos.y + j);
+    float c3 = fetchGrid(iPos.x + 2, iPos.y + j);
     rows[j + 1] = cubicHermite(c0, c1, c2, c3, f.x);
   }
   return cubicHermite(rows[0], rows[1], rows[2], rows[3], f.y);
+}
+
+// 2D IDW Sampling (4x4 neighborhood)
+float sampleIdw(vec2 uv, vec2 texSize) {
+  vec2 pos = uv * texSize - 0.5;
+  ivec2 iPos = ivec2(floor(pos));
+  float weightSum = 0.0;
+  float valSum = 0.0;
+
+  for (int dy = -1; dy <= 2; dy++) {
+    for (int dx = -1; dx <= 2; dx++) {
+      float val = fetchGrid(iPos.x + dx, iPos.y + dy);
+      float distSq = dot(vec2(float(dx), float(dy)) - fract(pos), vec2(float(dx), float(dy)) - fract(pos));
+      if (distSq < 0.0001) return val;
+      float w = 1.0 / distSq;
+      weightSum += w;
+      valSum += val * w;
+    }
+  }
+  return weightSum > 0.0 ? valSum / weightSum : fetchGrid(iPos.x, iPos.y);
 }
 
 // Colormap 1: Coolwarm (Diverging Blue - White - Red)
@@ -88,7 +134,7 @@ vec3 colormapViridis(float t) {
 vec3 colormapGebco(float rawVal, float minVal, float maxVal) {
   if (rawVal < 0.0) {
     // Marine / Seafloor: Deep ocean navy to light coastal blue
-    float depthNorm = clamp((rawVal - minVal) / (-minVal + 0.001), 0.0, 1.0);
+    float depthNorm = clamp((rawVal - minVal) / (abs(minVal) + 0.001), 0.0, 1.0);
     vec3 deepNavy = vec3(0.012, 0.078, 0.251);
     vec3 midOcean = vec3(0.078, 0.353, 0.667);
     vec3 coastCyan = vec3(0.439, 0.749, 0.878);
@@ -99,7 +145,7 @@ vec3 colormapGebco(float rawVal, float minVal, float maxVal) {
     }
   } else {
     // Land / Continental: Coastal green to highland brown to peak snow
-    float elevNorm = clamp(rawVal / (maxVal + 0.001), 0.0, 1.0);
+    float elevNorm = clamp(rawVal / (abs(maxVal) + 0.001), 0.0, 1.0);
     vec3 green = vec3(0.235, 0.549, 0.235);
     vec3 yellow = vec3(0.855, 0.749, 0.353);
     vec3 brown = vec3(0.545, 0.271, 0.075);
@@ -110,13 +156,23 @@ vec3 colormapGebco(float rawVal, float minVal, float maxVal) {
   }
 }
 
-// Colormap 4: Jet / Rainbow
-vec3 colormapRainbow(float t) {
+// Colormap 4: Turbo
+vec3 colormapTurbo(float t) {
   t = clamp(t, 0.0, 1.0);
-  float r = clamp(1.5 - abs(t * 4.0 - 3.0), 0.0, 1.0);
-  float g = clamp(1.5 - abs(t * 4.0 - 2.0), 0.0, 1.0);
-  float b = clamp(1.5 - abs(t * 4.0 - 1.0), 0.0, 1.0);
-  return vec3(r, g, b);
+  const vec4 kRedVec4 = vec4(0.13572138, 4.61539260, -42.66032258, 132.13108234);
+  const vec4 kGreenVec4 = vec4(0.09140261, 2.19418839, 4.84296658, -14.18503333);
+  const vec4 kBlueVec4 = vec4(0.10667330, 12.64194608, -60.58204836, 110.36276771);
+  const vec2 kRedVec2 = vec2(-152.94239396, 59.28637943);
+  const vec2 kGreenVec2 = vec2(4.27729857, 2.82956604);
+  const vec2 kBlueVec2 = vec2(-89.90310912, 27.34824973);
+
+  vec4 v4 = vec4(1.0, t, t * t, t * t * t);
+  vec2 v2 = v4.zw * v4.z;
+  return clamp(vec3(
+    dot(v4, kRedVec4) + dot(v2, kRedVec2),
+    dot(v4, kGreenVec4) + dot(v2, kGreenVec2),
+    dot(v4, kBlueVec4) + dot(v2, kBlueVec2)
+  ), 0.0, 1.0);
 }
 
 void main() {
@@ -124,19 +180,18 @@ void main() {
   float val = 0.0;
 
   if (u_interpMethod == 0) {
-    // Nearest neighbor
-    val = texture(u_gridTexture, uv).r;
+    val = sampleNearest(uv, u_gridDimensions);
   } else if (u_interpMethod == 1) {
-    // Bilinear
-    val = texture(u_gridTexture, uv).r;
+    val = sampleBilinear(uv, u_gridDimensions);
+  } else if (u_interpMethod == 4) {
+    val = sampleIdw(uv, u_gridDimensions);
   } else {
-    // Bicubic / Spline
-    val = sampleBicubic(u_gridTexture, uv, u_gridDimensions);
+    val = sampleBicubic(uv, u_gridDimensions);
   }
 
-  // Handle missing data NaN check (fallback or transparent)
+  // Handle missing data NaN check
   if (isnan(val)) {
-    fragColor = vec4(0.1, 0.1, 0.1, 1.0);
+    fragColor = vec4(0.08, 0.12, 0.18, 1.0);
     return;
   }
 
@@ -152,7 +207,7 @@ void main() {
   } else if (u_colormap == 2) {
     rgb = colormapViridis(t);
   } else {
-    rgb = colormapRainbow(t);
+    rgb = colormapTurbo(t);
   }
 
   fragColor = vec4(rgb, 1.0);
@@ -196,7 +251,7 @@ function initWebGL2(canvas: HTMLCanvasElement): WebGLContextBundle | null {
 
   const gl = canvas.getContext('webgl2', {
     alpha: false,
-    antialias: true,
+    antialias: false,
     preserveDrawingBuffer: true,
     powerPreference: 'high-performance',
   });
@@ -205,9 +260,6 @@ function initWebGL2(canvas: HTMLCanvasElement): WebGLContextBundle | null {
     console.warn('[WebGL2] WebGL 2.0 context is not available on this canvas');
     return null;
   }
-
-  // Ensure EXT_color_buffer_float if available
-  gl.getExtension('EXT_color_buffer_float');
 
   const vertShader = createShader(gl, gl.VERTEX_SHADER, VERTEX_SHADER_SOURCE);
   const fragShader = createShader(gl, gl.FRAGMENT_SHADER, FRAGMENT_SHADER_SOURCE);
@@ -238,14 +290,14 @@ function initWebGL2(canvas: HTMLCanvasElement): WebGLContextBundle | null {
   ]);
   gl.bufferData(gl.ARRAY_BUFFER, quadPositions, gl.STATIC_DRAW);
 
-  // Texture creation
+  // Texture creation with NEAREST filter so R32F is 100% complete without float linear extensions
   const texture = gl.createTexture();
   if (!texture) return null;
   gl.bindTexture(gl.TEXTURE_2D, texture);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 
   const loc = {
     a_position: gl.getAttribLocation(program, 'a_position'),
@@ -290,18 +342,12 @@ export function renderWebGL2Raster(
   gl.viewport(0, 0, canvas.width, canvas.height);
   gl.useProgram(program);
 
+  // Set unpack alignment to 1 byte so odd grid dimensions never skew memory
+  gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+
   // Upload Grid to R32F Float Texture on GPU
   gl.activeTexture(gl.TEXTURE0);
   gl.bindTexture(gl.TEXTURE_2D, texture);
-
-  // Set filter based on interpolation method
-  if (method === 'nearest') {
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-  } else {
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  }
 
   // Upload R32F 32-bit floating point matrix directly to GPU VRAM
   gl.texImage2D(

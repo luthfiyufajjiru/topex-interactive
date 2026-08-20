@@ -3,7 +3,6 @@ import type { BoundingBox, TopexRecord, WorkflowStep, BouguerParams, GeophysicsS
 import { fetchLargeGridInChunks, ChunkProgress } from '@/api/parallelFetcher';
 import { parseUrlParams } from '@/utils/coordinateParser';
 import { calculateBouguerAnomaly, computeGeophysicsStats } from '@/utils/geophysics/bouguer';
-import { separateRegionalResidual } from '@/utils/geophysics/regionalResidual';
 import { Header } from '@/components/ui/Header';
 import { Disclaimer } from '@/components/ui/Disclaimer';
 import { Toast } from '@/components/ui/Toast';
@@ -38,17 +37,11 @@ export const App: React.FC = () => {
     includeCurvatureBullardB: false,
   });
 
-  // Calculate Processed Records with Complete Bouguer Anomaly & 2D Polynomial Regional-Residual Separation
-  // Defer heavy matrix regression until user leaves Step 1 (or only compute lightweight Bouguer in Step 1)
+  // Calculate Processed Records with Complete Bouguer Anomaly (fast O(N) pass)
   const processedRecords = useMemo(() => {
     if (records.length === 0) return [];
-    const withBouguer = calculateBouguerAnomaly(records, bouguerParams);
-    // If still extracting in Step 1, avoid locking UI with 2D polynomial regressions on every chunk stream
-    if (currentStep === 'extract') {
-      return withBouguer;
-    }
-    return separateRegionalResidual(withBouguer, { method: 'poly2' });
-  }, [records, bouguerParams, currentStep]);
+    return calculateBouguerAnomaly(records, bouguerParams);
+  }, [records, bouguerParams]);
 
   // Compute Geophysics Summary Statistics lazily
   const geophysicsStats = useMemo<GeophysicsSummaryStats>(() => {

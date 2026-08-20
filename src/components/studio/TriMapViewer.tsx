@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type { ProcessedRecord, BoundingBox, BouguerParams, InterpolationMethod, NamedProfileLine, ProfilePoint, RegionalResidualConfig } from '@/types';
 import { ColormapName } from '@/utils/geophysics/colormaps';
-import { buildAllRegularGrids, renderInterpolatedRasterToCanvas } from '@/utils/geophysics/interpolation';
+import { buildAllRegularGrids, renderInterpolatedRasterToCanvas, AllGridsResult } from '@/utils/geophysics/interpolation';
 import { extractProfilePoints } from '@/utils/geophysics/profile';
 import { separateRegionalResidual } from '@/utils/geophysics/regionalResidual';
 import { checkWebGLSupport } from '@/utils/webgl/webglDetector';
@@ -65,10 +65,41 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
     radiusKm: 35,
   });
 
-  // Calculate live separated records with active filter method and window radius
-  const processedWithResidual = useMemo(() => {
-    return separateRegionalResidual(records, residualConfig);
-  }, [records, residualConfig]);
+  // Asynchronous processed records & 2D regular grids state to prevent main thread blocking
+  const [processedWithResidual, setProcessedWithResidual] = useState<ProcessedRecord[]>(records);
+  const [regularGrids, setRegularGrids] = useState<AllGridsResult>({
+    topo: null,
+    faa: null,
+    bouguer: null,
+    residual: null,
+    regional: null,
+  });
+
+  // Calculate live separated records and regular matrices asynchronously
+  useEffect(() => {
+    let cancelled = false;
+    setIsRendering(true);
+
+    const timer = setTimeout(() => {
+      try {
+        const separated = separateRegionalResidual(records, residualConfig);
+        const grids = buildAllRegularGrids(separated, bounds);
+        if (!cancelled) {
+          setProcessedWithResidual(separated);
+          setRegularGrids(grids);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsRendering(false);
+        }
+      }
+    }, 20);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [records, residualConfig, bounds]);
 
   // Active sounding record: priority to pinned, fallback to hover
   const activeRecord = pinnedRecord || hoveredRecord;
@@ -111,11 +142,6 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
 
   const canvasBgWebglRef = useRef<HTMLCanvasElement | null>(null);
   const canvasBgOverlayRef = useRef<HTMLCanvasElement | null>(null);
-
-  // Build Regular Grids for all fields in a single vectorized pass
-  const regularGrids = useMemo(() => {
-    return buildAllRegularGrids(processedWithResidual, bounds);
-  }, [processedWithResidual, bounds]);
 
   const gridTopo = regularGrids.topo;
   const gridFaa = regularGrids.faa;
@@ -634,7 +660,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
         colormap: cfg.colormap,
         interpolationMethod,
         bounds,
-        records,
+        records: processedWithResidual,
         activeLine,
         activePoint: hoveredProfilePoint || (profilePoints.length > 0 ? profilePoints[Math.floor(profilePoints.length / 2)] : null),
       },
@@ -645,7 +671,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
   // Export Full Suite Composite Single Image Report
   const handleExportFullSuiteImage = () => {
     exportCompositeReportImage({
-      records,
+      records: processedWithResidual,
       bounds,
       params: bouguerParams,
       lines,
@@ -660,7 +686,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
   if (!webglSupport.isSupported) {
     return (
       <WebGLFallbackView
-        records={records}
+        records={processedWithResidual}
         bounds={bounds}
         reason={webglSupport.reason}
         onBackToExtract={onBackToExtract || (() => {})}
@@ -732,7 +758,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
           <button
             type="button"
             className="btn-export-oasis"
-            onClick={() => exportToOasisMontajXYZ(records)}
+            onClick={() => exportToOasisMontajXYZ(processedWithResidual)}
             disabled={isRendering}
             title="Download Oasis Montaj Geosoft XYZ File"
           >
@@ -743,7 +769,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
           <button
             type="button"
             className="btn-export-gxf"
-            onClick={() => exportToGeosoftGXF(records, bounds, 'bouguer')}
+            onClick={() => exportToGeosoftGXF(processedWithResidual, bounds, 'bouguer')}
             disabled={isRendering}
             title="Download Geosoft Grid File (.gxf)"
           >
