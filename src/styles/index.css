@@ -5878,22 +5878,25 @@ footer {
   white-space: nowrap;
 }
 
-.verdict-fault {
+.verdict-fault,
+.verdict-normal {
   background: #fff1f2;
   border: 1px solid #fecdd3;
   color: #be123c;
 }
 
-.verdict-upthrown {
+.verdict-upthrown,
+.verdict-thrust {
   background: #ecfdf5;
   border: 1px solid #a7f3d0;
   color: #047857;
 }
 
-.verdict-downthrown {
-  background: #f0f9ff;
-  border: 1px solid #bae6fd;
-  color: #0369a1;
+.verdict-downthrown,
+.verdict-strike-slip {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
 }
 
 .verdict-stable {

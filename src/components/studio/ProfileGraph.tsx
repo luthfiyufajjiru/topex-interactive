@@ -968,38 +968,68 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
                   const p = points[ptIdx];
                   if (!p) return null;
 
-                  // Evaluate Elkins (1951) Structural Boundary & Curvature Rule
+                  // Evaluate Elkins (1951) Fault Classification via SVD Amplitude Ratio (|SVD|min vs |SVD|max)
                   const fhd = p.fhd ?? 0;
                   const svd = p.svd ?? 0;
-                  const tdr = p.tdr ?? 0;
-                  const validFhds = points.map((pt) => pt.fhd || 0).filter((v) => v > 0);
-                  const avgFhd = validFhds.length > 0 ? validFhds.reduce((a, b) => a + b, 0) / validFhds.length : 0.05;
-                  const isHighGradient = fhd >= avgFhd * 1.15 || fhd > 0.08;
-                  const isZeroCrossing = Math.abs(tdr) <= 18 || Math.abs(svd) <= 0.005;
+
+                  // Search local neighborhood window (+/- 20 samples along profile) for local SVD extrema
+                  const windowSize = 20;
+                  const startIdx = Math.max(0, ptIdx - windowSize);
+                  const endIdx = Math.min(points.length - 1, ptIdx + windowSize);
+                  
+                  let localSvdMax = -Infinity;
+                  let localSvdMin = Infinity;
+                  let localMaxFhd = 0;
+
+                  for (let w = startIdx; w <= endIdx; w++) {
+                    const ptVal = points[w];
+                    if (ptVal.svd !== undefined) {
+                      if (ptVal.svd > localSvdMax) localSvdMax = ptVal.svd;
+                      if (ptVal.svd < localSvdMin) localSvdMin = ptVal.svd;
+                    }
+                    if (ptVal.fhd !== undefined && ptVal.fhd > localMaxFhd) {
+                      localMaxFhd = ptVal.fhd;
+                    }
+                  }
+
+                  const absSvdMax = Math.max(0, localSvdMax);
+                  const absSvdMin = Math.abs(Math.min(0, localSvdMin));
+                  const svdDiff = Math.abs(absSvdMax - absSvdMin);
+                  const maxMagnitude = Math.max(absSvdMax, absSvdMin, 1e-6);
+                  const symmetryRatio = svdDiff / maxMagnitude;
 
                   let verdict = {
                     label: 'Homogeneous Basement',
                     className: 'verdict-stable',
-                    tooltip: 'Elkins (1951): Low gradient, quiescent regional basement',
+                    tooltip: 'Elkins (1951): Gradien rendah, anomali regional homogen',
                   };
 
-                  if (isHighGradient && isZeroCrossing) {
+                  if (maxMagnitude < 0.004 && localMaxFhd < 0.04) {
                     verdict = {
-                      label: '⚡ Fault Contact / Edge',
-                      className: 'verdict-fault',
-                      tooltip: 'Elkins (1951): SVD/TDR Zero-Crossing with Peak FHD (Fault Plane)',
+                      label: '— Basement Stabil',
+                      className: 'verdict-stable',
+                      tooltip: 'Elkins (1951): Kurvatur SVD dan FHD sangat rendah (Batuan dasar stabil)',
                     };
-                  } else if (tdr > 20 || (svd > 0.005 && (p.residual ?? 0) > 0)) {
+                  } else if (symmetryRatio <= 0.15) {
+                    // |SVD|min ≈ |SVD|max
                     verdict = {
-                      label: '▲ Upthrown / Dense Block',
-                      className: 'verdict-upthrown',
-                      tooltip: 'Elkins (1951): Positive curvature over mass excess (Hanging Wall / Horst)',
+                      label: '↔ Patahan Mendatar',
+                      className: 'verdict-strike-slip',
+                      tooltip: `Elkins (1951): |SVD|min (${absSvdMin.toFixed(3)}) ≈ |SVD|max (${absSvdMax.toFixed(3)}) → Patahan Mendatar / Sesar Vertikal`,
                     };
-                  } else if (tdr < -20 || (svd < -0.005 && (p.residual ?? 0) < 0)) {
+                  } else if (absSvdMin < absSvdMax) {
+                    // |SVD|min < |SVD|max
                     verdict = {
-                      label: '▼ Downthrown / Graben',
-                      className: 'verdict-downthrown',
-                      tooltip: 'Elkins (1951): Negative curvature over mass deficit (Footwall / Basin)',
+                      label: '↘ Patahan Normal',
+                      className: 'verdict-normal',
+                      tooltip: `Elkins (1951): |SVD|min (${absSvdMin.toFixed(3)}) < |SVD|max (${absSvdMax.toFixed(3)}) → Patahan Normal (Ekstensional)`,
+                    };
+                  } else {
+                    // |SVD|min > |SVD|max
+                    verdict = {
+                      label: '↗ Patahan Naik',
+                      className: 'verdict-thrust',
+                      tooltip: `Elkins (1951): |SVD|min (${absSvdMin.toFixed(3)}) > |SVD|max (${absSvdMax.toFixed(3)}) → Patahan Naik (Kompresional / Thrust)`,
                     };
                   }
 
