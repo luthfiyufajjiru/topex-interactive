@@ -35,8 +35,10 @@ export function exportProfileGraphToPng(options: ProfileImageExportOptions): voi
   const topoTopY = splitY + 40;
   const topoHeight = height - margin.bottom - topoTopY;
 
-  // Compute min/max for gravity
+  // Compute min/max for gravity & derivatives
   let minGrav = 0, maxGrav = 0, hasGravity = false;
+  let maxFhd = 0.1, maxAbsSvd = 0.01;
+
   for (let i = 0; i < points.length; i++) {
     const p = points[i];
     if (p.freeAir !== undefined) {
@@ -49,10 +51,24 @@ export function exportProfileGraphToPng(options: ProfileImageExportOptions): voi
       if (p.bouguer < minGrav) minGrav = p.bouguer;
       if (p.bouguer > maxGrav) maxGrav = p.bouguer;
     }
+    if (p.simpleBouguer !== undefined) {
+      hasGravity = true;
+      if (p.simpleBouguer < minGrav) minGrav = p.simpleBouguer;
+      if (p.simpleBouguer > maxGrav) maxGrav = p.simpleBouguer;
+    }
+    if (p.residual !== undefined) {
+      hasGravity = true;
+      if (p.residual < minGrav) minGrav = p.residual;
+      if (p.residual > maxGrav) maxGrav = p.residual;
+    }
+    if (p.fhd !== undefined && p.fhd > maxFhd) maxFhd = p.fhd;
+    if (p.svd !== undefined && Math.abs(p.svd) > maxAbsSvd) maxAbsSvd = Math.abs(p.svd);
   }
   const gravPad = Math.max(10, (maxGrav - minGrav) * 0.1);
   minGrav = Math.floor(minGrav - gravPad);
   maxGrav = Math.ceil(maxGrav + gravPad);
+  maxFhd = Math.max(0.2, maxFhd * 1.2);
+  maxAbsSvd = Math.max(0.02, maxAbsSvd * 1.25);
 
   // Compute min/max for elevation
   let minElev = 0, maxElev = 0;
@@ -70,6 +86,12 @@ export function exportProfileGraphToPng(options: ProfileImageExportOptions): voi
     margin.top + gravHeight - ((val - minGrav) / ((maxGrav - minGrav) || 1)) * gravHeight;
   const scaleYTopo = (val: number) =>
     topoTopY + topoHeight - ((val - minElev) / ((maxElev - minElev) || 1)) * topoHeight;
+  const scaleYFhd = (val: number) =>
+    margin.top + gravHeight - (Math.max(0, val) / maxFhd) * gravHeight;
+  const scaleYSvd = (val: number) =>
+    margin.top + gravHeight / 2 - (val / maxAbsSvd) * (gravHeight / 2);
+  const scaleYTdr = (val: number) =>
+    margin.top + gravHeight / 2 - (val / 90) * (gravHeight / 2);
 
   // Draw Gravity Box
   ctx.fillStyle = '#f8fafc';
@@ -136,9 +158,25 @@ export function exportProfileGraphToPng(options: ProfileImageExportOptions): voi
   }
   ctx.stroke();
 
-  // Draw Gravity Curves
+  // Draw Gravity & Derivative Curves
   if (hasGravity) {
-    // FAA (Royal Blue)
+    // 1. Regional Trend (Grey Dashed)
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 3]);
+    ctx.beginPath();
+    let startedReg = false;
+    for (let i = 0; i < points.length; i++) {
+      if (points[i].regional !== undefined) {
+        const x = scaleX(points[i].distanceKm);
+        const y = scaleYGrav(points[i].regional!);
+        if (!startedReg) { ctx.moveTo(x, y); startedReg = true; } else { ctx.lineTo(x, y); }
+      }
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 2. Free-Air Anomaly FAA (Royal Blue)
     ctx.strokeStyle = '#0284c7';
     ctx.lineWidth = 2.5;
     ctx.beginPath();
@@ -147,17 +185,28 @@ export function exportProfileGraphToPng(options: ProfileImageExportOptions): voi
       if (points[i].freeAir !== undefined) {
         const x = scaleX(points[i].distanceKm);
         const y = scaleYGrav(points[i].freeAir!);
-        if (!startedFaa) {
-          ctx.moveTo(x, y);
-          startedFaa = true;
-        } else {
-          ctx.lineTo(x, y);
-        }
+        if (!startedFaa) { ctx.moveTo(x, y); startedFaa = true; } else { ctx.lineTo(x, y); }
       }
     }
     ctx.stroke();
 
-    // CBA (Amber)
+    // 3. Simple Bouguer SBA (Golden Amber Dashed)
+    ctx.strokeStyle = '#b45309';
+    ctx.lineWidth = 2.2;
+    ctx.setLineDash([5, 3]);
+    ctx.beginPath();
+    let startedSba = false;
+    for (let i = 0; i < points.length; i++) {
+      if (points[i].simpleBouguer !== undefined) {
+        const x = scaleX(points[i].distanceKm);
+        const y = scaleYGrav(points[i].simpleBouguer!);
+        if (!startedSba) { ctx.moveTo(x, y); startedSba = true; } else { ctx.lineTo(x, y); }
+      }
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 4. Complete Bouguer CBA (Rich Amber)
     ctx.strokeStyle = '#d97706';
     ctx.lineWidth = 3;
     ctx.beginPath();
@@ -166,25 +215,76 @@ export function exportProfileGraphToPng(options: ProfileImageExportOptions): voi
       if (points[i].bouguer !== undefined) {
         const x = scaleX(points[i].distanceKm);
         const y = scaleYGrav(points[i].bouguer!);
-        if (!startedBg) {
-          ctx.moveTo(x, y);
-          startedBg = true;
-        } else {
-          ctx.lineTo(x, y);
-        }
+        if (!startedBg) { ctx.moveTo(x, y); startedBg = true; } else { ctx.lineTo(x, y); }
+      }
+    }
+    ctx.stroke();
+
+    // 5. Residual Anomaly (Vibrant Purple)
+    ctx.strokeStyle = '#8b5cf6';
+    ctx.lineWidth = 3.2;
+    ctx.beginPath();
+    let startedRes = false;
+    for (let i = 0; i < points.length; i++) {
+      if (points[i].residual !== undefined) {
+        const x = scaleX(points[i].distanceKm);
+        const y = scaleYGrav(points[i].residual!);
+        if (!startedRes) { ctx.moveTo(x, y); startedRes = true; } else { ctx.lineTo(x, y); }
+      }
+    }
+    ctx.stroke();
+
+    // 6. First Horizontal Derivative FHD (Rose Crimson)
+    ctx.strokeStyle = '#e11d48';
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    let startedFhd = false;
+    for (let i = 0; i < points.length; i++) {
+      if (points[i].fhd !== undefined) {
+        const x = scaleX(points[i].distanceKm);
+        const y = scaleYFhd(points[i].fhd!);
+        if (!startedFhd) { ctx.moveTo(x, y); startedFhd = true; } else { ctx.lineTo(x, y); }
+      }
+    }
+    ctx.stroke();
+
+    // 7. Second Vertical Derivative SVD (Teal Dashed)
+    ctx.strokeStyle = '#0d9488';
+    ctx.lineWidth = 2.2;
+    ctx.setLineDash([4, 2]);
+    ctx.beginPath();
+    let startedSvd = false;
+    for (let i = 0; i < points.length; i++) {
+      if (points[i].svd !== undefined) {
+        const x = scaleX(points[i].distanceKm);
+        const y = scaleYSvd(points[i].svd!);
+        if (!startedSvd) { ctx.moveTo(x, y); startedSvd = true; } else { ctx.lineTo(x, y); }
+      }
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 8. Tilt Derivative TDR (Gold Amber)
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 2.0;
+    ctx.beginPath();
+    let startedTdr = false;
+    for (let i = 0; i < points.length; i++) {
+      if (points[i].tdr !== undefined) {
+        const x = scaleX(points[i].distanceKm);
+        const y = scaleYTdr(points[i].tdr!);
+        if (!startedTdr) { ctx.moveTo(x, y); startedTdr = true; } else { ctx.lineTo(x, y); }
       }
     }
     ctx.stroke();
   }
 
-  // Draw Vertical Correlation Line & Picked Value Tags if activePoint present
+  // Draw Vertical Correlation Line & Pinned Pick Marker
   const targetPick = activePoint || points[Math.floor(points.length / 2)];
   if (targetPick) {
     const posX = scaleX(targetPick.distanceKm);
-    const isRightSide = posX > margin.left + graphWidth * 0.75;
-    const badgeOffset = isRightSide ? -100 : 12;
 
-    // 1. Full Vertical Dashed Correlation Line
+    // Full Vertical Dashed Correlation Line
     ctx.strokeStyle = '#0f172a';
     ctx.lineWidth = 2;
     ctx.setLineDash([5, 4]);
@@ -194,7 +294,7 @@ export function exportProfileGraphToPng(options: ProfileImageExportOptions): voi
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // 2. Topo Picked Anchor Dot & Value Tag
+    // Topo Picked Anchor Dot
     const yTopo = scaleYTopo(targetPick.elevation);
     ctx.fillStyle = '#059669';
     ctx.beginPath();
@@ -204,65 +304,7 @@ export function exportProfileGraphToPng(options: ProfileImageExportOptions): voi
     ctx.lineWidth = 2.5;
     ctx.stroke();
 
-    // Topo Tag box
-    ctx.fillStyle = '#f0fdf4';
-    ctx.fillRect(posX + badgeOffset, yTopo - 12, 90, 24);
-    ctx.strokeStyle = '#86efac';
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(posX + badgeOffset, yTopo - 12, 90, 24);
-
-    ctx.fillStyle = '#166534';
-    ctx.font = 'bold 12px "JetBrains Mono", monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText(`${targetPick.elevation.toFixed(1)} m`, posX + badgeOffset + 45, yTopo + 4);
-
-    // 3. FAA Picked Anchor Dot & Value Tag
-    if (targetPick.freeAir !== undefined) {
-      const yFaa = scaleYGrav(targetPick.freeAir);
-      ctx.fillStyle = '#0284c7';
-      ctx.beginPath();
-      ctx.arc(posX, yFaa, 6, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2.5;
-      ctx.stroke();
-
-      ctx.fillStyle = '#f0f9ff';
-      ctx.fillRect(posX + badgeOffset, yFaa - 12, 95, 24);
-      ctx.strokeStyle = '#bae6fd';
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(posX + badgeOffset, yFaa - 12, 95, 24);
-
-      ctx.fillStyle = '#0369a1';
-      ctx.font = 'bold 12px "JetBrains Mono", monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText(`${targetPick.freeAir.toFixed(1)} mGal`, posX + badgeOffset + 47, yFaa + 4);
-    }
-
-    // 4. CBA Picked Anchor Dot & Value Tag
-    if (targetPick.bouguer !== undefined) {
-      const yCba = scaleYGrav(targetPick.bouguer);
-      ctx.fillStyle = '#d97706';
-      ctx.beginPath();
-      ctx.arc(posX, yCba, 6.5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2.5;
-      ctx.stroke();
-
-      ctx.fillStyle = '#fffbeb';
-      ctx.fillRect(posX + badgeOffset, yCba - 12, 95, 24);
-      ctx.strokeStyle = '#fde68a';
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(posX + badgeOffset, yCba - 12, 95, 24);
-
-      ctx.fillStyle = '#b45309';
-      ctx.font = 'bold 12px "JetBrains Mono", monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText(`${targetPick.bouguer.toFixed(1)} mGal`, posX + badgeOffset + 47, yCba + 4);
-    }
-
-    // 5. Bottom Distance Tag on Axis
+    // Bottom Distance Tag on Axis
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(posX - 45, topoTopY + topoHeight + 4, 90, 22);
     ctx.fillStyle = '#ffffff';
@@ -324,45 +366,44 @@ export function exportProfileGraphToPng(options: ProfileImageExportOptions): voi
     66
   );
 
-  // Legends
-  const legX = width - 480;
-  const legY = 46;
-  ctx.font = 'bold 12px Inter, sans-serif';
+  // Legends Suite (Multi-Channel Pills)
+  const legX = margin.left;
+  const legY = height - 55;
+  ctx.font = 'bold 11px Inter, sans-serif';
+  ctx.textAlign = 'left';
 
-  // CBA
-  ctx.fillStyle = '#d97706';
-  ctx.fillRect(legX, legY - 8, 12, 12);
-  ctx.fillStyle = '#0f172a';
-  ctx.fillText('Complete Bouguer (CBA)', legX + 18, legY + 2);
+  const legendItems = [
+    { label: 'Residual', color: '#8b5cf6' },
+    { label: 'Bouguer (CBA)', color: '#d97706' },
+    { label: 'Simple (SBA)', color: '#b45309' },
+    { label: 'Free-Air (FAA)', color: '#0284c7' },
+    { label: 'FHD (Faults)', color: '#e11d48' },
+    { label: 'SVD (Laplace)', color: '#0d9488' },
+    { label: 'Tilt (TDR)', color: '#f59e0b' },
+    { label: 'Regional', color: '#94a3b8' },
+    { label: 'Topography', color: '#059669' },
+  ];
 
-  // FAA
-  ctx.fillStyle = '#0284c7';
-  ctx.fillRect(legX + 180, legY - 8, 12, 12);
-  ctx.fillStyle = '#0f172a';
-  ctx.fillText('Free-Air (FAA)', legX + 198, legY + 2);
+  let currentLegX = legX;
+  for (const item of legendItems) {
+    ctx.fillStyle = item.color;
+    ctx.beginPath();
+    ctx.arc(currentLegX + 5, legY - 3, 5, 0, Math.PI * 2);
+    ctx.fill();
 
-  // Bathymetry
-  ctx.fillStyle = '#059669';
-  ctx.fillRect(legX + 300, legY - 8, 12, 12);
-  ctx.fillStyle = '#0f172a';
-  ctx.fillText('Topography', legX + 318, legY + 2);
+    ctx.fillStyle = '#334155';
+    ctx.fillText(item.label, currentLegX + 14, legY);
+    currentLegX += ctx.measureText(item.label).width + 28;
+  }
 
   // Prominent Attribution Footer
-  ctx.font = '12px Inter, sans-serif';
-  ctx.fillStyle = '#475569';
-  ctx.textAlign = 'center';
+  ctx.font = '11px Inter, sans-serif';
+  ctx.fillStyle = '#64748b';
+  ctx.textAlign = 'right';
   ctx.fillText(
-    'Data source: Scripps Institution of Oceanography, UC San Diego (SIO/UCSD) • Sandwell & Smith Satellite Altimetry Model',
-    width / 2,
-    height - 40
-  );
-
-  ctx.font = 'bold 13px Inter, sans-serif';
-  ctx.fillStyle = '#0284c7';
-  ctx.fillText(
-    'Generated with TOPEX Interactive Downloader • https://topex-interactive.yufajjiru.work',
-    width / 2,
-    height - 20
+    'TOPEX Interactive Downloader • Scripps Institution of Oceanography (SIO/UCSD)',
+    width - margin.right,
+    height - 25
   );
 
   // Download Trigger

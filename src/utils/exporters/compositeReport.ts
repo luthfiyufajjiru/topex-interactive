@@ -380,8 +380,24 @@ export async function exportCompositeReportImage(options: CompositeReportOptions
   }
   ctx.stroke();
 
-  // Gravity FAA & CBA Curves
-  // FAA
+  // Gravity & Derivative Curves
+  // 1. Regional Trend (Grey Dashed)
+  ctx.strokeStyle = '#94a3b8';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([5, 3]);
+  ctx.beginPath();
+  let startedReg = false;
+  for (const p of profilePoints) {
+    if (p.regional !== undefined) {
+      const x = scaleX(p.distanceKm);
+      const y = scaleYGrav(p.regional);
+      if (!startedReg) { ctx.moveTo(x, y); startedReg = true; } else { ctx.lineTo(x, y); }
+    }
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // 2. Free-Air Anomaly FAA (Royal Blue)
   ctx.strokeStyle = '#0284c7';
   ctx.lineWidth = 3;
   ctx.beginPath();
@@ -390,17 +406,28 @@ export async function exportCompositeReportImage(options: CompositeReportOptions
     if (p.freeAir !== undefined) {
       const x = scaleX(p.distanceKm);
       const y = scaleYGrav(p.freeAir);
-      if (!startedFaa) {
-        ctx.moveTo(x, y);
-        startedFaa = true;
-      } else {
-        ctx.lineTo(x, y);
-      }
+      if (!startedFaa) { ctx.moveTo(x, y); startedFaa = true; } else { ctx.lineTo(x, y); }
     }
   }
   ctx.stroke();
 
-  // CBA
+  // 3. Simple Bouguer SBA (Golden Amber Dashed)
+  ctx.strokeStyle = '#b45309';
+  ctx.lineWidth = 2.4;
+  ctx.setLineDash([5, 3]);
+  ctx.beginPath();
+  let startedSba = false;
+  for (const p of profilePoints) {
+    if (p.simpleBouguer !== undefined) {
+      const x = scaleX(p.distanceKm);
+      const y = scaleYGrav(p.simpleBouguer);
+      if (!startedSba) { ctx.moveTo(x, y); startedSba = true; } else { ctx.lineTo(x, y); }
+    }
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // 4. Complete Bouguer CBA (Rich Amber)
   ctx.strokeStyle = '#d97706';
   ctx.lineWidth = 3.5;
   ctx.beginPath();
@@ -409,17 +436,12 @@ export async function exportCompositeReportImage(options: CompositeReportOptions
     if (p.bouguer !== undefined) {
       const x = scaleX(p.distanceKm);
       const y = scaleYGrav(p.bouguer);
-      if (!startedBg) {
-        ctx.moveTo(x, y);
-        startedBg = true;
-      } else {
-        ctx.lineTo(x, y);
-      }
+      if (!startedBg) { ctx.moveTo(x, y); startedBg = true; } else { ctx.lineTo(x, y); }
     }
   }
   ctx.stroke();
 
-  // Residual Gravity Anomaly Curve (Vibrant Purple)
+  // 5. Residual Gravity Anomaly Curve (Vibrant Purple)
   ctx.strokeStyle = '#8b5cf6';
   ctx.lineWidth = 3.5;
   ctx.beginPath();
@@ -428,12 +450,56 @@ export async function exportCompositeReportImage(options: CompositeReportOptions
     if (p.residual !== undefined) {
       const x = scaleX(p.distanceKm);
       const y = scaleYGrav(p.residual);
-      if (!startedRes) {
-        ctx.moveTo(x, y);
-        startedRes = true;
-      } else {
-        ctx.lineTo(x, y);
-      }
+      if (!startedRes) { ctx.moveTo(x, y); startedRes = true; } else { ctx.lineTo(x, y); }
+    }
+  }
+  ctx.stroke();
+
+  // 6. First Horizontal Derivative FHD (Rose Crimson)
+  ctx.strokeStyle = '#e11d48';
+  ctx.lineWidth = 2.6;
+  ctx.beginPath();
+  let startedFhd = false;
+  const maxFhd = Math.max(0.2, ...profilePoints.map((p) => p.fhd || 0)) * 1.2;
+  const scaleYFhd = (val: number) => profY + gravH - (Math.max(0, val) / maxFhd) * gravH;
+  for (const p of profilePoints) {
+    if (p.fhd !== undefined) {
+      const x = scaleX(p.distanceKm);
+      const y = scaleYFhd(p.fhd);
+      if (!startedFhd) { ctx.moveTo(x, y); startedFhd = true; } else { ctx.lineTo(x, y); }
+    }
+  }
+  ctx.stroke();
+
+  // 7. Second Vertical Derivative SVD (Teal Dashed)
+  ctx.strokeStyle = '#0d9488';
+  ctx.lineWidth = 2.2;
+  ctx.setLineDash([4, 2]);
+  ctx.beginPath();
+  let startedSvd = false;
+  const maxAbsSvd = Math.max(0.02, ...profilePoints.map((p) => Math.abs(p.svd || 0))) * 1.25;
+  const scaleYSvd = (val: number) => profY + gravH / 2 - (val / maxAbsSvd) * (gravH / 2);
+  for (const p of profilePoints) {
+    if (p.svd !== undefined) {
+      const x = scaleX(p.distanceKm);
+      const y = scaleYSvd(p.svd);
+      if (!startedSvd) { ctx.moveTo(x, y); startedSvd = true; } else { ctx.lineTo(x, y); }
+    }
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // 8. Tilt Derivative TDR (Gold Amber)
+  ctx.strokeStyle = '#f59e0b';
+  ctx.lineWidth = 2.0;
+  ctx.beginPath();
+  let startedTdr = false;
+  const scaleYTdr = (val: number) => profY + gravH / 2 - (val / 90) * (gravH / 2);
+  for (const p of profilePoints) {
+    if (p.tdr !== undefined) {
+      const x = scaleX(p.distanceKm);
+      const y = scaleYTdr(p.tdr);
+      if (!startedTdr) { ctx.moveTo(x, y); startedTdr = true; } else { ctx.lineTo(x, y); }
     }
   }
   ctx.stroke();
@@ -582,27 +648,33 @@ export async function exportCompositeReportImage(options: CompositeReportOptions
   ctx.fillText(`${totalDist.toFixed(1)} km (${activeLine.labelEnd})`, profX + profW, topoY + topoH + 24);
 
   // Legends
-  const legX = W - 780;
+  const legX = W - 1050;
   const legY = profY - 18;
-  ctx.font = 'bold 12px Inter, sans-serif';
-
-  ctx.fillStyle = '#8b5cf6';
-  ctx.fillRect(legX, legY - 10, 12, 12);
-  ctx.fillStyle = '#0f172a';
+  ctx.font = 'bold 11px Inter, sans-serif';
   ctx.textAlign = 'left';
-  ctx.fillText('Residual Anomaly', legX + 18, legY);
 
-  ctx.fillStyle = '#d97706';
-  ctx.fillRect(legX + 160, legY - 10, 12, 12);
-  ctx.fillText('Complete Bouguer', legX + 178, legY);
+  const legendItems = [
+    { label: 'Residual', color: '#8b5cf6' },
+    { label: 'Bouguer (CBA)', color: '#d97706' },
+    { label: 'Simple (SBA)', color: '#b45309' },
+    { label: 'Free-Air (FAA)', color: '#0284c7' },
+    { label: 'FHD (Faults)', color: '#e11d48' },
+    { label: 'SVD (Laplace)', color: '#0d9488' },
+    { label: 'Tilt (TDR)', color: '#f59e0b' },
+    { label: 'Topography', color: '#059669' },
+  ];
 
-  ctx.fillStyle = '#0284c7';
-  ctx.fillRect(legX + 320, legY - 10, 12, 12);
-  ctx.fillText('Free-Air (FAA)', legX + 338, legY);
+  let curLegX = legX;
+  for (const item of legendItems) {
+    ctx.fillStyle = item.color;
+    ctx.beginPath();
+    ctx.arc(curLegX + 5, legY - 4, 4.5, 0, Math.PI * 2);
+    ctx.fill();
 
-  ctx.fillStyle = '#059669';
-  ctx.fillRect(legX + 460, legY - 10, 12, 12);
-  ctx.fillText('Topography', legX + 478, legY);
+    ctx.fillStyle = '#0f172a';
+    ctx.fillText(item.label, curLegX + 13, legY);
+    curLegX += ctx.measureText(item.label).width + 20;
+  }
 
   // ==========================================
   // 4. Survey Specifications & Density Parameters
