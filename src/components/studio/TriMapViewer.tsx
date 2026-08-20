@@ -416,57 +416,32 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
     setCursorStyle('crosshair');
   };
 
-  // Touch Events for Mobile PWA & Touchscreens (Probing soundings safely without mutating transect lines)
+  // Touch Events for Mobile PWA & Touchscreens (Purely probes soundings — never mutates cross-section line)
   const handleCanvasTouchStart = (e: React.TouchEvent<HTMLCanvasElement>, mapId: string) => {
     if (e.touches.length !== 1) return;
-    const endpoint = getEndpointProximity(e, true);
-
-    if (endpoint === 'start') {
-      setDraggingMode('start');
-      setCursorStyle('grabbing');
-    } else if (endpoint === 'end') {
-      setDraggingMode('end');
-      setCursorStyle('grabbing');
-    } else {
-      // Touch probe sounding
-      const rect = e.currentTarget.getBoundingClientRect();
-      const touch = e.touches[0];
-      const x = touch.clientX - rect.left;
-      const y = touch.clientY - rect.top;
-      const { lat, lon } = getLatLonFromEvent(e);
-      const nearest = findNearestSounding(lat, lon);
-      if (nearest) {
-        setHoveredRecord(nearest);
-        setHoverPos({ x, y, mapId });
-      }
+    const rect = e.currentTarget.getBoundingClientRect();
+    const touch = e.touches[0];
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    const { lat, lon } = getLatLonFromEvent(e);
+    const nearest = findNearestSounding(lat, lon);
+    if (nearest) {
+      setHoveredRecord(nearest);
+      setHoverPos({ x, y, mapId });
     }
   };
 
   const handleCanvasTouchMove = (e: React.TouchEvent<HTMLCanvasElement>, mapId: string) => {
     if (e.touches.length !== 1) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const touch = e.touches[0];
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
     const { lat, lon } = getLatLonFromEvent(e);
-
-    if (draggingMode === 'start') {
-      setLines(
-        lines.map((l) => (l.id === activeLineId ? { ...l, start: { lat, lon } } : l))
-      );
-      return;
-    } else if (draggingMode === 'end') {
-      setLines(
-        lines.map((l) => (l.id === activeLineId ? { ...l, end: { lat, lon } } : l))
-      );
-      return;
-    } else {
-      // Drag touch probe along map without changing transect line
-      const rect = e.currentTarget.getBoundingClientRect();
-      const touch = e.touches[0];
-      const x = touch.clientX - rect.left;
-      const y = touch.clientY - rect.top;
-      const nearest = findNearestSounding(lat, lon);
-      if (nearest) {
-        setHoveredRecord(nearest);
-        setHoverPos({ x, y, mapId });
-      }
+    const nearest = findNearestSounding(lat, lon);
+    if (nearest) {
+      setHoveredRecord(nearest);
+      setHoverPos({ x, y, mapId });
     }
   };
 
