@@ -31,16 +31,36 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
   onPinnedPointsChange,
 }) => {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
-  const [pinnedIndices, setPinnedIndices] = useState<number[]>([]);
+  const [pinnedByLineId, setPinnedByLineId] = useState<Record<string, number[]>>({});
   const [isKebabOpen, setIsKebabOpen] = useState(false);
 
-  // Sync pinned points up to parent TriMapViewer so all points appear on the map
+  // Clear hover on line change
+  useEffect(() => {
+    setHoverIndex(null);
+  }, [activeLineId]);
+
+  const pinnedIndices = pinnedByLineId[activeLineId] || [];
+
+  const setPinnedIndices = (
+    updater: number[] | ((prev: number[]) => number[])
+  ) => {
+    setPinnedByLineId((prev) => {
+      const current = prev[activeLineId] || [];
+      const next = typeof updater === 'function' ? updater(current) : updater;
+      return {
+        ...prev,
+        [activeLineId]: next,
+      };
+    });
+  };
+
+  // Sync pinned points of the currently active line up to parent TriMapViewer
   useEffect(() => {
     if (onPinnedPointsChange) {
-      const pinned = pinnedIndices.map((idx) => points[idx]).filter(Boolean);
+      const pinned = (pinnedByLineId[activeLineId] || []).map((idx) => points[idx]).filter(Boolean);
       onPinnedPointsChange(pinned);
     }
-  }, [pinnedIndices, points, onPinnedPointsChange]);
+  }, [pinnedByLineId, activeLineId, points, onPinnedPointsChange]);
 
   const [visibleChannels, setVisibleChannels] = useState<{
     cba: boolean;
