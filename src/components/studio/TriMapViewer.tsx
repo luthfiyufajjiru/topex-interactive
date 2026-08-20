@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import L from 'leaflet';
 import type { ProcessedRecord, BoundingBox, BouguerParams, InterpolationMethod, NamedProfileLine, ProfilePoint, RegionalResidualConfig } from '@/types';
 import { ColormapName } from '@/utils/geophysics/colormaps';
 import { buildAllRegularGrids, buildResidualAndRegionalGrids, renderInterpolatedRasterToCanvas, AllGridsResult } from '@/utils/geophysics/interpolation';
@@ -181,6 +182,13 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
   // Canvas Refs for Map 1, 2, 3 (Dual Layer: WebGL 2.0 Base + 2D Overlay)
   const canvasTopoWebglRef = useRef<HTMLCanvasElement | null>(null);
   const canvasTopoOverlayRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Satellite / Basemap layer under Map 1 (Topography / Bathymetry)
+  const [topoBasemap, setTopoBasemap] = useState<'google-hybrid' | 'google-sat' | 'esri-ocean' | 'none'>('google-hybrid');
+  const [topoOpacity, setTopoOpacity] = useState<number>(0.70);
+  const leafletTopoContainerRef = useRef<HTMLDivElement | null>(null);
+  const leafletTopoMapRef = useRef<L.Map | null>(null);
+  const leafletTopoTileLayerRef = useRef<L.TileLayer | null>(null);
 
   const canvasFaaWebglRef = useRef<HTMLCanvasElement | null>(null);
   const canvasFaaOverlayRef = useRef<HTMLCanvasElement | null>(null);
@@ -667,6 +675,92 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
     updateAllOverlays();
   }, [updateAllOverlays]);
 
+  // Synchronize Leaflet Basemap Underlay for Map 1 (Topography / Bathymetry)
+  useEffect(() => {
+    if (topoBasemap === 'none' || isMapsCollapsed || !leafletTopoContainerRef.current) {
+      if (leafletTopoMapRef.current) {
+        leafletTopoMapRef.current.remove();
+        leafletTopoMapRef.current = null;
+        leafletTopoTileLayerRef.current = null;
+      }
+      return;
+    }
+
+    if (!leafletTopoMapRef.current) {
+      const map = L.map(leafletTopoContainerRef.current, {
+        zoomControl: false,
+        attributionControl: false,
+        dragging: false,
+        touchZoom: false,
+        scrollWheelZoom: false,
+        doubleClickZoom: false,
+        boxZoom: false,
+        keyboard: false,
+      });
+      leafletTopoMapRef.current = map;
+    }
+
+    const map = leafletTopoMapRef.current;
+
+    // Switch Tile Layer
+    if (leafletTopoTileLayerRef.current) {
+      map.removeLayer(leafletTopoTileLayerRef.current);
+      leafletTopoTileLayerRef.current = null;
+    }
+
+    if (topoBasemap === 'google-hybrid') {
+      const layer = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+      }).addTo(map);
+      leafletTopoTileLayerRef.current = layer;
+    } else if (topoBasemap === 'google-sat') {
+      const layer = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+      }).addTo(map);
+      leafletTopoTileLayerRef.current = layer;
+    } else if (topoBasemap === 'esri-ocean') {
+      const layer = L.tileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}',
+        { maxZoom: 13 }
+      ).addTo(map);
+      leafletTopoTileLayerRef.current = layer;
+    }
+
+    map.fitBounds(
+      [
+        [bounds.south, bounds.west],
+        [bounds.north, bounds.east],
+      ],
+      { animate: false, padding: [0, 0] }
+    );
+
+    const timer = setTimeout(() => {
+      if (leafletTopoMapRef.current) {
+        leafletTopoMapRef.current.invalidateSize();
+        leafletTopoMapRef.current.fitBounds(
+          [
+            [bounds.south, bounds.west],
+            [bounds.north, bounds.east],
+          ],
+          { animate: false, padding: [0, 0] }
+        );
+      }
+    }, 120);
+
+    return () => clearTimeout(timer);
+  }, [bounds, topoBasemap, isMapsCollapsed]);
+
+  // Clean up Leaflet on unmount
+  useEffect(() => {
+    return () => {
+      if (leafletTopoMapRef.current) {
+        leafletTopoMapRef.current.remove();
+        leafletTopoMapRef.current = null;
+        leafletTopoTileLayerRef.current = null;
+      }
+    };
+  }, []);
+
   // 1. Render Map 1: Topography / Bathymetry (Runs ONLY when topo grid or method changes)
   useEffect(() => {
     if (isMapsCollapsed || !canvasTopoWebglRef.current || !gridTopo) return;
@@ -1016,7 +1110,39 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
         {/* Map 1: Topography */}
         <div className="map-view-card">
           <div className="map-view-header">
-            <div className="map-view-title">Topography / Bathymetry</div>
+            <div className="map-view-title-group">
+              <div className="map-view-title">Topography / Bathymetry</div>
+              <div className="topo-basemap-controls">
+                <select
+                  className="topo-basemap-select"
+                  value={topoBasemap}
+                  onChange={(e) => setTopoBasemap(e.target.value as any)}
+                  title="Select satellite / terrain basemap underlay"
+                >
+                  <option value="google-hybrid">Google Hybrid</option>
+                  <option value="google-sat">Google Satellite</option>
+                  <option value="esri-ocean">ESRI Ocean</option>
+                  <option value="none">Pure Colormap</option>
+                </select>
+                {topoBasemap !== 'none' && (
+                  <div
+                    className="topo-opacity-badge-group"
+                    title={`Bathymetry overlay opacity: ${Math.round(topoOpacity * 100)}%`}
+                  >
+                    <span className="topo-opacity-label">{Math.round(topoOpacity * 100)}%</span>
+                    <input
+                      type="range"
+                      min="0.10"
+                      max="1.0"
+                      step="0.05"
+                      value={topoOpacity}
+                      onChange={(e) => setTopoOpacity(parseFloat(e.target.value))}
+                      className="topo-opacity-slider"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
             <button
               type="button"
               className="btn-map-save-png"
@@ -1028,6 +1154,12 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
             </button>
           </div>
           <div className="canvas-wrapper">
+            {topoBasemap !== 'none' && (
+              <div
+                ref={leafletTopoContainerRef}
+                className="map-leaflet-underlay"
+              />
+            )}
             {!gridTopo && (
               <div className="map-skeleton-overlay">
                 <div className="skeleton-shimmer" />
@@ -1042,6 +1174,10 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
               width={480}
               height={360}
               className="raster-webgl-canvas"
+              style={{
+                opacity: topoBasemap !== 'none' ? topoOpacity : 1,
+                transition: 'opacity 0.12s ease',
+              }}
             />
             <canvas
               ref={canvasTopoOverlayRef}
