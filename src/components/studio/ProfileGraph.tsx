@@ -423,7 +423,14 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
                 className="kebab-dropdown-item"
                 onClick={() => {
                   setIsKebabOpen(false);
-                  exportProfileGraphToPng({ points, line: activeLine, activePoint });
+                  const currentPinned = (pinnedByLineId[activeLineId] || []).map((idx) => points[idx]).filter(Boolean);
+                  exportProfileGraphToPng({
+                    points,
+                    line: activeLine,
+                    activePoint,
+                    pinnedPoints: currentPinned,
+                    visibleChannels,
+                  });
                 }}
               >
                 <Image size={14} />

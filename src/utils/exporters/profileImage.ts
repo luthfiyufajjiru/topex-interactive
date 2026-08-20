@@ -4,11 +4,38 @@ export interface ProfileImageExportOptions {
   points: ProfilePoint[];
   line: NamedProfileLine;
   activePoint?: ProfilePoint | null;
+  pinnedPoints?: ProfilePoint[];
+  visibleChannels?: {
+    cba?: boolean;
+    sba?: boolean;
+    faa?: boolean;
+    residual?: boolean;
+    regional?: boolean;
+    fhd?: boolean;
+    svd?: boolean;
+    tdr?: boolean;
+  };
   filename?: string;
 }
 
 export function exportProfileGraphToPng(options: ProfileImageExportOptions): void {
-  const { points, line, activePoint, filename = `topex_${line.name.toLowerCase().replace(/\s+/g, '_')}_cross_section.png` } = options;
+  const {
+    points,
+    line,
+    activePoint,
+    pinnedPoints = [],
+    visibleChannels = {
+      cba: true,
+      sba: false,
+      faa: true,
+      residual: true,
+      regional: false,
+      fhd: true,
+      svd: false,
+      tdr: false,
+    },
+    filename = `topex_${line.name.toLowerCase().replace(/\s+/g, '_')}_cross_section.png`,
+  } = options;
 
   if (points.length === 0) return;
 
@@ -35,35 +62,51 @@ export function exportProfileGraphToPng(options: ProfileImageExportOptions): voi
   const topoTopY = splitY + 40;
   const topoHeight = height - margin.bottom - topoTopY;
 
-  // Compute min/max for gravity & derivatives
+  // Compute min/max for gravity & derivatives based ONLY on active visible channels
   let minGrav = 0, maxGrav = 0, hasGravity = false;
   let maxFhd = 0.1, maxAbsSvd = 0.01;
 
   for (let i = 0; i < points.length; i++) {
     const p = points[i];
-    if (p.freeAir !== undefined) {
+    if (visibleChannels.faa && p.freeAir !== undefined) {
       hasGravity = true;
       if (p.freeAir < minGrav) minGrav = p.freeAir;
       if (p.freeAir > maxGrav) maxGrav = p.freeAir;
     }
-    if (p.bouguer !== undefined) {
+    if (visibleChannels.cba && p.bouguer !== undefined) {
       hasGravity = true;
       if (p.bouguer < minGrav) minGrav = p.bouguer;
       if (p.bouguer > maxGrav) maxGrav = p.bouguer;
     }
-    if (p.simpleBouguer !== undefined) {
+    if (visibleChannels.sba && p.simpleBouguer !== undefined) {
       hasGravity = true;
       if (p.simpleBouguer < minGrav) minGrav = p.simpleBouguer;
       if (p.simpleBouguer > maxGrav) maxGrav = p.simpleBouguer;
     }
-    if (p.residual !== undefined) {
+    if (visibleChannels.residual && p.residual !== undefined) {
       hasGravity = true;
       if (p.residual < minGrav) minGrav = p.residual;
       if (p.residual > maxGrav) maxGrav = p.residual;
     }
-    if (p.fhd !== undefined && p.fhd > maxFhd) maxFhd = p.fhd;
-    if (p.svd !== undefined && Math.abs(p.svd) > maxAbsSvd) maxAbsSvd = Math.abs(p.svd);
+    if (visibleChannels.regional && p.regional !== undefined) {
+      hasGravity = true;
+      if (p.regional < minGrav) minGrav = p.regional;
+      if (p.regional > maxGrav) maxGrav = p.regional;
+    }
+    if (visibleChannels.fhd && p.fhd !== undefined && p.fhd > maxFhd) {
+      maxFhd = p.fhd;
+    }
+    if (visibleChannels.svd && p.svd !== undefined && Math.abs(p.svd) > maxAbsSvd) {
+      maxAbsSvd = Math.abs(p.svd);
+    }
   }
+
+  // Fallback defaults if no gravity curves active
+  if (!hasGravity) {
+    minGrav = -50;
+    maxGrav = 50;
+  }
+
   const gravPad = Math.max(10, (maxGrav - minGrav) * 0.1);
   minGrav = Math.floor(minGrav - gravPad);
   maxGrav = Math.ceil(maxGrav + gravPad);
@@ -158,9 +201,9 @@ export function exportProfileGraphToPng(options: ProfileImageExportOptions): voi
   }
   ctx.stroke();
 
-  // Draw Gravity & Derivative Curves
-  if (hasGravity) {
-    // 1. Regional Trend (Grey Dashed)
+  // Draw ONLY Active Gravity & Derivative Curves
+  // 1. Regional Trend (Grey Dashed)
+  if (visibleChannels.regional) {
     ctx.strokeStyle = '#94a3b8';
     ctx.lineWidth = 2;
     ctx.setLineDash([5, 3]);
@@ -175,8 +218,10 @@ export function exportProfileGraphToPng(options: ProfileImageExportOptions): voi
     }
     ctx.stroke();
     ctx.setLineDash([]);
+  }
 
-    // 2. Free-Air Anomaly FAA (Royal Blue)
+  // 2. Free-Air Anomaly FAA (Royal Blue)
+  if (visibleChannels.faa) {
     ctx.strokeStyle = '#0284c7';
     ctx.lineWidth = 2.5;
     ctx.beginPath();
@@ -189,8 +234,10 @@ export function exportProfileGraphToPng(options: ProfileImageExportOptions): voi
       }
     }
     ctx.stroke();
+  }
 
-    // 3. Simple Bouguer SBA (Golden Amber Dashed)
+  // 3. Simple Bouguer SBA (Golden Amber Dashed)
+  if (visibleChannels.sba) {
     ctx.strokeStyle = '#b45309';
     ctx.lineWidth = 2.2;
     ctx.setLineDash([5, 3]);
@@ -205,8 +252,10 @@ export function exportProfileGraphToPng(options: ProfileImageExportOptions): voi
     }
     ctx.stroke();
     ctx.setLineDash([]);
+  }
 
-    // 4. Complete Bouguer CBA (Rich Amber)
+  // 4. Complete Bouguer CBA (Rich Amber)
+  if (visibleChannels.cba) {
     ctx.strokeStyle = '#d97706';
     ctx.lineWidth = 3;
     ctx.beginPath();
@@ -219,8 +268,10 @@ export function exportProfileGraphToPng(options: ProfileImageExportOptions): voi
       }
     }
     ctx.stroke();
+  }
 
-    // 5. Residual Anomaly (Vibrant Purple)
+  // 5. Residual Anomaly (Vibrant Purple)
+  if (visibleChannels.residual) {
     ctx.strokeStyle = '#8b5cf6';
     ctx.lineWidth = 3.2;
     ctx.beginPath();
@@ -233,8 +284,10 @@ export function exportProfileGraphToPng(options: ProfileImageExportOptions): voi
       }
     }
     ctx.stroke();
+  }
 
-    // 6. First Horizontal Derivative FHD (Rose Crimson)
+  // 6. First Horizontal Derivative FHD (Rose Crimson)
+  if (visibleChannels.fhd) {
     ctx.strokeStyle = '#e11d48';
     ctx.lineWidth = 2.4;
     ctx.beginPath();
@@ -247,8 +300,10 @@ export function exportProfileGraphToPng(options: ProfileImageExportOptions): voi
       }
     }
     ctx.stroke();
+  }
 
-    // 7. Second Vertical Derivative SVD (Teal Dashed)
+  // 7. Second Vertical Derivative SVD (Teal Dashed)
+  if (visibleChannels.svd) {
     ctx.strokeStyle = '#0d9488';
     ctx.lineWidth = 2.2;
     ctx.setLineDash([4, 2]);
@@ -263,8 +318,10 @@ export function exportProfileGraphToPng(options: ProfileImageExportOptions): voi
     }
     ctx.stroke();
     ctx.setLineDash([]);
+  }
 
-    // 8. Tilt Derivative TDR (Gold Amber)
+  // 8. Tilt Derivative TDR (Gold Amber)
+  if (visibleChannels.tdr) {
     ctx.strokeStyle = '#f59e0b';
     ctx.lineWidth = 2.0;
     ctx.beginPath();
@@ -279,39 +336,102 @@ export function exportProfileGraphToPng(options: ProfileImageExportOptions): voi
     ctx.stroke();
   }
 
-  // Draw Vertical Correlation Line & Pinned Pick Marker
-  const targetPick = activePoint || points[Math.floor(points.length / 2)];
-  if (targetPick) {
-    const posX = scaleX(targetPick.distanceKm);
+  // Draw ALL Pinned Picks (with #1, #2... badges) or fallback to single activePoint
+  const picksToDraw: { point: ProfilePoint; pinNumber?: number }[] = [];
+  if (pinnedPoints.length > 0) {
+    pinnedPoints.forEach((p, idx) => {
+      picksToDraw.push({ point: p, pinNumber: idx + 1 });
+    });
+  } else if (activePoint) {
+    picksToDraw.push({ point: activePoint });
+  }
 
-    // Full Vertical Dashed Correlation Line
-    ctx.strokeStyle = '#0f172a';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([5, 4]);
+  picksToDraw.forEach(({ point: pick, pinNumber }) => {
+    const posX = scaleX(pick.distanceKm);
+
+    // 1. Full Vertical Dashed Correlation Line
+    ctx.strokeStyle = pinNumber ? '#d97706' : '#0284c7';
+    ctx.lineWidth = pinNumber ? 2 : 1.5;
+    ctx.setLineDash([5, 3]);
     ctx.beginPath();
     ctx.moveTo(posX, margin.top);
     ctx.lineTo(posX, topoTopY + topoHeight);
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Topo Picked Anchor Dot
-    const yTopo = scaleYTopo(targetPick.elevation);
+    // 2. Topo Picked Anchor Dot
+    const yTopo = scaleYTopo(pick.elevation);
     ctx.fillStyle = '#059669';
     ctx.beginPath();
-    ctx.arc(posX, yTopo, 6, 0, Math.PI * 2);
+    ctx.arc(posX, yTopo, 5.5, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Bottom Distance Tag on Axis
-    ctx.fillStyle = '#0f172a';
-    ctx.fillRect(posX - 45, topoTopY + topoHeight + 4, 90, 22);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 12px "JetBrains Mono", monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText(`${targetPick.distanceKm.toFixed(1)} km`, posX, topoTopY + topoHeight + 19);
-  }
+    // 3. Curve Anchor Dots on active curves
+    if (visibleChannels.faa && pick.freeAir !== undefined) {
+      ctx.fillStyle = '#0284c7';
+      ctx.beginPath(); ctx.arc(posX, scaleYGrav(pick.freeAir), 4.5, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; ctx.stroke();
+    }
+    if (visibleChannels.cba && pick.bouguer !== undefined) {
+      ctx.fillStyle = '#d97706';
+      ctx.beginPath(); ctx.arc(posX, scaleYGrav(pick.bouguer), 4.5, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; ctx.stroke();
+    }
+    if (visibleChannels.sba && pick.simpleBouguer !== undefined) {
+      ctx.fillStyle = '#b45309';
+      ctx.beginPath(); ctx.arc(posX, scaleYGrav(pick.simpleBouguer), 4.5, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; ctx.stroke();
+    }
+    if (visibleChannels.residual && pick.residual !== undefined) {
+      ctx.fillStyle = '#8b5cf6';
+      ctx.beginPath(); ctx.arc(posX, scaleYGrav(pick.residual), 4.5, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; ctx.stroke();
+    }
+    if (visibleChannels.fhd && pick.fhd !== undefined) {
+      ctx.fillStyle = '#e11d48';
+      ctx.beginPath(); ctx.arc(posX, scaleYFhd(pick.fhd), 4.5, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; ctx.stroke();
+    }
+    if (visibleChannels.svd && pick.svd !== undefined) {
+      ctx.fillStyle = '#0d9488';
+      ctx.beginPath(); ctx.arc(posX, scaleYSvd(pick.svd), 4.5, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; ctx.stroke();
+    }
+    if (visibleChannels.tdr && pick.tdr !== undefined) {
+      ctx.fillStyle = '#f59e0b';
+      ctx.beginPath(); ctx.arc(posX, scaleYTdr(pick.tdr), 4.5, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; ctx.stroke();
+    }
+
+    // 4. Bottom Pin Badge on Axis
+    if (pinNumber) {
+      ctx.fillStyle = '#0f172a';
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(posX - 24, topoTopY + topoHeight + 4, 48, 20, 10);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#fef08a';
+      ctx.font = 'bold 11px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(`#${pinNumber}`, posX, topoTopY + topoHeight + 18);
+    } else {
+      ctx.fillStyle = '#0284c7';
+      ctx.beginPath();
+      ctx.roundRect(posX - 40, topoTopY + topoHeight + 4, 80, 20, 4);
+      ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 11px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(`${pick.distanceKm.toFixed(1)} km`, posX, topoTopY + topoHeight + 18);
+    }
+  });
 
   // Axis Labels & Ticks
   ctx.fillStyle = '#334155';
@@ -366,26 +486,30 @@ export function exportProfileGraphToPng(options: ProfileImageExportOptions): voi
     66
   );
 
-  // Legends Suite (Multi-Channel Pills)
+  // Legends Suite - ONLY ACTIVE SELECTED CURVES
   const legX = margin.left;
   const legY = height - 55;
   ctx.font = 'bold 11px Inter, sans-serif';
   ctx.textAlign = 'left';
 
-  const legendItems = [
-    { label: 'Residual', color: '#8b5cf6' },
-    { label: 'Bouguer (CBA)', color: '#d97706' },
-    { label: 'Simple (SBA)', color: '#b45309' },
-    { label: 'Free-Air (FAA)', color: '#0284c7' },
-    { label: 'FHD (Faults)', color: '#e11d48' },
-    { label: 'SVD (Laplace)', color: '#0d9488' },
-    { label: 'Tilt (TDR)', color: '#f59e0b' },
-    { label: 'Regional', color: '#94a3b8' },
-    { label: 'Topography', color: '#059669' },
+  const legendCandidates: { key: keyof typeof visibleChannels | 'topo'; label: string; color: string }[] = [
+    { key: 'residual', label: 'Residual', color: '#8b5cf6' },
+    { key: 'cba', label: 'Bouguer (CBA)', color: '#d97706' },
+    { key: 'sba', label: 'Simple (SBA)', color: '#b45309' },
+    { key: 'faa', label: 'Free-Air (FAA)', color: '#0284c7' },
+    { key: 'fhd', label: 'FHD (Faults)', color: '#e11d48' },
+    { key: 'svd', label: 'SVD (Laplace)', color: '#0d9488' },
+    { key: 'tdr', label: 'Tilt (TDR)', color: '#f59e0b' },
+    { key: 'regional', label: 'Regional', color: '#94a3b8' },
+    { key: 'topo', label: 'Topography', color: '#059669' },
   ];
 
+  const activeLegendItems = legendCandidates.filter(
+    (item) => item.key === 'topo' || visibleChannels[item.key as keyof typeof visibleChannels]
+  );
+
   let currentLegX = legX;
-  for (const item of legendItems) {
+  for (const item of activeLegendItems) {
     ctx.fillStyle = item.color;
     ctx.beginPath();
     ctx.arc(currentLegX + 5, legY - 3, 5, 0, Math.PI * 2);
@@ -415,3 +539,4 @@ export function exportProfileGraphToPng(options: ProfileImageExportOptions): voi
   link.click();
   document.body.removeChild(link);
 }
+
