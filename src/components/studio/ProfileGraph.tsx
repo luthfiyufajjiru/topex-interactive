@@ -14,6 +14,7 @@ interface ProfileGraphProps {
   activeLine: NamedProfileLine;
   onHoverPoint: (point: ProfilePoint | null) => void;
   hoveredPoint: ProfilePoint | null;
+  onPinnedPointsChange?: (points: ProfilePoint[]) => void;
   onSetPresetLine?: (preset: 'we' | 'ns' | 'diag1' | 'diag2') => void;
 }
 
@@ -27,10 +28,20 @@ export const ProfileGraph: React.FC<ProfileGraphProps> = ({
   activeLine,
   onHoverPoint,
   hoveredPoint,
+  onPinnedPointsChange,
 }) => {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const [pinnedIndices, setPinnedIndices] = useState<number[]>([]);
   const [isKebabOpen, setIsKebabOpen] = useState(false);
+
+  // Sync pinned points up to parent TriMapViewer so all points appear on the map
+  useEffect(() => {
+    if (onPinnedPointsChange) {
+      const pinned = pinnedIndices.map((idx) => points[idx]).filter(Boolean);
+      onPinnedPointsChange(pinned);
+    }
+  }, [pinnedIndices, points, onPinnedPointsChange]);
+
   const [visibleChannels, setVisibleChannels] = useState<{
     cba: boolean;
     sba: boolean;

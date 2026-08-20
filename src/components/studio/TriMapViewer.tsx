@@ -69,6 +69,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
   const [hoveredRecord, setHoveredRecord] = useState<ProcessedRecord | null>(null);
   const [hoverPos, setHoverPos] = useState<{ x: number; y: number; mapId: string } | null>(null);
   const [hoveredProfilePoint, setHoveredProfilePoint] = useState<ProfilePoint | null>(null);
+  const [pinnedProfilePoints, setPinnedProfilePoints] = useState<ProfilePoint[]>([]);
   const [interpolationMethod, setInterpolationMethod] = useState<InterpolationMethod>('bicubic');
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isMapsCollapsed, setIsMapsCollapsed] = useState<boolean>(false);
@@ -608,31 +609,72 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
       }
     }
 
-    // 2. Correlation Tracking point along transect line
-    const effectivePickedPoint = hoveredProfilePoint || (profilePoints.length > 0 ? profilePoints[Math.floor(profilePoints.length / 2)] : null);
-    if (effectivePickedPoint) {
-      const xTrack = ((effectivePickedPoint.longitude - bounds.west) / lonRange) * w;
-      const yTrack = ((bounds.north - effectivePickedPoint.latitude) / latRange) * h;
+    // 2. Correlation Tracking points along transect line (ALL multi-select pinned points + current hover pick)
+    const allPicksToDraw: { point: ProfilePoint; isPinned: boolean; pinIndex?: number }[] = [];
 
-      // Glow halo
-      ctx.strokeStyle = '#0f172a';
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.arc(xTrack, yTrack, 9, 0, Math.PI * 2);
-      ctx.stroke();
+    pinnedProfilePoints.forEach((p, idx) => {
+      allPicksToDraw.push({ point: p, isPinned: true, pinIndex: idx + 1 });
+    });
 
-      // White circle
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(xTrack, yTrack, 7.5, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Center blue reticle dot
-      ctx.fillStyle = '#0284c7';
-      ctx.beginPath();
-      ctx.arc(xTrack, yTrack, 4.5, 0, Math.PI * 2);
-      ctx.fill();
+    if (
+      hoveredProfilePoint &&
+      !pinnedProfilePoints.some((p) => Math.abs(p.distanceKm - hoveredProfilePoint.distanceKm) < 0.05)
+    ) {
+      allPicksToDraw.push({ point: hoveredProfilePoint, isPinned: false });
     }
+
+    if (allPicksToDraw.length === 0 && profilePoints.length > 0) {
+      allPicksToDraw.push({ point: profilePoints[Math.floor(profilePoints.length / 2)], isPinned: false });
+    }
+
+    allPicksToDraw.forEach(({ point: pickPt, isPinned, pinIndex }) => {
+      const xTrack = ((pickPt.longitude - bounds.west) / lonRange) * w;
+      const yTrack = ((bounds.north - pickPt.latitude) / latRange) * h;
+
+      if (isPinned) {
+        // Pinned Multi-Pick Target on Map: High-contrast circular badge with pin index
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(xTrack, yTrack, 10.5, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        ctx.arc(xTrack, yTrack, 9.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.arc(xTrack, yTrack, 9.5, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Pin Number 1, 2, 3...
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 10px Inter, monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`${pinIndex}`, xTrack, yTrack);
+      } else {
+        // Active Hover Reticle (Royal Sky Blue)
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(xTrack, yTrack, 9, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(xTrack, yTrack, 7.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#0284c7';
+        ctx.beginPath();
+        ctx.arc(xTrack, yTrack, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    });
 
     // 3. Active target / hovered sounding reticle (crystal-clear unshaded geophysical reticle)
     const probeRecord = hoveredRecord || activeRecord;
@@ -684,7 +726,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
     }
 
     ctx.restore();
-  }, [bounds, lines, activeLineId, hoveredProfilePoint, profilePoints, activeRecord, hoveredRecord]);
+  }, [bounds, lines, activeLineId, hoveredProfilePoint, pinnedProfilePoints, profilePoints, activeRecord, hoveredRecord]);
 
   // Synchronously update all 3 overlay layers on mouse move / hover / draw
   const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
@@ -1649,6 +1691,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
         activeLine={activeLine}
         hoveredPoint={hoveredProfilePoint}
         onHoverPoint={setHoveredProfilePoint}
+        onPinnedPointsChange={setPinnedProfilePoints}
         onSetPresetLine={handleSetPresetLine}
       />
 
