@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import type { ProcessedRecord, BouguerParams } from '@/types';
 import { computeDensityLinearRegression, BOUGUER_GRAV_FACTOR } from '@/utils/geophysics/bouguer';
-import { TrendingUp, BookOpen, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { TrendingUp, BookOpen, Check, Info } from 'lucide-react';
+import { CitationsModal } from '../modals/CitationsModal';
 
 interface NettletonRegressionPlotProps {
   records: ProcessedRecord[];
@@ -15,7 +16,8 @@ export const NettletonRegressionPlot: React.FC<NettletonRegressionPlotProps> = (
   onParamsChange,
 }) => {
   const [hoveredPoint, setHoveredPoint] = useState<{ x: number; y: number } | null>(null);
-  const [showCitations, setShowCitations] = useState<boolean>(true);
+  const [isInfoOpen, setIsInfoOpen] = useState(false);
+  const [isCitationsOpen, setIsCitationsOpen] = useState(false);
 
   // Compute Linear Regression
   const regression = useMemo(() => {
@@ -83,10 +85,32 @@ export const NettletonRegressionPlot: React.FC<NettletonRegressionPlotProps> = (
             <TrendingUp size={18} />
           </div>
           <div>
-            <h3 className="regression-title">Parasnis / Nettleton Linear Regression Scatter Plot</h3>
-            <p className="regression-subtitle">
-              Empirical least-squares estimation of in-situ crustal density (&rho;<sub>c</sub>) from Topography vs. Free-Air Anomaly correlation.
-            </p>
+            <div className="studio-title-row">
+              <h3 className="regression-title">Parasnis Density Estimation</h3>
+              <button
+                type="button"
+                className="btn-info-icon"
+                onClick={() => setIsInfoOpen((prev) => !prev)}
+                title="Toggle Parasnis estimation details"
+                aria-label="Parasnis info"
+              >
+                <Info size={14} />
+              </button>
+              <button
+                type="button"
+                className="citation-chip-badge"
+                onClick={() => setIsCitationsOpen(true)}
+                title="View Parasnis (1962) & Nettleton (1939) formulation and citations"
+              >
+                <BookOpen size={12} />
+                <span>Parasnis (1962)</span>
+              </button>
+            </div>
+            {isInfoOpen && (
+              <div className="studio-info-popover">
+                Empirical least-squares estimation of in-situ crustal density (&rho;<sub>c</sub>) from Topography vs. Free-Air Anomaly correlation slope (Parasnis 1962; Nettleton 1939).
+              </div>
+            )}
           </div>
         </div>
 
@@ -281,63 +305,11 @@ export const NettletonRegressionPlot: React.FC<NettletonRegressionPlotProps> = (
         </div>
       </div>
 
-      {/* Scientific Formula & Academic Literature Citations */}
-      <div className="citations-card">
-        <div
-          className="citations-header"
-          onClick={() => setShowCitations(!showCitations)}
-          role="button"
-          tabIndex={0}
-        >
-          <div className="citations-title">
-            <BookOpen size={16} className="text-primary-blue" />
-            <span>Mathematical Formulation & Academic References</span>
-          </div>
-          <span className="citations-toggle-hint">
-            <span>{showCitations ? 'Hide' : 'Show Sources'}</span>
-            {showCitations ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          </span>
-        </div>
-
-        {showCitations && (
-          <div className="citations-body">
-            <div className="formula-explanation-box">
-              <div className="formula-item">
-                <span className="formula-tag">Parasnis (1962) Least-Squares Formulation:</span>
-                <code>&Delta;g<sub>FAA</sub> = 2&pi;G &bull; &rho;<sub>c</sub> &bull; h + &Delta;g<sub>BG</sub> = m &bull; h + c</code>
-              </div>
-              <div className="formula-item">
-                <span className="formula-tag">Empirical Density Derivation:</span>
-                <code>&rho;<sub>c</sub> = m / (2&pi;G) = m / 0.04193 g/cm³</code> (where <code>2&pi;G = 0.04193 mGal&bull;cm³/g&bull;m</code>)
-              </div>
-            </div>
-
-            <div className="citations-list">
-              <h4 className="citations-list-title">Peer-Reviewed Papers & Classical Geophysics References:</h4>
-              <ul className="academic-references">
-                <li>
-                  <strong>Parasnis, D. S. (1952)</strong>. <em>A study of rock densities in the English Midlands</em>. <strong>Monthly Notices of the Royal Astronomical Society: Geophysical Supplements</strong>, 6(5), 252–271. doi:10.1111/j.1365-246X.1952.tb03013.x
-                </li>
-                <li>
-                  <strong>Parasnis, D. S. (1962)</strong>. <em>Principles of Applied Geophysics</em>. Chapman &amp; Hall, London, pp. 25–48.
-                </li>
-                <li>
-                  <strong>Nettleton, L. L. (1939)</strong>. <em>Determination of density for reduction of gravimeter observations</em>. <strong>Geophysics</strong>, 4(3), 176–183. doi:10.1190/1.1440490
-                </li>
-                <li>
-                  <strong>Telford, W. M., Geldart, L. P., &amp; Sheriff, R. E. (1990)</strong>. <em>Applied Geophysics</em> (2nd ed.). Cambridge University Press, Chapter 2 (Gravity Methods, pp. 12–25).
-                </li>
-                <li>
-                  <strong>Sandwell, D. T., &amp; Smith, W. H. F. (1997)</strong>. <em>Marine gravity anomaly from Geosat and ERS 1 satellite altimetry</em>. <strong>Journal of Geophysical Research: Solid Earth</strong>, 102(B5), 10039–10054. doi:10.1029/96JB03223
-                </li>
-                <li>
-                  <strong>Blakely, R. J. (1996)</strong>. <em>Potential Theory in Gravity and Magnetic Applications</em>. Cambridge University Press, pp. 138–145.
-                </li>
-              </ul>
-            </div>
-          </div>
-        )}
-      </div>
+      {/* Dedicated Citations Modal */}
+      <CitationsModal
+        isOpen={isCitationsOpen}
+        onClose={() => setIsCitationsOpen(false)}
+      />
     </div>
   );
 };

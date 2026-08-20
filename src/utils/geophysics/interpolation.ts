@@ -178,8 +178,108 @@ export function buildAllRegularGrids(
       nrows,
       ncols,
       data: dataRes,
-      minVal: minRes === Infinity ? -30 : minRes,
-      maxVal: maxRes === -Infinity ? 30 : maxRes,
+      minVal: minRes === Infinity ? -50 : minRes,
+      maxVal: maxRes === -Infinity ? 50 : maxRes,
+    },
+    regional: {
+      lats,
+      lons,
+      nrows,
+      ncols,
+      data: dataReg,
+      minVal: minReg === Infinity ? -50 : minReg,
+      maxVal: maxReg === -Infinity ? 50 : maxReg,
+    },
+  };
+}
+
+/**
+ * High-performance selective update: Only updates residual & regional grids
+ * without recomputing topography, free-air, or base bouguer matrices.
+ */
+export function buildResidualAndRegionalGrids(
+  records: ProcessedRecord[],
+  base: AllGridsResult
+): { residual: RegularGrid2D | null; regional: RegularGrid2D | null } {
+  if (!base.bouguer) return { residual: null, regional: null };
+
+  const { lats, lons, nrows, ncols } = base.bouguer;
+  const totalCells = nrows * ncols;
+  const dataRes = new Float32Array(totalCells).fill(NaN);
+  const dataReg = new Float32Array(totalCells).fill(NaN);
+
+  const latMap = new Map<number, number>();
+  lats.forEach((lat, i) => latMap.set(lat, i));
+
+  const lonMap = new Map<number, number>();
+  lons.forEach((lon, j) => lonMap.set(lon, j));
+
+  let minRes = Infinity, maxRes = -Infinity;
+  let minReg = Infinity, maxReg = -Infinity;
+
+  for (let i = 0; i < records.length; i++) {
+    const r = records[i];
+    const latKey = Number(r.latitude.toFixed(4));
+    const lonKey = Number(r.longitude.toFixed(4));
+    const row = latMap.get(latKey);
+    const col = lonMap.get(lonKey);
+
+    if (row === undefined || col === undefined) continue;
+    const idx = row * ncols + col;
+
+    const resVal = r.residual ?? r.bouguer;
+    if (resVal !== undefined && !isNaN(resVal)) {
+      dataRes[idx] = resVal;
+      if (resVal < minRes) minRes = resVal;
+      if (resVal > maxRes) maxRes = resVal;
+    }
+
+    const regVal = r.regional ?? r.bouguer;
+    if (regVal !== undefined && !isNaN(regVal)) {
+      dataReg[idx] = regVal;
+      if (regVal < minReg) minReg = regVal;
+      if (regVal > maxReg) maxReg = regVal;
+    }
+  }
+
+  const fillGaps = (arr: Float32Array) => {
+    for (let r = 0; r < nrows; r++) {
+      for (let c = 0; c < ncols; c++) {
+        const idx = r * ncols + c;
+        if (isNaN(arr[idx])) {
+          let found = false;
+          for (let radius = 1; radius <= 5 && !found; radius++) {
+            for (let dr = -radius; dr <= radius && !found; dr++) {
+              for (let dc = -radius; dc <= radius && !found; dc++) {
+                const nr = r + dr;
+                const nc = c + dc;
+                if (nr >= 0 && nr < nrows && nc >= 0 && nc < ncols) {
+                  const nval = arr[nr * ncols + nc];
+                  if (!isNaN(nval)) {
+                    arr[idx] = nval;
+                    found = true;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  };
+
+  fillGaps(dataRes);
+  fillGaps(dataReg);
+
+  return {
+    residual: {
+      lats,
+      lons,
+      nrows,
+      ncols,
+      data: dataRes,
+      minVal: minRes === Infinity ? -50 : minRes,
+      maxVal: maxRes === -Infinity ? 50 : maxRes,
     },
     regional: {
       lats,

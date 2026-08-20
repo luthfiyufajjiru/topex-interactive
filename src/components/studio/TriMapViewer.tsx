@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type { ProcessedRecord, BoundingBox, BouguerParams, InterpolationMethod, NamedProfileLine, ProfilePoint, RegionalResidualConfig } from '@/types';
 import { ColormapName } from '@/utils/geophysics/colormaps';
-import { buildAllRegularGrids, renderInterpolatedRasterToCanvas, AllGridsResult } from '@/utils/geophysics/interpolation';
+import { buildAllRegularGrids, buildResidualAndRegionalGrids, renderInterpolatedRasterToCanvas, AllGridsResult } from '@/utils/geophysics/interpolation';
 import { extractProfilePoints } from '@/utils/geophysics/profile';
 import { separateRegionalResidual } from '@/utils/geophysics/regionalResidual';
 import { checkWebGLSupport } from '@/utils/webgl/webglDetector';
@@ -73,7 +73,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
   const [interpolationMethod, setInterpolationMethod] = useState<InterpolationMethod>('bicubic');
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isMapsCollapsed, setIsMapsCollapsed] = useState<boolean>(false);
-  const [isRendering, setIsRendering] = useState<boolean>(false);
+  const [isRenderingMap3, setIsRenderingMap3] = useState<boolean>(false);
 
   // Regional-Residual Separation Configuration
   const [residualConfig, setResidualConfig] = useState<RegionalResidualConfig>({
@@ -109,41 +109,45 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
     });
   };
 
-  // Asynchronous processed records & 2D regular grids state to prevent main thread blocking
+  // 1. Build Base Static Grids (Topography, Free-Air, Bouguer) ONLY ONCE when records or bounds change
+  const baseGrids = useMemo(() => {
+    return buildAllRegularGrids(records, bounds);
+  }, [records, bounds]);
+
   const [processedWithResidual, setProcessedWithResidual] = useState<ProcessedRecord[]>(records);
-  const [regularGrids, setRegularGrids] = useState<AllGridsResult>({
-    topo: null,
-    faa: null,
-    bouguer: null,
-    residual: null,
-    regional: null,
+  const [residualGrids, setResidualGrids] = useState<{
+    residual: AllGridsResult['residual'];
+    regional: AllGridsResult['regional'];
+  }>({
+    residual: baseGrids.residual,
+    regional: baseGrids.regional,
   });
 
-  // Calculate live separated records and regular matrices asynchronously
+  // 2. High-performance asynchronous update ONLY for Residual & Regional matrices
   useEffect(() => {
     let cancelled = false;
-    setIsRendering(true);
+    setIsRenderingMap3(true);
 
     const timer = setTimeout(() => {
       try {
         const separated = separateRegionalResidual(records, residualConfig);
-        const grids = buildAllRegularGrids(separated, bounds);
+        const resGrids = buildResidualAndRegionalGrids(separated, baseGrids);
         if (!cancelled) {
           setProcessedWithResidual(separated);
-          setRegularGrids(grids);
+          setResidualGrids(resGrids);
         }
       } finally {
         if (!cancelled) {
-          setIsRendering(false);
+          setIsRenderingMap3(false);
         }
       }
-    }, 20);
+    }, 15);
 
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [records, residualConfig, bounds]);
+  }, [records, residualConfig, baseGrids]);
 
   // Active sounding record: priority to pinned, fallback to hover
   const activeRecord = pinnedRecord || hoveredRecord;
@@ -187,11 +191,11 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
   const canvasBgWebglRef = useRef<HTMLCanvasElement | null>(null);
   const canvasBgOverlayRef = useRef<HTMLCanvasElement | null>(null);
 
-  const gridTopo = regularGrids.topo;
-  const gridFaa = regularGrids.faa;
-  const gridBg = regularGrids.bouguer;
-  const gridResidual = regularGrids.residual;
-  const gridRegional = regularGrids.regional;
+  const gridTopo = baseGrids.topo;
+  const gridFaa = baseGrids.faa;
+  const gridBg = baseGrids.bouguer;
+  const gridResidual = residualGrids.residual ?? baseGrids.residual;
+  const gridRegional = residualGrids.regional ?? baseGrids.regional;
 
   // Map 3 Anomaly Display Mode: 'residual' | 'bouguer' | 'regional'
   const [bouguerViewMode, setBouguerViewMode] = useState<'residual' | 'bouguer' | 'regional'>('residual');
@@ -799,7 +803,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
             type="button"
             className="btn-export-suite-main"
             onClick={() => setIsExportDropdownOpen((prev) => !prev)}
-            disabled={isRendering}
+            disabled={isRenderingMap3}
             title="Download geophysical datasets, maps, and reports"
           >
             <PackageCheck size={16} />
@@ -876,7 +880,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
       </div>
 
       {/* Interpolation Control Dropdown Toolbar & Interactive Drawing Hint */}
-      <div className={`interpolation-toolbar-card ${isRendering ? 'is-rendering-active' : ''}`}>
+      <div className={`interpolation-toolbar-card ${isRenderingMap3 ? 'is-rendering-active' : ''}`}>
         <div className="interp-left-group">
           {/* Gridding Algorithm */}
           <div className="interp-control-item">
@@ -890,7 +894,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
                 className="form-control interp-select"
                 value={interpolationMethod}
                 onChange={(e) => setInterpolationMethod(e.target.value as InterpolationMethod)}
-                disabled={isRendering}
+                disabled={isRenderingMap3}
                 title="2D Potential field interpolation algorithm"
               >
                 <option value="bicubic">Bicubic Spline (Potential Field Standard)</option>
@@ -919,7 +923,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
                     method: e.target.value as RegionalResidualConfig['method'],
                   }))
                 }
-                disabled={isRendering}
+                disabled={isRenderingMap3}
                 title="Regional-Residual separation algorithm (Griffin 1949 / Gaussian filter / Polynomial)"
               >
                 <option value="gaussian">Gaussian Low-Pass Filter (Smooth Regional)</option>
@@ -946,7 +950,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
                 onMouseUp={(e) => commitRadius(parseInt((e.target as HTMLInputElement).value, 10) || 35)}
                 onTouchEnd={(e) => commitRadius(parseInt((e.target as HTMLInputElement).value, 10) || 35)}
                 onKeyUp={(e) => commitRadius(parseInt((e.target as HTMLInputElement).value, 10) || 35)}
-                disabled={isRendering}
+                disabled={isRenderingMap3}
                 className="density-slider radius-slider-bar"
                 title={`Gaussian filter radius: ${tempRadiusKm} km (drag to adjust, release to apply)`}
               />
@@ -969,7 +973,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
                 onMouseUp={(e) => commitGridWindow(parseInt((e.target as HTMLInputElement).value, 10) || 1)}
                 onTouchEnd={(e) => commitGridWindow(parseInt((e.target as HTMLInputElement).value, 10) || 1)}
                 onKeyUp={(e) => commitGridWindow(parseInt((e.target as HTMLInputElement).value, 10) || 1)}
-                disabled={isRendering}
+                disabled={isRenderingMap3}
                 className="density-slider radius-slider-bar"
                 title={`Moving average grid box size: ${2 * tempGridWindow + 1}×${2 * tempGridWindow + 1} cells`}
               />
@@ -980,18 +984,20 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
           )}
 
           {/* Rendering In-Progress Indicator Pill */}
-          {isRendering && (
+          {isRenderingMap3 && (
             <div className="interp-rendering-pill">
               <Loader2 size={13} style={{ animation: 'rotate 1s linear infinite' }} />
-              <span>Rendering Grid...</span>
+              <span>Calculating Anomaly...</span>
             </div>
           )}
+        </div>
 
+        <div className="interp-right-group">
           <button
             type="button"
             className={`btn-toggle-maps-collapse ${isMapsCollapsed ? 'is-collapsed' : ''}`}
             onClick={() => setIsMapsCollapsed(!isMapsCollapsed)}
-            disabled={isRendering}
+            disabled={isRenderingMap3}
             title={isMapsCollapsed ? "Expand Maps" : "Collapse Maps to maximize 2D profile workspace"}
           >
             {isMapsCollapsed ? <ChevronDown size={15} /> : <ChevronUp size={15} />}
@@ -1089,7 +1095,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
             </button>
           </div>
           <div className="canvas-wrapper">
-            {(!gridTopo || isRendering) && (
+            {!gridTopo && (
               <div className="map-skeleton-overlay">
                 <div className="skeleton-shimmer" />
                 <div className="skeleton-content">
@@ -1150,7 +1156,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
             </button>
           </div>
           <div className="canvas-wrapper">
-            {(!gridFaa || isRendering) && (
+            {!gridFaa && (
               <div className="map-skeleton-overlay">
                 <div className="skeleton-shimmer" />
                 <div className="skeleton-content">
@@ -1245,7 +1251,7 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
             </button>
           </div>
           <div className="canvas-wrapper">
-            {(!activeMap3Grid || isRendering) && (
+            {(!activeMap3Grid || isRenderingMap3) && (
               <div className="map-skeleton-overlay">
                 <div className="skeleton-shimmer" />
                 <div className="skeleton-content">
