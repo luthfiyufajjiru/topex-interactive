@@ -51,7 +51,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
       const params = payload.bouguerParams || DEFAULT_BOUGUER_PARAMS;
       const config = payload.residualConfig || { method: 'poly2' };
 
-      const withBouguer = calculateBouguerAnomaly(raw, params);
+      const withBouguer = calculateBouguerAnomaly(raw, params, payload.bounds);
       const fullyProcessed = separateRegionalResidual(withBouguer, config);
       const stats = computeGeophysicsStats(fullyProcessed);
 
@@ -113,7 +113,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
       const config = payload.residualConfig || { method: 'poly2' };
       const bounds = payload.bounds;
 
-      const withBouguer = calculateBouguerAnomaly(raw, params);
+      const withBouguer = calculateBouguerAnomaly(raw, params, bounds);
       const fullyProcessed = separateRegionalResidual(withBouguer, config);
       const stats = computeGeophysicsStats(fullyProcessed);
 

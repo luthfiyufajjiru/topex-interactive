@@ -19,6 +19,8 @@ export interface AllGridsResult {
   topo: RegularGrid2D | null;
   faa: RegularGrid2D | null;
   bouguer: RegularGrid2D | null;
+  simpleBouguer: RegularGrid2D | null;
+  tc: RegularGrid2D | null;
   residual: RegularGrid2D | null;
   regional: RegularGrid2D | null;
 }
@@ -28,7 +30,7 @@ export function buildAllRegularGrids(
   _bounds: BoundingBox
 ): AllGridsResult {
   if (records.length === 0) {
-    return { topo: null, faa: null, bouguer: null, residual: null, regional: null };
+    return { topo: null, faa: null, bouguer: null, simpleBouguer: null, tc: null, residual: null, regional: null };
   }
 
   // 1. Single pass coordinate collection
@@ -46,13 +48,15 @@ export function buildAllRegularGrids(
   const nrows = lats.length;
   const ncols = lons.length;
   if (nrows === 0 || ncols === 0) {
-    return { topo: null, faa: null, bouguer: null, residual: null, regional: null };
+    return { topo: null, faa: null, bouguer: null, simpleBouguer: null, tc: null, residual: null, regional: null };
   }
 
   const totalCells = nrows * ncols;
   const dataTopo = new Float32Array(totalCells).fill(NaN);
   const dataFaa = new Float32Array(totalCells).fill(NaN);
   const dataBg = new Float32Array(totalCells).fill(NaN);
+  const dataSba = new Float32Array(totalCells).fill(NaN);
+  const dataTc = new Float32Array(totalCells).fill(NaN);
   const dataRes = new Float32Array(totalCells).fill(NaN);
   const dataReg = new Float32Array(totalCells).fill(NaN);
 
@@ -65,6 +69,8 @@ export function buildAllRegularGrids(
   let minTopo = Infinity, maxTopo = -Infinity;
   let minFaa = Infinity, maxFaa = -Infinity;
   let minBg = Infinity, maxBg = -Infinity;
+  let minSba = Infinity, maxSba = -Infinity;
+  let minTc = Infinity, maxTc = -Infinity;
   let minRes = Infinity, maxRes = -Infinity;
   let minReg = Infinity, maxReg = -Infinity;
 
@@ -94,6 +100,20 @@ export function buildAllRegularGrids(
       dataBg[idx] = r.bouguer;
       if (r.bouguer < minBg) minBg = r.bouguer;
       if (r.bouguer > maxBg) maxBg = r.bouguer;
+    }
+
+    const sbaVal = r.simpleBouguer ?? r.bouguer;
+    if (sbaVal !== undefined && !isNaN(sbaVal)) {
+      dataSba[idx] = sbaVal;
+      if (sbaVal < minSba) minSba = sbaVal;
+      if (sbaVal > maxSba) maxSba = sbaVal;
+    }
+
+    const tcVal = r.terrainCorrection ?? 0;
+    if (tcVal !== undefined && !isNaN(tcVal)) {
+      dataTc[idx] = tcVal;
+      if (tcVal < minTc) minTc = tcVal;
+      if (tcVal > maxTc) maxTc = tcVal;
     }
 
     const resVal = r.residual ?? r.bouguer;
@@ -141,6 +161,8 @@ export function buildAllRegularGrids(
   fillGaps(dataTopo);
   fillGaps(dataFaa);
   fillGaps(dataBg);
+  fillGaps(dataSba);
+  fillGaps(dataTc);
   fillGaps(dataRes);
   fillGaps(dataReg);
 
@@ -151,8 +173,8 @@ export function buildAllRegularGrids(
       nrows,
       ncols,
       data: dataTopo,
-      minVal: minTopo === Infinity ? -100 : minTopo,
-      maxVal: maxTopo === -Infinity ? 100 : maxTopo,
+      minVal: minTopo === Infinity ? -8000 : minTopo,
+      maxVal: maxTopo === -Infinity ? 6000 : maxTopo,
     },
     faa: {
       lats,
@@ -160,8 +182,8 @@ export function buildAllRegularGrids(
       nrows,
       ncols,
       data: dataFaa,
-      minVal: minFaa === Infinity ? -50 : minFaa,
-      maxVal: maxFaa === -Infinity ? 50 : maxFaa,
+      minVal: minFaa === Infinity ? -100 : minFaa,
+      maxVal: maxFaa === -Infinity ? 100 : maxFaa,
     },
     bouguer: {
       lats,
@@ -169,8 +191,26 @@ export function buildAllRegularGrids(
       nrows,
       ncols,
       data: dataBg,
-      minVal: minBg === Infinity ? -50 : minBg,
-      maxVal: maxBg === -Infinity ? 50 : maxBg,
+      minVal: minBg === Infinity ? -200 : minBg,
+      maxVal: maxBg === -Infinity ? 300 : maxBg,
+    },
+    simpleBouguer: {
+      lats,
+      lons,
+      nrows,
+      ncols,
+      data: dataSba,
+      minVal: minSba === Infinity ? -200 : minSba,
+      maxVal: maxSba === -Infinity ? 300 : maxSba,
+    },
+    tc: {
+      lats,
+      lons,
+      nrows,
+      ncols,
+      data: dataTc,
+      minVal: minTc === Infinity ? 0 : minTc,
+      maxVal: maxTc === -Infinity ? 50 : maxTc,
     },
     residual: {
       lats,

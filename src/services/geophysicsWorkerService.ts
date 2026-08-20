@@ -78,7 +78,7 @@ class GeophysicsWorkerService {
     payload: WorkerRequest['payload']
   ): Promise<WorkerResponse['data']> {
     if (type === 'PROCESS_BOUGUER') {
-      const withBouguer = calculateBouguerAnomaly(payload.rawRecords || [], payload.bouguerParams);
+      const withBouguer = calculateBouguerAnomaly(payload.rawRecords || [], payload.bouguerParams, payload.bounds);
       const fullyProcessed = separateRegionalResidual(withBouguer, payload.residualConfig || { method: 'poly2' });
       const stats = computeGeophysicsStats(fullyProcessed);
       return { processedRecords: fullyProcessed, stats };
@@ -97,7 +97,7 @@ class GeophysicsWorkerService {
     }
 
     if (type === 'FULL_PIPELINE') {
-      const withBouguer = calculateBouguerAnomaly(payload.rawRecords || [], payload.bouguerParams);
+      const withBouguer = calculateBouguerAnomaly(payload.rawRecords || [], payload.bouguerParams, payload.bounds);
       const fullyProcessed = separateRegionalResidual(withBouguer, payload.residualConfig || { method: 'poly2' });
       const stats = computeGeophysicsStats(fullyProcessed);
       let grids: AllGridsResult | undefined;
@@ -159,6 +159,8 @@ class GeophysicsWorkerService {
         topo: null,
         faa: null,
         bouguer: null,
+        simpleBouguer: null,
+        tc: null,
         residual: null,
         regional: null,
       }

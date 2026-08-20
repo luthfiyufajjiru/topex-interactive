@@ -2454,21 +2454,23 @@ footer {
   position: relative;
 }
 
-.map-leaflet-underlay {
+.map-leaflet-underlay,
+.map-leaflet-underlay.leaflet-container {
   position: absolute;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  width: 100% !important;
+  height: 100% !important;
   z-index: 0;
   pointer-events: none;
-  background: #0b1524;
+  background: #0b1524 !important;
 }
 
-.map-leaflet-underlay .leaflet-container {
+.map-leaflet-underlay .leaflet-pane,
+.map-leaflet-underlay .leaflet-tile-pane,
+.map-leaflet-underlay .leaflet-layer {
   width: 100%;
   height: 100%;
-  background: transparent !important;
 }
 
 .raster-canvas {

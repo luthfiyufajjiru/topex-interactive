@@ -40,8 +40,8 @@ export const App: React.FC = () => {
   // Calculate Processed Records with Complete Bouguer Anomaly (fast O(N) pass)
   const processedRecords = useMemo(() => {
     if (records.length === 0) return [];
-    return calculateBouguerAnomaly(records, bouguerParams);
-  }, [records, bouguerParams]);
+    return calculateBouguerAnomaly(records, bouguerParams, bounds || undefined);
+  }, [records, bouguerParams, bounds]);
 
   // Compute Geophysics Summary Statistics lazily
   const geophysicsStats = useMemo<GeophysicsSummaryStats>(() => {

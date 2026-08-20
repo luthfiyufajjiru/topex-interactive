@@ -207,14 +207,31 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
   const gridTopo = baseGrids.topo;
   const gridFaa = baseGrids.faa;
   const gridBg = baseGrids.bouguer;
+  const gridSba = baseGrids.simpleBouguer;
+  const gridTc = baseGrids.tc;
   const gridResidual = residualGrids.residual ?? baseGrids.residual;
   const gridRegional = residualGrids.regional ?? baseGrids.regional;
 
-  // Map 3 Anomaly Display Mode: 'residual' | 'bouguer' | 'regional'
-  const [bouguerViewMode, setBouguerViewMode] = useState<'residual' | 'bouguer' | 'regional'>('residual');
+  // Map 3 Anomaly Display Mode: 'residual' | 'bouguer' | 'simpleBouguer' | 'tc' | 'regional'
+  const [bouguerViewMode, setBouguerViewMode] = useState<'residual' | 'bouguer' | 'simpleBouguer' | 'tc' | 'regional'>('residual');
 
-  const activeMap3Grid = bouguerViewMode === 'residual' ? gridResidual : bouguerViewMode === 'regional' ? gridRegional : gridBg;
-  const activeMap3Colormap: ColormapName = bouguerViewMode === 'residual' ? 'coolwarm' : 'viridis';
+  const activeMap3Grid =
+    bouguerViewMode === 'residual'
+      ? gridResidual
+      : bouguerViewMode === 'regional'
+      ? gridRegional
+      : bouguerViewMode === 'simpleBouguer'
+      ? gridSba
+      : bouguerViewMode === 'tc'
+      ? gridTc
+      : gridBg;
+
+  const activeMap3Colormap: ColormapName =
+    bouguerViewMode === 'residual'
+      ? 'coolwarm'
+      : bouguerViewMode === 'tc'
+      ? 'turbo'
+      : 'viridis';
 
   // Extract Profile Points for active line
   const profilePoints = useMemo(() => {
@@ -227,9 +244,11 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
       gridRegional,
       bounds,
       interpolationMethod,
-      120
+      120,
+      gridSba,
+      gridTc
     );
-  }, [activeLine, gridTopo, gridFaa, gridBg, gridResidual, gridRegional, bounds, interpolationMethod]);
+  }, [activeLine, gridTopo, gridFaa, gridBg, gridResidual, gridRegional, bounds, interpolationMethod, gridSba, gridTc]);
 
   // Add new Profile Line
   const handleAddLine = () => {
@@ -1186,12 +1205,11 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
             </button>
           </div>
           <div className="canvas-wrapper">
-            {topoBasemap !== 'none' && (
-              <div
-                ref={leafletTopoContainerRef}
-                className="map-leaflet-underlay"
-              />
-            )}
+            <div
+              ref={leafletTopoContainerRef}
+              className="map-leaflet-underlay"
+              style={{ display: topoBasemap !== 'none' ? 'block' : 'none' }}
+            />
             {!gridTopo && (
               <div className="map-skeleton-overlay">
                 <div className="skeleton-shimmer" />
@@ -1290,12 +1308,11 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
             </button>
           </div>
           <div className="canvas-wrapper">
-            {topoBasemap !== 'none' && (
-              <div
-                ref={leafletFaaContainerRef}
-                className="map-leaflet-underlay"
-              />
-            )}
+            <div
+              ref={leafletFaaContainerRef}
+              className="map-leaflet-underlay"
+              style={{ display: topoBasemap !== 'none' ? 'block' : 'none' }}
+            />
             {!gridFaa && (
               <div className="map-skeleton-overlay">
                 <div className="skeleton-shimmer" />
@@ -1388,14 +1405,18 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
                   ? 'Residual Gravity Anomaly'
                   : bouguerViewMode === 'regional'
                   ? 'Regional Gravity Field'
-                  : 'Complete Bouguer Anomaly'}
+                  : bouguerViewMode === 'simpleBouguer'
+                  ? 'Simple Bouguer Anomaly (SBA)'
+                  : bouguerViewMode === 'tc'
+                  ? '3D Terrain Correction (TC)'
+                  : 'Complete Bouguer Anomaly (CBA)'}
               </div>
               <div className="bouguer-mode-pill-group">
                 <button
                   type="button"
                   className={`btn-mode-pill ${bouguerViewMode === 'residual' ? 'active' : ''}`}
                   onClick={() => setBouguerViewMode('residual')}
-                  title="Residual Anomaly: 2D polynomial trend removed to isolate shallow targets & faults"
+                  title="Residual Anomaly: High-pass filtered shallow structure"
                 >
                   Residual
                 </button>
@@ -1403,9 +1424,25 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
                   type="button"
                   className={`btn-mode-pill ${bouguerViewMode === 'bouguer' ? 'active' : ''}`}
                   onClick={() => setBouguerViewMode('bouguer')}
-                  title="Total Complete Bouguer Anomaly"
+                  title="Complete Bouguer Anomaly (CBA = SBA + TC)"
                 >
-                  Total Bouguer
+                  Complete (CBA)
+                </button>
+                <button
+                  type="button"
+                  className={`btn-mode-pill ${bouguerViewMode === 'simpleBouguer' ? 'active' : ''}`}
+                  onClick={() => setBouguerViewMode('simpleBouguer')}
+                  title="Simple Bouguer Anomaly (Slab reduction only)"
+                >
+                  Simple (SBA)
+                </button>
+                <button
+                  type="button"
+                  className={`btn-mode-pill ${bouguerViewMode === 'tc' ? 'active' : ''}`}
+                  onClick={() => setBouguerViewMode('tc')}
+                  title="3D Terrain Correction (TC >= 0 in mGal)"
+                >
+                  Terrain (TC)
                 </button>
                 <button
                   type="button"
@@ -1428,12 +1465,11 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
             </button>
           </div>
           <div className="canvas-wrapper">
-            {topoBasemap !== 'none' && (
-              <div
-                ref={leafletBgContainerRef}
-                className="map-leaflet-underlay"
-              />
-            )}
+            <div
+              ref={leafletBgContainerRef}
+              className="map-leaflet-underlay"
+              style={{ display: topoBasemap !== 'none' ? 'block' : 'none' }}
+            />
             {(!activeMap3Grid || isRenderingMap3) && (
               <div className="map-skeleton-overlay">
                 <div className="skeleton-shimmer" />
@@ -1444,7 +1480,11 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
                       ? 'Rendering Residual Anomaly...'
                       : bouguerViewMode === 'regional'
                       ? 'Rendering Regional Field...'
-                      : 'Rendering Bouguer Anomaly...'}
+                      : bouguerViewMode === 'simpleBouguer'
+                      ? 'Rendering Simple Bouguer...'
+                      : bouguerViewMode === 'tc'
+                      ? 'Rendering Terrain Correction...'
+                      : 'Rendering Complete Bouguer Anomaly...'}
                   </span>
                 </div>
               </div>
@@ -1493,8 +1533,20 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
                     <span className="tooltip-val text-sky">{hoveredRecord.gravity?.toFixed(1) ?? 'N/A'} mGal</span>
                   </div>
                   <div className="tooltip-data-item">
-                    <span className="tooltip-label">Bouguer:</span>
+                    <span className="tooltip-label">CBA:</span>
                     <span className="tooltip-val text-amber">{hoveredRecord.bouguer?.toFixed(1) ?? 'N/A'} mGal</span>
+                  </div>
+                  <div className="tooltip-data-item">
+                    <span className="tooltip-label">SBA:</span>
+                    <span className="tooltip-val" style={{ color: '#d97706' }}>
+                      {hoveredRecord.simpleBouguer !== undefined ? `${hoveredRecord.simpleBouguer.toFixed(1)} mGal` : 'N/A'}
+                    </span>
+                  </div>
+                  <div className="tooltip-data-item">
+                    <span className="tooltip-label">TC:</span>
+                    <span className="tooltip-val" style={{ color: '#ec4899' }}>
+                      {hoveredRecord.terrainCorrection !== undefined ? `+${hoveredRecord.terrainCorrection.toFixed(2)} mGal` : '0.0 mGal'}
+                    </span>
                   </div>
                   <div className="tooltip-data-item">
                     <span className="tooltip-label">Regional:</span>
@@ -1520,10 +1572,14 @@ export const TriMapViewer: React.FC<SatelliteGravityStudioProps> = ({
               unit="mGal"
               label={
                 bouguerViewMode === 'residual'
-                  ? 'Residual'
+                  ? 'Residual Anomaly'
                   : bouguerViewMode === 'regional'
-                  ? 'Regional'
-                  : 'Bouguer'
+                  ? 'Regional Field'
+                  : bouguerViewMode === 'simpleBouguer'
+                  ? 'Simple Bouguer (SBA)'
+                  : bouguerViewMode === 'tc'
+                  ? 'Terrain Correction (TC)'
+                  : 'Complete Bouguer (CBA)'
               }
             />
           )}

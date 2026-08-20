@@ -138,6 +138,49 @@ export const BouguerControlPanel: React.FC<BouguerControlPanelProps> = ({
               <code>BA = FAA - 0.04193 &bull; ({params.crustalDensity.toFixed(2)} - {params.waterDensity.toFixed(2)}) &bull; h</code>
             </div>
           </div>
+
+          {/* 3D Topographic Terrain Correction (TC) Switch & Radius */}
+          <div className="density-field" style={{ marginTop: 14 }}>
+            <div className="density-label-row">
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={params.includeTerrainCorrection ?? true}
+                  onChange={(e) =>
+                    onParamsChange({ ...params, includeTerrainCorrection: e.target.checked })
+                  }
+                  style={{ cursor: 'pointer', width: 16, height: 16 }}
+                />
+                <strong>3D Terrain Correction (TC &ge; 0)</strong>
+              </label>
+              <span className="density-value-badge">
+                {(params.includeTerrainCorrection ?? true) ? 'Complete Bouguer (CBA)' : 'Simple Bouguer (SBA)'}
+              </span>
+            </div>
+
+            {(params.includeTerrainCorrection ?? true) && (
+              <div style={{ marginTop: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#64748b', marginBottom: 4 }}>
+                  <span>Hammer Prism Search Radius:</span>
+                  <strong style={{ color: '#0284c7' }}>{params.terrainRadiusKm ?? 15} km</strong>
+                </div>
+                <input
+                  type="range"
+                  min="5"
+                  max="35"
+                  step="5"
+                  value={params.terrainRadiusKm ?? 15}
+                  onChange={(e) =>
+                    onParamsChange({ ...params, terrainRadiusKm: parseInt(e.target.value, 10) || 15 })
+                  }
+                  className="density-slider"
+                />
+                <div className="field-hint">
+                  Compensates for undulation of terrain & trenches: CBA = SBA + TC.
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right Column: Comparative Statistics Table */}

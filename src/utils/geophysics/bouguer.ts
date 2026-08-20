@@ -1,26 +1,48 @@
-import type { TopexRecord, BouguerParams, ProcessedRecord, GeophysicsSummaryStats, VariableStats } from '@/types';
+import type { TopexRecord, BouguerParams, ProcessedRecord, GeophysicsSummaryStats, VariableStats, BoundingBox } from '@/types';
+import { computeTerrainCorrections } from './terrainCorrection';
 
 // Gravitational constant factor: 2 * pi * G = 0.04193 mGal * cm3 / (g * m)
 export const BOUGUER_GRAV_FACTOR = 0.04193;
 
 /**
- * Calculates Complete Bouguer Anomaly for a dataset containing Topography (m) and Free-Air Gravity (mGal).
+ * Calculates Simple and Complete Bouguer Anomaly for a dataset containing Topography (m) and Free-Air Gravity (mGal).
  *
  * Continental (Onshore, h >= 0):
- *   BA = FAA - 2*pi*G * rho_c * h
+ *   SBA = FAA - 2*pi*G * rho_c * h
  *
  * Marine / Ocean (Offshore, h < 0, where water replaces rock):
- *   BA = FAA - 2*pi*G * (rho_c - rho_w) * h
- *   (Since h is negative, this adds the positive Bouguer slab correction to compensate for mass deficit of seawater)
+ *   SBA = FAA - 2*pi*G * (rho_c - rho_w) * h
+ *
+ * Complete Bouguer Anomaly (CBA):
+ *   CBA = SBA + TC (where TC >= 0 is 3D Terrain Correction)
  */
 export function calculateBouguerAnomaly(
   records: TopexRecord[],
-  params: BouguerParams = { crustalDensity: 2.67, waterDensity: 1.03, includeCurvatureBullardB: false }
+  params: BouguerParams = { crustalDensity: 2.67, waterDensity: 1.03, includeCurvatureBullardB: false },
+  bounds?: BoundingBox
 ): ProcessedRecord[] {
-  const { crustalDensity, waterDensity } = params;
+  const { crustalDensity, waterDensity, includeTerrainCorrection = true, terrainRadiusKm = 15 } = params;
   const deltaRhoMarine = crustalDensity - waterDensity;
 
-  return records.map((rec) => {
+  // Compute bounding box if not provided
+  let bBox = bounds;
+  if (!bBox && records.length > 0) {
+    let north = -90, south = 90, west = 180, east = -180;
+    for (let i = 0; i < records.length; i++) {
+      const r = records[i];
+      if (r.latitude > north) north = r.latitude;
+      if (r.latitude < south) south = r.latitude;
+      if (r.longitude > east) east = r.longitude;
+      if (r.longitude < west) west = r.longitude;
+    }
+    bBox = { north, south, west, east };
+  }
+
+  const tcArray = bBox && includeTerrainCorrection
+    ? computeTerrainCorrections(records, bBox, params, terrainRadiusKm)
+    : null;
+
+  return records.map((rec, i) => {
     const h = rec.elevation ?? 0;
     const faa = rec.gravity;
 
@@ -28,6 +50,8 @@ export function calculateBouguerAnomaly(
       return {
         ...rec,
         bouguer: undefined,
+        simpleBouguer: undefined,
+        terrainCorrection: undefined,
         slabCorrection: undefined,
       };
     }
@@ -42,11 +66,15 @@ export function calculateBouguerAnomaly(
       slabCorrection = BOUGUER_GRAV_FACTOR * deltaRhoMarine * h;
     }
 
-    const bouguer = faa - slabCorrection;
+    const simpleBouguer = faa - slabCorrection;
+    const tc = tcArray ? tcArray[i] : 0;
+    const completeBouguer = simpleBouguer + tc;
 
     return {
       ...rec,
-      bouguer: Number(bouguer.toFixed(3)),
+      bouguer: Number(completeBouguer.toFixed(3)),
+      simpleBouguer: Number(simpleBouguer.toFixed(3)),
+      terrainCorrection: Number(tc.toFixed(3)),
       slabCorrection: Number(slabCorrection.toFixed(3)),
     };
   });

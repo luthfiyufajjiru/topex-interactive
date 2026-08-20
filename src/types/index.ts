@@ -18,6 +18,8 @@ export interface BouguerParams {
   crustalDensity: number; // default: 2.67 g/cm3
   waterDensity: number;   // default: 1.03 g/cm3
   includeCurvatureBullardB: boolean; // default: false
+  includeTerrainCorrection?: boolean; // default: true
+  terrainRadiusKm?: number; // default: 15 km
 }
 
 export type RegionalResidualMethod = 'gaussian' | 'moving_avg' | 'poly2' | 'poly1' | 'none';
@@ -29,7 +31,9 @@ export interface RegionalResidualConfig {
 }
 
 export interface ProcessedRecord extends TopexRecord {
-  bouguer?: number;
+  bouguer?: number; // Complete Bouguer Anomaly (CBA = SBA + TC)
+  simpleBouguer?: number; // Simple Bouguer Anomaly (SBA = FAA - Slab)
+  terrainCorrection?: number; // Terrain Correction (TC >= 0)
   slabCorrection?: number;
   regional?: number;
   residual?: number;
@@ -43,6 +47,8 @@ export interface ProfilePoint {
   elevation: number;
   freeAir?: number;
   bouguer?: number;
+  simpleBouguer?: number;
+  terrainCorrection?: number;
   slabCorrection?: number;
   regional?: number;
   residual?: number;

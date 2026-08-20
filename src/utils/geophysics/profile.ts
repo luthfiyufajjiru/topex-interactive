@@ -30,7 +30,9 @@ export function extractProfilePoints(
   gridRegional: RegularGrid2D | null = null,
   bounds: BoundingBox,
   method: InterpolationMethod = 'bicubic',
-  numSamples = 100
+  numSamples = 100,
+  gridSba: RegularGrid2D | null = null,
+  gridTc: RegularGrid2D | null = null
 ): ProfilePoint[] {
   if (!gridTopo) return [];
 
@@ -52,6 +54,8 @@ export function extractProfilePoints(
     const elev = sampleInterpolatedValue(gridTopo, u, v, method);
     const faa = gridFaa ? sampleInterpolatedValue(gridFaa, u, v, method) : undefined;
     const bg = gridBg ? sampleInterpolatedValue(gridBg, u, v, method) : undefined;
+    const sba = gridSba ? sampleInterpolatedValue(gridSba, u, v, method) : undefined;
+    const tc = gridTc ? sampleInterpolatedValue(gridTc, u, v, method) : undefined;
     const residual = gridResidual ? sampleInterpolatedValue(gridResidual, u, v, method) : undefined;
     const regional = gridRegional ? sampleInterpolatedValue(gridRegional, u, v, method) : undefined;
 
@@ -63,6 +67,8 @@ export function extractProfilePoints(
       elevation: Number(elev.toFixed(1)),
       freeAir: faa !== undefined ? Number(faa.toFixed(2)) : undefined,
       bouguer: bg !== undefined ? Number(bg.toFixed(2)) : undefined,
+      simpleBouguer: sba !== undefined ? Number(sba.toFixed(2)) : undefined,
+      terrainCorrection: tc !== undefined ? Number(tc.toFixed(2)) : undefined,
       residual: residual !== undefined ? Number(residual.toFixed(2)) : undefined,
       regional: regional !== undefined ? Number(regional.toFixed(2)) : undefined,
     });
