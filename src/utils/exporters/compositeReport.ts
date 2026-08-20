@@ -1,6 +1,7 @@
 import type { ProcessedRecord, BoundingBox, BouguerParams, NamedProfileLine, ProfilePoint, InterpolationMethod } from '@/types';
 import { getInterpolatedColor } from '@/utils/geophysics/colormaps';
 import { buildRegularGrid, sampleInterpolatedValue } from '@/utils/geophysics/interpolation';
+import { renderBasemapToCanvas, BasemapType } from './basemapTiles';
 
 export interface CompositeReportOptions {
   records: ProcessedRecord[];
@@ -11,6 +12,8 @@ export interface CompositeReportOptions {
   profilePoints: ProfilePoint[];
   activePoint?: ProfilePoint | null;
   interpolationMethod: InterpolationMethod;
+  basemap?: BasemapType;
+  basemapOpacity?: number;
   filename?: string;
 }
 
@@ -19,7 +22,7 @@ export interface CompositeReportOptions {
  * combining all 3 maps with correlation points, the 2D cross-section profile, picked correlation markers, and survey metadata.
  * Designed in a clean, publication-ready Light Scientific Theme.
  */
-export function exportCompositeReportImage(options: CompositeReportOptions): void {
+export async function exportCompositeReportImage(options: CompositeReportOptions): Promise<void> {
   const {
     records,
     bounds,
@@ -28,6 +31,8 @@ export function exportCompositeReportImage(options: CompositeReportOptions): voi
     profilePoints,
     activePoint,
     interpolationMethod,
+    basemap = 'none',
+    basemapOpacity = 0.70,
     filename = `topex_geophysical_report_suite_${new Date().toISOString().slice(0, 10)}.png`,
   } = options;
 
@@ -115,8 +120,19 @@ export function exportCompositeReportImage(options: CompositeReportOptions): voi
   for (const mCfg of mapConfigs) {
     if (!mCfg.grid) continue;
 
-    // Raster generation
-    const imgData = ctx.createImageData(mapW, mapH);
+    // Render Basemap Underlay if requested
+    if (basemap !== 'none') {
+      await renderBasemapToCanvas(ctx, bounds, mCfg.x, mapY, mapW, mapH, basemap);
+    }
+
+    // Raster generation offscreen
+    const offscreen = document.createElement('canvas');
+    offscreen.width = mapW;
+    offscreen.height = mapH;
+    const offCtx = offscreen.getContext('2d');
+    if (!offCtx) continue;
+
+    const imgData = offCtx.createImageData(mapW, mapH);
     const pix = imgData.data;
 
     for (let py = 0; py < mapH; py++) {
@@ -133,7 +149,14 @@ export function exportCompositeReportImage(options: CompositeReportOptions): voi
         pix[idx + 3] = a;
       }
     }
-    ctx.putImageData(imgData, mCfg.x, mapY);
+    offCtx.putImageData(imgData, 0, 0);
+
+    ctx.save();
+    if (basemap !== 'none') {
+      ctx.globalAlpha = basemapOpacity;
+    }
+    ctx.drawImage(offscreen, mCfg.x, mapY);
+    ctx.restore();
 
     // Draw Transect Line A -> A'
     const xA = mCfg.x + ((activeLine.start.lon - bounds.west) / lonRange) * mapW;

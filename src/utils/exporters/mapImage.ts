@@ -1,6 +1,7 @@
 import type { ProcessedRecord, BoundingBox, InterpolationMethod, NamedProfileLine, ProfilePoint } from '@/types';
 import { getInterpolatedColor, ColormapName } from '@/utils/geophysics/colormaps';
 import { buildRegularGrid, sampleInterpolatedValue } from '@/utils/geophysics/interpolation';
+import { renderBasemapToCanvas, BasemapType } from './basemapTiles';
 
 export interface MapExportOptions {
   title: string;
@@ -12,10 +13,12 @@ export interface MapExportOptions {
   records: ProcessedRecord[];
   activeLine?: NamedProfileLine;
   activePoint?: ProfilePoint | null;
+  basemap?: BasemapType;
+  basemapOpacity?: number;
 }
 
-export function exportMapToPng(options: MapExportOptions, filename = 'topex_map.png'): void {
-  const { title, variable, unit, colormap, interpolationMethod = 'bicubic', bounds, records, activeLine } = options;
+export async function exportMapToPng(options: MapExportOptions, filename = 'topex_map.png'): Promise<void> {
+  const { title, variable, unit, colormap, interpolationMethod = 'bicubic', bounds, records, activeLine, basemap = 'none', basemapOpacity = 0.70 } = options;
 
   if (records.length === 0) return;
 
@@ -37,6 +40,11 @@ export function exportMapToPng(options: MapExportOptions, filename = 'topex_map.
   const mapWidth = width - margin.left - margin.right;
   const mapHeight = height - margin.top - margin.bottom;
 
+  // Render Basemap Underlay if active
+  if (basemap !== 'none') {
+    await renderBasemapToCanvas(ctx, bounds, margin.left, margin.top, mapWidth, mapHeight, basemap);
+  }
+
   // Build regular grid for smooth interpolation
   const getValue = (r: ProcessedRecord) =>
     variable === 'residual'
@@ -56,7 +64,13 @@ export function exportMapToPng(options: MapExportOptions, filename = 'topex_map.
   const max = grid.maxVal;
 
   // Render high-res interpolated pixels
-  const mapImgData = ctx.createImageData(mapWidth, mapHeight);
+  const offscreen = document.createElement('canvas');
+  offscreen.width = mapWidth;
+  offscreen.height = mapHeight;
+  const offCtx = offscreen.getContext('2d');
+  if (!offCtx) return;
+
+  const mapImgData = offCtx.createImageData(mapWidth, mapHeight);
   const pixels = mapImgData.data;
 
   for (let py = 0; py < mapHeight; py++) {
@@ -76,7 +90,15 @@ export function exportMapToPng(options: MapExportOptions, filename = 'topex_map.
     }
   }
 
-  ctx.putImageData(mapImgData, margin.left, margin.top);
+  offCtx.putImageData(mapImgData, 0, 0);
+
+  // Draw colormap layer with transparency if basemap underlay is active
+  ctx.save();
+  if (basemap !== 'none') {
+    ctx.globalAlpha = basemapOpacity;
+  }
+  ctx.drawImage(offscreen, margin.left, margin.top);
+  ctx.restore();
 
   const lonRange = bounds.east - bounds.west || 1;
   const latRange = bounds.north - bounds.south || 1;
