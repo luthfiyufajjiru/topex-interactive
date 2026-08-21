@@ -30,6 +30,7 @@ export const Header: React.FC = () => {
               }}
             />
             <span className="navbar-title">TOPEX Interactive Downloader</span>
+            <span className="badge-terraversi">Powered by Terraversi</span>
           </a>
 
           <div className="navbar-actions">

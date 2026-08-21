@@ -34,6 +34,7 @@ export const Disclaimer: React.FC = () => {
               <span>UCSD Portal</span>
               <ExternalLink size={12} />
             </a>
+            <span className="badge-terraversi">Powered by Terraversi</span>
           </div>
         </div>
       </footer>
